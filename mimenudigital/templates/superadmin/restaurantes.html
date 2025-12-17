@@ -129,7 +129,7 @@
                                 <span style="margin-left: 0.3rem;">{{ 'Activo' if rest.activo else 'Inactivo' }}</span>
                             </button>
                         </td>
-                        <td>{{ rest.fecha_creacion[:10] if rest.fecha_creacion else '-' }}</td>
+                        <td>{{ rest.fecha_creacion.strftime('%Y-%m-%d') if rest.fecha_creacion else '-' }}</td>
                         <td>
                             <div style="display: flex; gap: 0.25rem;">
                                 <button class="button is-small is-info" title="Editar" onclick="editarRestaurante({{ rest.id }}, '{{ rest.nombre }}', '{{ rest.url_slug }}', '{{ rest.rut or '' }}', '{{ rest.logo_url or '' }}', '{{ rest.tema or 'default' }}', {{ rest.activo }})">
