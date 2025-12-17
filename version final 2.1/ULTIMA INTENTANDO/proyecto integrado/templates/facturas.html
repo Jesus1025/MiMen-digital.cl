@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+
+{% block title %}Generar Factura - TekneTau{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card p-4">
+        <div class="row mb-4">
+            <!-- Logo -->
+            <div class="col-md-6">
+                <img src="https://www.teknetau.cl/img/logo-teknetau-1.png" alt="Logo TekneTau" style="max-height: 80px;">
+            </div>
+
+            <!-- Encabezado del Documento -->
+            <div class="col-md-6 text-end">
+                <p class="mb-0"><strong>Ref. [Número]</strong></p>
+                <h4><strong>FACTURA ELECTRÓNICA</strong></h4>
+                <p class="mb-0"><strong>N° folio no asignado</strong></p>
+                <p class="mb-0">Empresa Menor Tamaño</p>
+                <div class="d-flex justify-content-end mt-2">
+                    <label for="fecha_emision" class="form-label me-2"><strong>Fecha Emisión:</strong></label>
+                    <input type="date" class="form-control form-control-sm w-auto" id="fecha_emision" name="fecha_emision">
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-light"><strong>Folio</strong></div>
+                    <div class="card-body">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="folio_automatico" checked onchange="toggleFolioManual()">
+                            <label class="form-check-label" for="folio_automatico">
+                                Generar Folio Automáticamente (próximo: {{ proximo_numero }})
+                            </label>
+                        </div>
+                        <div class="mt-2">
+                            <label for="folio_manual" class="form-label">Folio Manual:</label>
+                            <input type="text" class="form-control form-control-sm" id="folio_manual" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Datos Emisor -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-light"><strong>Datos Emisor</strong></div>
+                    <div class="card-body">
+                        <p><strong>Razón Social:</strong> TEKNETAU SPA</p>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Rut:</label>
+                            <div class="col-sm-8"><input type="text" class="form-control form-control-sm" id="emisor_rut" value="77.451.087-7"></div>
+                        </div>
+                        <p><strong>Dirección:</strong> CAM DELA PROVIDENCIA 5930</p>
+                        <p><strong>Comuna:</strong> LA FLORIDA</p>
+                        <div class="mb-2 row">
+                            <label for="emisor_ciudad" class="col-sm-4 col-form-label">Ciudad:</label>
+                            <div class="col-sm-8"><input type="text" class="form-control form-control-sm" id="emisor_ciudad" value="SANTIAGO"></div>
+                        </div>
+                         <div class="mb-2 row">
+                            <label for="emisor_tipo_venta" class="col-sm-4 col-form-label">Tipo de Venta:</label>
+                            <div class="col-sm-8">
+                                <select class="form-select form-select-sm" id="emisor_tipo_venta">
+                                    <option>Del Giro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <p><strong>Email:</strong> asalinas@teknetau.cl</p>
+                        <p><strong>Teléfono:</strong> 995798567</p>
+                        <div class="mb-2 row">
+                            <label for="emisor_giro" class="col-sm-4 col-form-label">Giro:</label>
+                            <div class="col-sm-8">
+                                <select class="form-select form-select-sm" id="emisor_giro">
+                                    <option>COMERCIALIZACIÓN Y SERVICIOS DE INGENIERÍA</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="emisor_act_eco" class="col-sm-4 col-form-label">Act. Económico:</label>
+                            <div class="col-sm-8">
+                                <select class="form-select form-select-sm" id="emisor_act_eco">
+                                    <option>VENTA AL POR MENOR DE COMPUTADORES, EQUIPO PERIFERICO</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="" id="info_ubicacion">
+                            <label class="form-check-label" for="info_ubicacion">
+                                Información de Ubicación, ROL y Plan de Manejo
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datos Receptor -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-light"><strong>Datos Receptor</strong></div>
+                    <div class="card-body">
+                        <div class="mb-2 row">
+                            <label for="cliente_selector" class="col-sm-4 col-form-label">Seleccionar Cliente:</label>
+                            <div class="col-sm-8">
+                                <select class="form-select form-select-sm" id="cliente_selector">
+                                    <option value="">Seleccionar</option>
+                                    {% for cliente in clientes %}
+                                    <option value="{{ cliente.rut }}">{{ cliente.razon_social }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="proyecto_selector" class="col-sm-4 col-form-label">Asociar Proyecto:</label>
+                            <div class="col-sm-8">
+                                <select class="form-select form-select-sm" id="proyecto_selector">
+                                    <option value="">Ninguno</option>
+                                    <!-- Proyectos se cargarán dinámicamente -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="receptor_rut" class="col-sm-4 col-form-label">Rut:</label>
+                            <div class="col-sm-8"><input type="text" class="form-control form-control-sm" id="receptor_rut"></div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="receptor_razon_social" class="col-sm-4 col-form-label">Razón Social:</label>
+                            <div class="col-sm-8"><input type="text" class="form-control form-control-sm" id="receptor_razon_social"></div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="receptor_tipo_compra" class="col-sm-4 col-form-label">Tipo de Compra:</label>
+                            <div class="col-sm-8">
+                                <select class="form-select form-select-sm" id="receptor_tipo_compra">
+                                    <option value="">Seleccionar</option>
+                                    <option>Opción 1</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="receptor_direccion" class="col-sm-4 col-form-label">Dirección:</label>
+                            <div class="col-sm-8"><input type="text" class="form-control form-control-sm" id="receptor_direccion"></div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="receptor_comuna" class="col-sm-4 col-form-label">Comuna:</label>
+                            <div class="col-sm-8"><input type="text" class="form-control form-control-sm" id="receptor_comuna"></div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="receptor_giro" class="col-sm-4 col-form-label">Giro:</label>
+                            <div class="col-sm-8"><input type="text" class="form-control form-control-sm" id="receptor_giro"></div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label for="receptor_contacto" class="col-sm-4 col-form-label">Contacto:</label>
+                            <div class="col-sm-8"><input type="text" class="form-control form-control-sm" id="receptor_contacto"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transporte -->
+        <div class="card mt-3">
+            <div class="card-header bg-light"><strong>Transporte</strong></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3"><label>Rut transporte:</label><input type="text" class="form-control form-control-sm"></div>
+                    <div class="col-md-3"><label>Patente:</label><input type="text" class="form-control form-control-sm"></div>
+                    <div class="col-md-3"><label>Rut chofer:</label><input type="text" class="form-control form-control-sm"></div>
+                    <div class="col-md-3"><label>Nombre chofer:</label><input type="text" class="form-control form-control-sm"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detalle de Productos -->
+        <div class="table-responsive mt-4">
+            <table class="table table-bordered" id="tablaItems">
+                <thead class="table-light">
+                    <tr>
+                        <th>Cod Producto</th>
+                        <th>Descríp.</th>
+                        <th>Cantidad</th>
+                        <th>Unidad</th>
+                        <th>Precio</th>
+                        <th>Impuestos Adic.</th>
+                        <th>% Desc.</th>
+                        <th>SubTotal</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoItems">
+                    <!-- Las filas se agregarán dinámicamente -->
+                </tbody>
+            </table>
+            <button class="btn btn-primary btn-sm" onclick="agregarItem()">Agrega línea de Detalle</button>
+        </div>
+
+        <!-- Pie de Página y Totales -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="referencias">
+                    <label class="form-check-label" for="referencias">Referencias</label>
+                </div>
+                 <div class="mt-2">
+                    <label for="forma_pago" class="form-label"><strong>Forma de Pago:</strong></label>
+                    <select class="form-select form-select-sm" id="forma_pago">
+                        <option>Crédito</option>
+                        <option>Contado</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-8 text-end">Sub Total:</div>
+                    <div class="col-4 text-end" id="subtotal">$0</div>
+                </div>
+                <div class="row">
+                    <div class="col-8 text-end">Descuento Global (%):</div>
+                    <div class="col-4 text-end"><input type="number" class="form-control form-control-sm" id="descuento-global-porcentaje" value="0" oninput="calcularTotales()"></div>
+                </div>
+                <div class="row">
+                    <div class="col-8 text-end">Descuento Global ($):</div>
+                    <div class="col-4 text-end"><input type="number" class="form-control form-control-sm" id="descuento-global-monto" value="0" oninput="calcularTotales()"></div>
+                </div>
+                <div class="row">
+                    <div class="col-8 text-end">Monto Neto:</div>
+                    <div class="col-4 text-end" id="monto-neto">$0</div>
+                </div>
+                <div class="row">
+                    <div class="col-8 text-end">IVA (19%):</div>
+                    <div class="col-4 text-end" id="iva">$0</div>
+                </div>
+                <hr>
+                <div class="row fw-bold">
+                    <div class="col-8 text-end">Total:</div>
+                    <div class="col-4 text-end" id="total">$0</div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-12 text-end">
+                <button class="btn btn-success" onclick="generarFactura()">Guardar Factura</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="container mt-5">
+    <div class="card p-4">
+        <h2 class="mb-4">Facturas Emitidas</h2>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Cliente</th>
+                        <th>Proyecto</th>
+                        <th>Fecha Emisión</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for factura in facturas_facturas %}
+                    <tr>
+                        <td>{{ factura.numero_doc }}</td>
+                        <td>{{ factura.razon_social }}</td>
+                        <td>{{ factura.proyecto_nombre | default('N/A', true) }}</td>
+                        <td>{{ factura.fecha_emision }}</td>
+                        <td>{{ factura.valor_total | round(0) | int }}</td>
+                        <td>
+                            <select class="form-select form-select-sm" onchange="actualizarEstadoFactura({{ factura.id }}, this.value)">
+                                <option value="Pendiente" {% if factura.estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                                <option value="Pagado" {% if factura.estado == 'Pagado' %}selected{% endif %}>Pagado</option>
+                                <option value="Anulado" {% if factura.estado == 'Anulado' %}selected{% endif %}>Anulado</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary">Ver</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function actualizarEstadoFactura(facturaId, nuevoEstado) {
+    fetch(`/api/facturas/${facturaId}/estado`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ estado: nuevoEstado }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // Optional: You might want to reload the page or update the UI dynamically
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+        alert('Ocurrió un error al actualizar el estado de la factura.');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded event fired in facturas.html');
+    // ... (el resto de tu script existente)
+    document.getElementById('fecha_emision').value = new Date().toISOString().split('T')[0];
+    agregarItem(); // Agregar una línea de detalle al cargar
+    toggleFolioManual(); // Establecer estado inicial del folio
+
+    const clientes = JSON.parse('{{ clientes_json | safe }}');
+    console.log('Clientes loaded:', clientes);
+    const clienteSelector = document.getElementById('cliente_selector');
+    const proyectoSelector = document.getElementById('proyecto_selector');
+
+    clienteSelector.addEventListener('change', function() {
+        console.log('Cliente selector changed.');
+        const selectedRut = this.value;
+        console.log('Selected RUT:', selectedRut);
+        const selectedClient = clientes.find(c => c.rut === selectedRut);
+        console.log('Selected client details:', selectedClient);
+        
+        // Limpiar proyectos anteriores
+        proyectoSelector.innerHTML = '<option value="">Ninguno</option>';
+
+        if (selectedClient) {
+            document.getElementById('receptor_rut').value = selectedClient.rut || '';
+            document.getElementById('receptor_razon_social').value = selectedClient.razon_social || '';
+            document.getElementById('receptor_direccion').value = selectedClient.direccion || '';
+            document.getElementById('receptor_comuna').value = selectedClient.comuna || '';
+            document.getElementById('receptor_giro').value = selectedClient.giro || '';
+            document.getElementById('receptor_ciudad').value = selectedClient.ciudad || '';
+            document.getElementById('receptor_contacto').value = selectedClient.telefono || '';
+
+            console.log('Fetching projects for RUT:', selectedRut);
+            // Cargar proyectos para el cliente seleccionado
+            fetch(`/api/proyectos-por-cliente/${selectedRut}`)
+                .then(response => {
+                    console.log('Response from API:', response);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(proyectos => {
+                    console.log('Projects received:', proyectos);
+                    if (proyectos.length === 0) {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = 'No hay proyectos activos para este cliente';
+                        proyectoSelector.appendChild(option);
+                    } else {
+                        proyectos.forEach(p => {
+                            const option = document.createElement('option');
+                            option.value = p.codigo;
+                            option.textContent = `${p.nombre} (${p.codigo})`;
+                            proyectoSelector.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error cargando proyectos:', error));
+
+        } else {
+            console.log('No client selected, clearing fields.');
+            // Limpiar campos si no se selecciona cliente
+            document.getElementById('receptor_rut').value = '';
+            document.getElementById('receptor_razon_social').value = '';
+            document.getElementById('receptor_direccion').value = '';
+            document.getElementById('receptor_comuna').value = '';
+            document.getElementById('receptor_giro').value = '';
+            document.getElementById('receptor_ciudad').value = '';
+            document.getElementById('receptor_contacto').value = '';
+        }
+    });
+});
+
+function toggleFolioManual() {
+    const automatico = document.getElementById('folio_automatico').checked;
+    const manualInput = document.getElementById('folio_manual');
+    manualInput.disabled = automatico;
+    if (automatico) {
+        manualInput.value = '';
+    }
+}
+
+function agregarItem() {
+    const tbody = document.getElementById('cuerpoItems');
+    const newRow = document.createElement('tr');
+    
+    newRow.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm"></td>
+        <td><input type="text" class="form-control form-control-sm"></td>
+        <td><input type="number" class="form-control form-control-sm" value="1" oninput="calcularTotales()"></td>
+        <td><input type="text" class="form-control form-control-sm"></td>
+        <td><input type="number" class="form-control form-control-sm" value="0" oninput="calcularTotales()"></td>
+        <td><input type="checkbox" class="form-check-input" onchange="calcularTotales()"></td>
+        <td><input type="number" class="form-control form-control-sm" value="0" oninput="calcularTotales()"></td>
+        <td><input type="text" class="form-control form-control-sm" readonly></td>
+        <td><button class="btn btn-danger btn-sm" onclick="eliminarItem(this)">X</button></td>
+    `;
+    
+    tbody.appendChild(newRow);
+    // Add event listeners to the new row's inputs
+    newRow.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', calcularTotales);
+    });
+    calcularTotales();
+}
+
+function eliminarItem(btn) {
+    btn.closest('tr').remove();
+    calcularTotales();
+}
+
+function calcularTotales() {
+    let subTotal = 0;
+    const rows = document.getElementById('cuerpoItems').getElementsByTagName('tr');
+    
+    for (let row of rows) {
+        const cells = row.getElementsByTagName('td');
+        const cantidad = parseFloat(cells[2].children[0].value) || 0;
+        const precio = parseFloat(cells[4].children[0].value) || 0;
+        const descuento = parseFloat(cells[6].children[0].value) || 0;
+
+        const totalLineaSinDesc = cantidad * precio;
+        const montoDescuento = totalLineaSinDesc * (descuento / 100);
+        const totalLinea = totalLineaSinDesc - montoDescuento;
+
+        cells[7].children[0].value = totalLinea.toFixed(2);
+        subTotal += totalLinea;
+    }
+
+    const descuentoGlobalPorcentaje = parseFloat(document.getElementById('descuento-global-porcentaje').value) || 0;
+    let descuentoGlobalMonto = parseFloat(document.getElementById('descuento-global-monto').value) || 0;
+
+    if (descuentoGlobalPorcentaje > 0) {
+        descuentoGlobalMonto = subTotal * (descuentoGlobalPorcentaje / 100);
+        document.getElementById('descuento-global-monto').value = descuentoGlobalMonto.toFixed(2);
+    }
+
+    const montoNeto = subTotal - descuentoGlobalMonto;
+    const iva = montoNeto * 0.19;
+    const total = montoNeto + iva;
+
+    document.getElementById('subtotal').textContent = `$${subTotal.toFixed(2)}`;
+    document.getElementById('monto-neto').textContent = `$${montoNeto.toFixed(2)}`;
+    document.getElementById('iva').textContent = `$${iva.toFixed(2)}`;
+    document.getElementById('total').textContent = `$${total.toFixed(2)}`;
+}
+
+function generarFactura() {
+    const items = [];
+    const rows = document.getElementById('cuerpoItems').getElementsByTagName('tr');
+    for (let row of rows) {
+        const cells = row.getElementsByTagName('td');
+        const item = {
+            codigo: cells[0].children[0].value,
+            descripcion: cells[1].children[0].value,
+            cantidad: parseFloat(cells[2].children[0].value) || 0,
+            unidad: cells[3].children[0].value,
+            precio_unitario: parseFloat(cells[4].children[0].value) || 0,
+            descuento: parseFloat(cells[6].children[0].value) || 0,
+            total_linea: parseFloat(cells[7].children[0].value) || 0
+        };
+        items.push(item);
+    }
+
+    const data = {
+        tipo_doc: 'FAC',
+        folio_automatico: document.getElementById('folio_automatico').checked,
+        folio_manual: document.getElementById('folio_manual').value,
+        fecha_emision: document.getElementById('fecha_emision').value,
+        cliente_rut: document.getElementById('receptor_rut').value,
+        proyecto_codigo: document.getElementById('proyecto_selector').value,
+        descripcion: 'Factura de venta', // O un campo de descripción general
+        valor_neto: parseFloat(document.getElementById('monto-neto').textContent.replace('$', '')),
+        iva: parseFloat(document.getElementById('iva').textContent.replace('$', '')),
+        valor_total: parseFloat(document.getElementById('total').textContent.replace('$', '')),
+        forma_pago: document.getElementById('forma_pago').value,
+        items: items
+    };
+
+    fetch('/api/generar-documento', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.href = '/facturas';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+        alert('Ocurrió un error al guardar la factura.');
+    });
+}
+</script>
+{% endblock %}
