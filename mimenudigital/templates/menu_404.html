@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurante no encontrado</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .error-container {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            margin: 1rem;
+        }
+        .error-icon {
+            font-size: 5rem;
+            color: #e74c3c;
+            margin-bottom: 1rem;
+        }
+        .error-code {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #2c3e50;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        .error-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        .error-message {
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        .slug-info {
+            background: #f8f9fa;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            color: #e74c3c;
+            margin-bottom: 2rem;
+        }
+        .btn-home {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .btn-home:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">
+            <i class="fas fa-store-slash"></i>
+        </div>
+        <div class="error-code">404</div>
+        <h1 class="error-title">Restaurante no encontrado</h1>
+        <p class="error-message">
+            Lo sentimos, no pudimos encontrar el menú que buscas. 
+            Es posible que el restaurante no exista o que la URL sea incorrecta.
+        </p>
+        {% if slug %}
+        <div class="slug-info">
+            /menu/{{ slug }}
+        </div>
+        {% endif %}
+        <a href="/" class="btn-home">
+            <i class="fas fa-home"></i>
+            Volver al inicio
+        </a>
+    </div>
+</body>
+</html>
