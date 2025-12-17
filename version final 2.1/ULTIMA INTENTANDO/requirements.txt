@@ -1,0 +1,11 @@
+Flask==2.3.3
+pandas==2.0.3
+openpyxl==3.1.2
+reportlab==4.0.4
+XlsxWriter==3.1.2
+
+# Servidores WSGI para producción
+# Gunicorn es para sistemas tipo Unix (Linux, macOS)
+gunicorn==21.2.0
+# Waitress es una alternativa para Windows
+waitress==2.1.2

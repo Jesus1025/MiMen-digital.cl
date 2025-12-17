@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Notas de Crédito - TekneTau{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-file-invoice"></i> Notas de Crédito</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Generar Nota de Crédito</h5>
+            </div>
+            <div class="card-body">
+                <form id="formNotaCredito">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="numero_doc" class="form-label">Número NC *</label>
+                            <input type="number" class="form-control" id="numero_doc" name="numero_doc" value="{{ proximo_numero }}" required readonly>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="fecha_emision" class="form-label">Fecha Emisión *</label>
+                            <input type="date" class="form-control" id="fecha_emision" name="fecha_emision" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="motivo_nc_nd" class="form-label">Motivo NC *</label>
+                            <select class="form-select" id="motivo_nc_nd" name="motivo_nc_nd" required>
+                                <option value="">Seleccionar Motivo</option>
+                                {% for motivo in motivos %}
+                                <option value="{{ motivo.descripcion }}">{{ motivo.codigo }} - {{ motivo.descripcion }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="cliente_rut" class="form-label">Cliente *</label>
+                            <select class="form-select" id="cliente_rut" name="cliente_rut" required>
+                                <option value="">Seleccionar Cliente</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.rut }}">{{ cliente.razon_social }} - {{ cliente.rut }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="documento_referencia_id" class="form-label">Documento Referencia (Opcional)</label>
+                            <select class="form-select" id="documento_referencia_id" name="documento_referencia_id">
+                                <option value="">Sin documento referencia</option>
+                                {% for doc in documentos_referencia %}
+                                <option value="{{ doc.id }}" data-total="{{ doc.valor_total }}">
+                                    {{ doc.tipo_doc }} #{{ doc.numero_doc }} - {{ doc.razon_social }} - ${{ doc.valor_total }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción *</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="2" placeholder="Descripción detallada de la nota de crédito..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Items de la Nota de Crédito</label>
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="tablaItems">
+                                <thead>
+                                    <tr>
+                                        <th width="10%">Código</th>
+                                        <th width="40%">Descripción</th>
+                                        <th width="10%">Cantidad</th>
+                                        <th width="15%">Precio Unitario</th>
+                                        <th width="10%">Descuento %</th>
+                                        <th width="15%">Total Línea</th>
+                                        <th width="5%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cuerpoItems">
+                                    <tr>
+                                        <td><input type="text" class="form-control form-control-sm codigo" placeholder="COD001"></td>
+                                        <td><input type="text" class="form-control form-control-sm descripcion" placeholder="Descripción del item" required></td>
+                                        <td><input type="number" class="form-control form-control-sm cantidad" value="1" min="1" required></td>
+                                        <td><input type="number" class="form-control form-control-sm precio" value="0" min="0" step="0.01" required></td>
+                                        <td><input type="number" class="form-control form-control-sm descuento" value="0" min="0" max="100" step="0.01"></td>
+                                        <td><input type="number" class="form-control form-control-sm total-linea" value="0" readonly></td>
+                                        <td><button type="button" class="btn btn-sm btn-danger" onclick="eliminarItem(this)"><i class="fas fa-trash"></i></button></td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="7">
+                                            <button type="button" class="btn btn-sm btn-success" onclick="agregarItem()">
+                                                <i class="fas fa-plus"></i> Agregar Item
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="observaciones" class="form-label">Observaciones</label>
+                                <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row mb-2">
+                                        <div class="col-6"><strong>Subtotal:</strong></div>
+                                        <div class="col-6 text-end">$<span id="subtotal">0</span></div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-6"><strong>IVA (19%):</strong></div>
+                                        <div class="col-6 text-end">$<span id="iva">0</span></div>
+                                    </div>
+                                    <div class="row mb-2">
+                                        <div class="col-6"><strong>Descuento Total:</strong></div>
+                                        <div class="col-6 text-end">$<span id="descuento-total">0</span></div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-6"><strong>Total NC:</strong></div>
+                                        <div class="col-6 text-end"><h5 class="text-success">$<span id="total">0</span></h5></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer">
+                <button type="button" class="btn btn-success" onclick="generarNotaCredito()">
+                    <i class="fas fa-save"></i> Generar Nota de Crédito
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()">
+                    <i class="fas fa-broom"></i> Limpiar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información NC -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> Información Notas de Crédito</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>¿Qué es una Nota de Crédito?</h6>
+                        <p class="small text-muted">
+                            Documento que acredita una disminución en el monto a favor del cliente. 
+                            Se utiliza para devoluciones, descuentos, bonificaciones o correcciones.
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Motivos Comunes:</h6>
+                        <ul class="small text-muted">
+                            <li>Devolución de productos</li>
+                            <li>Descuentos posteriores a la facturación</li>
+                            <li>Errores en facturación</li>
+                            <li>Bonificaciones comerciales</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const IVA = 0.19;
+let items = [];
+
+// Establecer fecha actual por defecto
+document.getElementById('fecha_emision').value = new Date().toISOString().split('T')[0];
+
+// Cargar documentos de referencia cuando cambie el cliente
+document.getElementById('cliente_rut').addEventListener('change', function() {
+    const clienteRut = this.value;
+    if (!clienteRut) return;
+    
+    fetch(`/api/documentos-referencia/${clienteRut}`)
+        .then(response => response.json())
+        .then(documentos => {
+            const select = document.getElementById('documento_referencia_id');
+            select.innerHTML = '<option value="">Sin documento referencia</option>';
+            
+            documentos.forEach(doc => {
+                const option = document.createElement('option');
+                option.value = doc.id;
+                option.textContent = `${doc.tipo_doc} #${doc.numero_doc} - $${doc.valor_total} - ${doc.fecha_emision}`;
+                option.setAttribute('data-total', doc.valor_total);
+                select.appendChild(option);
+            });
+        });
+});
+
+function agregarItem() {
+    const tbody = document.getElementById('cuerpoItems');
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm codigo" placeholder="COD001"></td>
+        <td><input type="text" class="form-control form-control-sm descripcion" placeholder="Descripción del item" required></td>
+        <td><input type="number" class="form-control form-control-sm cantidad" value="1" min="1" required></td>
+        <td><input type="number" class="form-control form-control-sm precio" value="0" min="0" step="0.01" required></td>
+        <td><input type="number" class="form-control form-control-sm descuento" value="0" min="0" max="100" step="0.01"></td>
+        <td><input type="number" class="form-control form-control-sm total-linea" value="0" readonly></td>
+        <td><button type="button" class="btn btn-sm btn-danger" onclick="eliminarItem(this)"><i class="fas fa-trash"></i></button></td>
+    `;
+    tbody.appendChild(newRow);
+    
+    // Agregar event listeners a los nuevos inputs
+    const inputs = newRow.querySelectorAll('input');
+    inputs.forEach(input => {
+        if (input.classList.contains('cantidad') || input.classList.contains('precio') || input.classList.contains('descuento')) {
+            input.addEventListener('input', calcularTotales);
+        }
+    });
+}
+
+function eliminarItem(button) {
+    const row = button.closest('tr');
+    if (document.getElementById('cuerpoItems').children.length > 1) {
+        row.remove();
+        calcularTotales();
+    } else {
+        alert('Debe haber al menos un item en la nota de crédito');
+    }
+}
+
+function calcularTotales() {
+    let subtotal = 0;
+    let descuentoTotal = 0;
+    
+    const rows = document.getElementById('cuerpoItems').querySelectorAll('tr');
+    rows.forEach(row => {
+        const cantidad = parseFloat(row.querySelector('.cantidad').value) || 0;
+        const precio = parseFloat(row.querySelector('.precio').value) || 0;
+        const descuento = parseFloat(row.querySelector('.descuento').value) || 0;
+        
+        const totalSinDescuento = cantidad * precio;
+        const montoDescuento = totalSinDescuento * (descuento / 100);
+        const totalLinea = totalSinDescuento - montoDescuento;
+        
+        row.querySelector('.total-linea').value = totalLinea.toFixed(2);
+        
+        subtotal += totalLinea;
+        descuentoTotal += montoDescuento;
+    });
+    
+    const iva = subtotal * IVA;
+    const total = subtotal + iva;
+    
+    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+    document.getElementById('iva').textContent = iva.toFixed(2);
+    document.getElementById('descuento-total').textContent = descuentoTotal.toFixed(2);
+    document.getElementById('total').textContent = total.toFixed(2);
+}
+
+function generarNotaCredito() {
+    // Validaciones básicas
+    const cliente = document.getElementById('cliente_rut').value;
+    const motivo = document.getElementById('motivo_nc_nd').value;
+    
+    if (!cliente || !motivo) {
+        alert('Debe seleccionar un cliente y motivo');
+        return;
+    }
+    
+    // Recolectar items
+    items = [];
+    const rows = document.getElementById('cuerpoItems').querySelectorAll('tr');
+    let itemsValidos = false;
+    
+    rows.forEach(row => {
+        const descripcion = row.querySelector('.descripcion').value;
+        const cantidad = row.querySelector('.cantidad').value;
+        const precio = row.querySelector('.precio').value;
+        
+        if (descripcion && cantidad && precio) {
+            itemsValidos = true;
+            items.push({
+                codigo: row.querySelector('.codigo').value,
+                descripcion: descripcion,
+                cantidad: parseFloat(cantidad),
+                precio_unitario: parseFloat(precio),
+                descuento: parseFloat(row.querySelector('.descuento').value) || 0,
+                total_linea: parseFloat(row.querySelector('.total-linea').value)
+            });
+        }
+    });
+    
+    if (!itemsValidos) {
+        alert('Debe agregar al menos un item válido');
+        return;
+    }
+    
+    const formData = new FormData(document.getElementById('formNotaCredito'));
+    const data = {
+        ...Object.fromEntries(formData),
+        tipo_doc: 'NC',
+        valor_neto: parseFloat(document.getElementById('subtotal').textContent),
+        iva: parseFloat(document.getElementById('iva').textContent),
+        valor_total: parseFloat(document.getElementById('total').textContent),
+        items: items,
+        estado: 'Aplicada' // Las NC generalmente se aplican automáticamente
+    };
+    
+    fetch('/api/generar-documento', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(`✅ Nota de Crédito #${result.documento_id} generada exitosamente`);
+            limpiarFormulario();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+
+function limpiarFormulario() {
+    document.getElementById('formNotaCredito').reset();
+    document.getElementById('cuerpoItems').innerHTML = `
+        <tr>
+            <td><input type="text" class="form-control form-control-sm codigo" placeholder="COD001"></td>
+            <td><input type="text" class="form-control form-control-sm descripcion" placeholder="Descripción del item" required></td>
+            <td><input type="number" class="form-control form-control-sm cantidad" value="1" min="1" required></td>
+            <td><input type="number" class="form-control form-control-sm precio" value="0" min="0" step="0.01" required></td>
+            <td><input type="number" class="form-control form-control-sm descuento" value="0" min="0" max="100" step="0.01"></td>
+            <td><input type="number" class="form-control form-control-sm total-linea" value="0" readonly></td>
+            <td><button type="button" class="btn btn-sm btn-danger" onclick="eliminarItem(this)"><i class="fas fa-trash"></i></button></td>
+        </tr>
+    `;
+    calcularTotales();
+    
+    // Establecer fecha actual y próximo número
+    document.getElementById('fecha_emision').value = new Date().toISOString().split('T')[0];
+    document.getElementById('numero_doc').value = {{ proximo_numero }};
+}
+
+// Inicializar event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('#cuerpoItems input');
+    inputs.forEach(input => {
+        if (input.classList.contains('cantidad') || input.classList.contains('precio') || input.classList.contains('descuento')) {
+            input.addEventListener('input', calcularTotales);
+        }
+    });
+    
+    calcularTotales();
+});
+</script>
+{% endblock %}

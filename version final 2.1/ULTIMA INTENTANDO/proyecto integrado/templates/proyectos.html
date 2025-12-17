@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Proyectos - TekneTau{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-project-diagram"></i> Gestión de Proyectos</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalProyecto">
+                <i class="fas fa-plus"></i> Nuevo Proyecto
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Lista de Proyectos</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Cliente</th>
+                                <th>Fechas</th>
+                                <th>Presupuesto</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for proyecto in proyectos %}
+                            <tr>
+                                <td><strong>{{ proyecto.codigo }}</strong></td>
+                                <td>
+                                    <div class="fw-bold">{{ proyecto.nombre }}</div>
+                                    <small class="text-muted">{{ proyecto.descripcion }}</small>
+                                </td>
+                                <td>{{ proyecto.razon_social }}</td>
+                                <td>
+                                    <small>
+                                        Inicio: {{ proyecto.fecha_inicio }}<br>
+                                        {% if proyecto.fecha_termino %}
+                                        Término: {{ proyecto.fecha_termino }}
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                <td>${{ "{:,.0f}".format(proyecto.presupuesto) }}</td>
+                                <td>
+                                    {% if proyecto.estado == 'Activo' %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick='editarProyecto({{ proyecto | tojson | safe }})' title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="eliminarProyecto('{{ proyecto.codigo }}')" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Proyecto -->
+<div class="modal fade" id="modalProyecto" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalProyectoTitulo">Nuevo Proyecto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formProyecto">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="codigo" class="form-label">Código Proyecto *</label>
+                            <input type="text" class="form-control" id="codigo" name="codigo" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre" class="form-label">Nombre Proyecto *</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="cliente_rut" class="form-label">Cliente *</label>
+                            <select class="form-select" id="cliente_rut" name="cliente_rut" required>
+                                <option value="">Seleccionar Cliente</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.rut }}">{{ cliente.razon_social }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="presupuesto" class="form-label">Presupuesto</label>
+                            <input type="number" class="form-control" id="presupuesto" name="presupuesto" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_inicio" class="form-label">Fecha Inicio *</label>
+                            <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_termino" class="form-label">Fecha Término</label>
+                            <input type="date" class="form-control" id="fecha_termino" name="fecha_termino">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="estado" class="form-label">Estado</label>
+                        <select class="form-select" id="estado" name="estado">
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                            <option value="Completado">Completado</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarProyecto()">Guardar Proyecto</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function guardarProyecto() {
+    const form = document.getElementById('formProyecto');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    const codigoInput = document.getElementById('codigo');
+    const isEdit = codigoInput.readOnly;
+    
+    let url = '/api/proyectos';
+    let method = 'POST';
+
+    if (isEdit) {
+        url = `/api/proyectos/${codigoInput.value}`;
+        method = 'PUT';
+    }
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Proyecto guardado exitosamente');
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ocurrió un error al guardar el proyecto.');
+    });
+}
+
+function editarProyecto(proyecto) {
+    document.getElementById('modalProyectoTitulo').textContent = 'Editar Proyecto';
+    
+    // Llenar formulario con datos del proyecto
+    document.getElementById('codigo').value = proyecto.codigo;
+    document.getElementById('nombre').value = proyecto.nombre;
+    document.getElementById('descripcion').value = proyecto.descripcion || '';
+    document.getElementById('cliente_rut').value = proyecto.cliente_rut;
+    document.getElementById('presupuesto').value = proyecto.presupuesto;
+    document.getElementById('fecha_inicio').value = proyecto.fecha_inicio;
+    document.getElementById('fecha_termino').value = proyecto.fecha_termino || '';
+    document.getElementById('estado').value = proyecto.estado;
+    
+    // Hacer código readonly en edición
+    document.getElementById('codigo').readOnly = true;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalProyecto'));
+    modal.show();
+}
+
+function eliminarProyecto(codigo) {
+    if (confirm('¿Está seguro de que desea eliminar este proyecto? Esta acción no se puede deshacer.')) {
+        fetch(`/api/proyectos/${codigo}`, {
+            method: 'DELETE',
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert('Proyecto eliminado exitosamente');
+                location.reload();
+            } else {
+                alert('Error al eliminar proyecto: ' + result.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ocurrió un error al eliminar el proyecto.');
+        });
+    }
+}
+
+// Resetear modal cuando se cierra
+document.getElementById('modalProyecto').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('formProyecto').reset();
+    document.getElementById('modalProyectoTitulo').textContent = 'Nuevo Proyecto';
+    document.getElementById('codigo').readOnly = false;
+});
+</script>
+{% endblock %}
