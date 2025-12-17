@@ -1,0 +1,383 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block title %}Apariencia - {{ restaurante.nombre }}{% endblock %}
+
+{% block page_title %}Apariencia del Menú{% endblock %}
+
+{% block extra_css %}
+<style>
+    .theme-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    .theme-card {
+        border-radius: 16px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 3px solid transparent;
+        background: white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .theme-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    
+    .theme-card.active {
+        border-color: var(--primary-color);
+    }
+    
+    .theme-card.active::after {
+        content: '✓';
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: var(--primary-color);
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .theme-preview {
+        height: 120px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+    
+    .theme-header {
+        padding: 1rem;
+        color: white;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .theme-body {
+        flex: 1;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .theme-item {
+        height: 12px;
+        border-radius: 6px;
+        opacity: 0.6;
+    }
+    
+    .theme-info {
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .theme-name {
+        font-weight: 600;
+        color: var(--secondary-color);
+    }
+    
+    /* Temas */
+    .theme-clasico .theme-header { background: #2c3e50; }
+    .theme-clasico .theme-body { background: #f8f9fa; }
+    .theme-clasico .theme-item { background: #2c3e50; }
+    
+    .theme-moderno .theme-header { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .theme-moderno .theme-body { background: #ffffff; }
+    .theme-moderno .theme-item { background: #667eea; }
+    
+    .theme-elegante .theme-header { background: #1a1a1a; }
+    .theme-elegante .theme-body { background: #2d2d2d; }
+    .theme-elegante .theme-item { background: #d4af37; }
+    
+    .theme-natural .theme-header { background: #27ae60; }
+    .theme-natural .theme-body { background: #e8f5e9; }
+    .theme-natural .theme-item { background: #27ae60; }
+    
+    .theme-marino .theme-header { background: #0077b6; }
+    .theme-marino .theme-body { background: #e3f2fd; }
+    .theme-marino .theme-item { background: #0077b6; }
+    
+    .theme-calido .theme-header { background: #e74c3c; }
+    .theme-calido .theme-body { background: #fff5f5; }
+    .theme-calido .theme-item { background: #e74c3c; }
+    
+    .preview-frame {
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        overflow: hidden;
+        height: 500px;
+    }
+    
+    .preview-frame iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+    
+    .color-picker-group {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .color-picker {
+        width: 50px;
+        height: 50px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        padding: 0;
+    }
+    
+    .color-label {
+        font-weight: 500;
+        color: var(--secondary-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+    <div class="column is-8">
+        <!-- Selección de Tema -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-palette"></i> Tema del Menú</h2>
+            </div>
+            
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                Elige el estilo visual que verán tus clientes cuando escaneen el QR
+            </p>
+            
+            <div class="theme-grid">
+                <!-- Tema Clásico -->
+                <div class="theme-card theme-clasico {% if restaurante.tema == 'clasico' %}active{% endif %}" 
+                     onclick="seleccionarTema('clasico')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🍕 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Clásico</div>
+                    </div>
+                </div>
+                
+                <!-- Tema Moderno -->
+                <div class="theme-card theme-moderno {% if restaurante.tema == 'moderno' %}active{% endif %}" 
+                     onclick="seleccionarTema('moderno')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🍕 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Moderno</div>
+                    </div>
+                </div>
+                
+                <!-- Tema Elegante -->
+                <div class="theme-card theme-elegante {% if restaurante.tema == 'elegante' %}active{% endif %}" 
+                     onclick="seleccionarTema('elegante')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🍕 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Elegante</div>
+                    </div>
+                </div>
+                
+                <!-- Tema Natural -->
+                <div class="theme-card theme-natural {% if restaurante.tema == 'natural' %}active{% endif %}" 
+                     onclick="seleccionarTema('natural')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🍕 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Natural</div>
+                    </div>
+                </div>
+                
+                <!-- Tema Marino -->
+                <div class="theme-card theme-marino {% if restaurante.tema == 'marino' %}active{% endif %}" 
+                     onclick="seleccionarTema('marino')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🍕 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Marino</div>
+                    </div>
+                </div>
+                
+                <!-- Tema Cálido -->
+                <div class="theme-card theme-calido {% if restaurante.tema == 'calido' or not restaurante.tema %}active{% endif %}" 
+                     onclick="seleccionarTema('calido')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🍕 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Cálido (Por defecto)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 2rem; text-align: center;">
+                <button class="btn-primary btn-large" onclick="guardarApariencia()">
+                    <i class="fas fa-save"></i> Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-4">
+        <!-- Vista previa -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-mobile-alt"></i> Vista Previa</h2>
+            </div>
+            
+            <div class="preview-frame">
+                <iframe id="previewFrame" src="/menu/{{ restaurante.url_slug }}"></iframe>
+            </div>
+            
+            <div style="text-align: center; margin-top: 1rem;">
+                <a href="/menu/{{ restaurante.url_slug }}" target="_blank" class="btn-secondary">
+                    <i class="fas fa-external-link-alt"></i> Abrir en nueva pestaña
+                </a>
+            </div>
+        </div>
+        
+        <!-- Opciones adicionales -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-cog"></i> Opciones</h2>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="mostrarPrecios" checked>
+                    Mostrar precios
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="mostrarDescripciones" checked>
+                    Mostrar descripciones
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="mostrarImagenes" checked>
+                    Mostrar imágenes de platos
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let temaSeleccionado = '{{ restaurante.tema or "calido" }}';
+const menuUrl = '/menu/{{ restaurante.url_slug }}';
+
+function seleccionarTema(tema) {
+    // Quitar active de todos
+    document.querySelectorAll('.theme-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    
+    // Añadir active al seleccionado
+    document.querySelector(`.theme-${tema}`).classList.add('active');
+    temaSeleccionado = tema;
+    
+    // Actualizar preview en tiempo real usando postMessage
+    const iframe = document.getElementById('previewFrame');
+    try {
+        // Cambiar el atributo data-tema del HTML en el iframe
+        iframe.contentDocument.documentElement.setAttribute('data-tema', tema);
+    } catch (e) {
+        // Si hay error de cross-origin, recargar con parámetro
+        iframe.src = menuUrl + '?preview_tema=' + tema + '&t=' + Date.now();
+    }
+}
+
+async function guardarApariencia() {
+    const data = {
+        tema: temaSeleccionado,
+        mostrar_precios: document.getElementById('mostrarPrecios').checked,
+        mostrar_descripciones: document.getElementById('mostrarDescripciones').checked,
+        mostrar_imagenes: document.getElementById('mostrarImagenes').checked
+    };
+    
+    try {
+        const response = await fetch('/api/mi-restaurante/apariencia', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('¡Tema actualizado correctamente!');
+            // Recargar preview con el tema guardado
+            document.getElementById('previewFrame').src = menuUrl + '?t=' + Date.now();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error de conexión');
+        console.error(error);
+    }
+}
+
+// Marcar el tema actual como activo al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    const temaActual = '{{ restaurante.tema or "calido" }}';
+    const card = document.querySelector(`.theme-${temaActual}`);
+    if (card) {
+        card.classList.add('active');
+    }
+});
+</script>
+{% endblock %}
