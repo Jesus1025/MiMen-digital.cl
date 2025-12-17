@@ -217,10 +217,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 -- ============================================================
 -- USUARIO SUPERADMIN INICIAL
--- Password: superadmin123 (cambiar en producción!)
--- Hash generado con werkzeug.security.generate_password_hash
+-- El usuario superadmin se crea automáticamente al visitar /api/init-db
+-- Password por defecto: superadmin123 (cambiar en producción!)
 -- ============================================================
-INSERT INTO usuarios_admin (restaurante_id, username, password_hash, nombre, rol, activo) VALUES
-(NULL, 'superadmin', 'pbkdf2:sha256:600000$salt$hash_placeholder', 'Super Admin Divergent Studio', 'superadmin', 1);
-
--- NOTA: El hash real se genera al iniciar la app si no existe el usuario
+-- NOTA: No insertar aquí - el hash se genera dinámicamente en /api/init-db

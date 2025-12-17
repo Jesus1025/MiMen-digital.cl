@@ -13,6 +13,12 @@ from functools import wraps
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+import traceback
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # CONFIGURACIÓN DE LA APLICACIÓN
@@ -68,13 +74,23 @@ BASE_URL = os.environ.get('BASE_URL', '')
 # ============================================================
 
 def get_db():
-    """Obtiene una conexión a MySQL."""
+    """Obtiene una conexión a MySQL con soporte de reconexión."""
     if 'db' not in g:
         try:
             g.db = pymysql.connect(**MYSQL_CONFIG)
         except pymysql.Error as e:
             print(f"❌ Error conectando a MySQL: {e}")
             raise
+    else:
+        # Verificar si la conexión sigue activa
+        try:
+            g.db.ping(reconnect=True)
+        except pymysql.Error:
+            try:
+                g.db = pymysql.connect(**MYSQL_CONFIG)
+            except pymysql.Error as e:
+                print(f"❌ Error reconectando a MySQL: {e}")
+                raise
     return g.db
 
 
@@ -87,6 +103,50 @@ def close_db(error=None):
             db.close()
         except:
             pass
+
+
+# ============================================================
+# MANEJADORES DE ERRORES GLOBALES
+# ============================================================
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Manejador de errores internos del servidor."""
+    logger.error(f"Error 500: {error}\n{traceback.format_exc()}")
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False, 
+            'error': 'Error interno del servidor',
+            'details': str(error)
+        }), 500
+    return render_template('error_publico.html', 
+                          error_code=500, 
+                          error_message='Error interno del servidor'), 500
+
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Manejador de errores 404."""
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Recurso no encontrado'}), 404
+    return render_template('error_publico.html', 
+                          error_code=404, 
+                          error_message='Página no encontrada'), 404
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Manejador global de excepciones."""
+    logger.error(f"Excepción no manejada: {e}\n{traceback.format_exc()}")
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'type': type(e).__name__
+        }), 500
+    return render_template('error_publico.html', 
+                          error_code=500, 
+                          error_message=f'Error: {str(e)}'), 500
 
 
 def dict_from_row(row):
@@ -477,7 +537,11 @@ def api_platos():
                 return jsonify({'success': True, 'id': cur.lastrowid})
                 
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_platos: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -537,7 +601,11 @@ def api_plato(plato_id):
                 return jsonify({'success': True})
                 
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_plato: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -581,7 +649,11 @@ def api_categorias():
                 return jsonify({'success': True, 'id': cur.lastrowid})
                 
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_categorias: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -630,7 +702,11 @@ def api_categoria(categoria_id):
                 return jsonify({'success': True})
                 
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_categoria: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -685,7 +761,11 @@ def api_mi_restaurante():
                 return jsonify({'success': True})
                 
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_mi_restaurante: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -714,7 +794,11 @@ def api_actualizar_tema():
         return jsonify({'success': True})
         
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_actualizar_tema: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -893,29 +977,48 @@ def api_restaurantes():
             if request.method == 'POST':
                 data = request.get_json()
                 
+                if not data:
+                    return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
+                
                 if not data.get('nombre') or not data.get('url_slug'):
                     return jsonify({'success': False, 'error': 'Nombre y URL slug son obligatorios'}), 400
                 
+                # Verificar que el url_slug no exista
+                cur.execute("SELECT id FROM restaurantes WHERE url_slug = %s", (data['url_slug'],))
+                if cur.fetchone():
+                    return jsonify({'success': False, 'error': 'El URL slug ya existe'}), 400
+                
                 cur.execute('''
-                    INSERT INTO restaurantes (nombre, rut, url_slug, logo_url, tema, activo)
-                    VALUES (%s, %s, %s, %s, %s, 1)
+                    INSERT INTO restaurantes (nombre, rut, url_slug, logo_url, tema, plan_id, activo)
+                    VALUES (%s, %s, %s, %s, %s, %s, 1)
                 ''', (
                     data['nombre'],
                     data.get('rut', ''),
                     data['url_slug'],
                     data.get('logo_url', ''),
-                    data.get('tema', 'elegante')
+                    data.get('tema', 'elegante'),
+                    data.get('plan_id', 1)  # Plan gratis por defecto
                 ))
                 db.commit()
                 return jsonify({'success': True, 'id': cur.lastrowid})
 
     except pymysql.IntegrityError as e:
-        db.rollback()
-        if 'Duplicate' in str(e):
+        try:
+            db.rollback()
+        except:
+            pass
+        error_msg = str(e)
+        if 'Duplicate' in error_msg or 'duplicate' in error_msg.lower():
             return jsonify({'success': False, 'error': 'El URL slug ya existe'}), 400
-        return jsonify({'success': False, 'error': str(e)}), 500
+        if 'foreign key' in error_msg.lower():
+            return jsonify({'success': False, 'error': 'Error de referencia en la base de datos'}), 400
+        return jsonify({'success': False, 'error': f'Error de integridad: {error_msg}'}), 500
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_restaurantes: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -960,7 +1063,11 @@ def api_restaurante(rest_id):
                 return jsonify({'success': True})
 
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_restaurante: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -986,6 +1093,9 @@ def api_usuarios():
             if request.method == 'POST':
                 data = request.get_json()
                 
+                if not data:
+                    return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
+                
                 if not data.get('username') or not data.get('password') or not data.get('nombre'):
                     return jsonify({'success': False, 'error': 'Username, password y nombre son obligatorios'}), 400
                 
@@ -994,13 +1104,22 @@ def api_usuarios():
                 if cur.fetchone():
                     return jsonify({'success': False, 'error': 'El nombre de usuario ya existe'}), 400
                 
+                # Verificar que el restaurante existe si se proporciona
+                restaurante_id = data.get('restaurante_id')
+                if restaurante_id:
+                    cur.execute("SELECT id FROM restaurantes WHERE id = %s", (restaurante_id,))
+                    if not cur.fetchone():
+                        return jsonify({'success': False, 'error': 'El restaurante seleccionado no existe'}), 400
+                else:
+                    restaurante_id = None
+                
                 pwd_hash = generate_password_hash(data['password'], method='pbkdf2:sha256')
                 
                 cur.execute('''
                     INSERT INTO usuarios_admin (restaurante_id, username, password_hash, nombre, email, rol, activo)
                     VALUES (%s, %s, %s, %s, %s, %s, 1)
                 ''', (
-                    data.get('restaurante_id'),
+                    restaurante_id,
                     data['username'],
                     pwd_hash,
                     data['nombre'],
@@ -1011,7 +1130,11 @@ def api_usuarios():
                 return jsonify({'success': True, 'id': cur.lastrowid})
 
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_usuarios: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1084,7 +1207,11 @@ def api_usuario(user_id):
                 return jsonify({'success': True})
 
     except Exception as e:
-        db.rollback()
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.error(f"Error en api_usuario: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1097,26 +1224,44 @@ def init_db_route():
     """Inicializa la base de datos creando las tablas si no existen."""
     try:
         db = get_db()
+        messages = []
+        
         with db.cursor() as cur:
-            # Leer y ejecutar el schema
-            schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
+            # Verificar si las tablas ya existen
+            cur.execute("SHOW TABLES")
+            existing_tables = [row[list(row.keys())[0]] for row in cur.fetchall()]
+            messages.append(f"Tablas existentes: {existing_tables}")
             
-            if os.path.exists(schema_path):
-                with open(schema_path, 'r', encoding='utf-8') as f:
-                    schema = f.read()
-                    
-                # Ejecutar cada statement por separado
-                statements = [s.strip() for s in schema.split(';') if s.strip() and not s.strip().startswith('--')]
-                for statement in statements:
-                    if statement and not statement.startswith('--'):
-                        try:
-                            cur.execute(statement)
-                        except pymysql.Error as e:
-                            # Ignorar errores de "ya existe"
-                            if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
-                                print(f"Warning: {e}")
-                
+            # Crear tabla planes si no existe
+            if 'planes' not in existing_tables:
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS planes (
+                        id INT PRIMARY KEY AUTO_INCREMENT,
+                        nombre VARCHAR(50) NOT NULL,
+                        precio_mensual DECIMAL(10,2) DEFAULT 0,
+                        max_platos INT DEFAULT 50,
+                        max_categorias INT DEFAULT 10,
+                        tiene_pdf TINYINT(1) DEFAULT 1,
+                        tiene_qr_personalizado TINYINT(1) DEFAULT 0,
+                        tiene_estadisticas TINYINT(1) DEFAULT 1,
+                        activo TINYINT(1) DEFAULT 1,
+                        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ''')
                 db.commit()
+                messages.append("✓ Tabla planes creada")
+            
+            # Insertar planes por defecto si no existen
+            cur.execute("SELECT COUNT(*) as total FROM planes")
+            if cur.fetchone()['total'] == 0:
+                cur.execute('''
+                    INSERT INTO planes (nombre, precio_mensual, max_platos, max_categorias, tiene_pdf, tiene_qr_personalizado, tiene_estadisticas) VALUES
+                    ('Gratis', 0, 20, 5, 1, 0, 0),
+                    ('Básico', 9990, 50, 10, 1, 0, 1),
+                    ('Premium', 19990, 200, 50, 1, 1, 1)
+                ''')
+                db.commit()
+                messages.append("✓ Planes por defecto insertados")
             
             # Crear superadmin si no existe
             cur.execute("SELECT id FROM usuarios_admin WHERE username = 'superadmin'")
@@ -1127,16 +1272,21 @@ def init_db_route():
                     VALUES (NULL, 'superadmin', %s, 'Super Admin Divergent Studio', 'superadmin', 1)
                 ''', (pwd,))
                 db.commit()
+                messages.append("✓ Usuario superadmin creado")
+            else:
+                messages.append("✓ Usuario superadmin ya existe")
         
         return jsonify({
             'success': True,
             'message': '✓ Base de datos MySQL inicializada correctamente',
+            'details': messages,
             'superadmin_user': 'superadmin',
             'superadmin_pass': 'superadmin123 (¡cambiar en producción!)'
         })
         
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f"Error en init-db: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 
 # ============================================================
