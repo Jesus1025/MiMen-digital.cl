@@ -95,16 +95,17 @@ os.environ.setdefault('BASE_URL', os.environ.get('BASE_URL', 'http://localhost:5
 # IMPORTAR APLICACIÓN
 # ============================================================
 try:
-    # Intentar import directo (si el módulo está en project_home)
-    from app_menu import app as application
+    # Prefer importing as a package (when app is inside `mimenudigital` package)
+    from mimenudigital.app_menu import app as application
 except Exception:
-    # Fallback: importar como paquete si existe la carpeta 'mimenudigital'
+    # Fallback: try a top-level module named app_menu
     try:
-        from mimenudigital.app_menu import app as application
+        from app_menu import app as application
     except Exception as e:
         # Provide a helpful error explaining why import failed.
         raise ImportError(
             "Failed to import Flask application. Make sure your project path is correct, "
+            "that the `mimenudigital` package exists (or `app_menu.py` at project root), "
             "and that `app = Flask(__name__)` is defined in `app_menu.py` (before any @app.route). "
             "Also ensure required dependencies are installed and environment variables are set. "
             f"Original error: {e!s}"
