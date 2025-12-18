@@ -1,75 +1,5 @@
-# =====================
-# SUPERADMIN USUARIOS Y SUSCRIPCIONES
-# =====================
-@app.route('/superadmin/usuarios')
-@login_required
-@superadmin_required
-def superadmin_usuarios():
-    db = get_db()
-    with db.cursor() as cur:
-        cur.execute("SELECT id, nombre, email, rol, creado_en FROM usuarios_admin WHERE rol != 'superadmin' ORDER BY creado_en DESC")
-        usuarios = cur.fetchall()
-    return render_template('superadmin/usuarios.html', usuarios=usuarios)
-
-@app.route('/superadmin/suscripciones')
-@login_required
-@superadmin_required
-def superadmin_suscripciones():
-    return render_template('superadmin/suscripciones.html')
-# =====================
-# SUPERADMIN DASHBOARD ESTADÍSTICAS
-# =====================
-@app.route('/superadmin/estadisticas')
-@login_required
-@superadmin_required
-def superadmin_estadisticas():
-    return render_template('superadmin/estadisticas.html')
-
-# API para estadísticas globales
-@app.route('/api/superadmin/stats')
-@login_required
-@superadmin_required
-def api_superadmin_stats():
-    db = get_db()
-    with db.cursor() as cur:
-        # Total restaurantes
-        cur.execute("SELECT COUNT(*) as total FROM restaurantes")
-        total_restaurantes = cur.fetchone()['total']
-        # Total usuarios (sin superadmin)
-        cur.execute("SELECT COUNT(*) as total FROM usuarios_admin WHERE rol != 'superadmin'")
-        total_usuarios = cur.fetchone()['total']
-        # Total visitas y escaneos
-        cur.execute("SELECT COALESCE(SUM(visitas),0) as visitas, COALESCE(SUM(escaneos_qr),0) as escaneos FROM estadisticas_diarias")
-        row = cur.fetchone()
-        total_visitas = row['visitas']
-        total_escaneos = row['escaneos']
-        # Visitas últimos 30 días
-        cur.execute("""
-            SELECT fecha, COALESCE(SUM(visitas),0) as visitas
-            FROM estadisticas_diarias
-            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-            GROUP BY fecha
-            ORDER BY fecha
-        """)
-        visitas_30dias = list_from_rows(cur.fetchall())
-    return jsonify({
-        'total_restaurantes': total_restaurantes,
-        'total_usuarios': total_usuarios,
-        'total_visitas': total_visitas,
-        'total_escaneos': total_escaneos,
-        'visitas_30dias': visitas_30dias
-    })
-import qrcode
-# Carpeta para los QR
-QR_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'qrs')
-os.makedirs(QR_FOLDER, exist_ok=True)
-
-def generar_qr_restaurante(url, filename):
-    qr_path = os.path.join(QR_FOLDER, filename)
-    if not os.path.exists(qr_path):
-        img = qrcode.make(url)
-        img.save(qr_path)
-    return qr_path
+# (Reubicadas) Las rutas de SuperAdmin se definen más abajo, tras la configuración y los
+# decoradores, para evitar name errors y referencias a objetos aún no inicializados.
 # ============================================================
 # MENU DIGITAL SAAS - DIVERGENT STUDIO
 # Sistema Multi-Tenant para Menús Digitales
@@ -112,12 +42,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-# Handler para error 403 (prohibido)
-@app.errorhandler(403)
-def forbidden_error(error):
-    if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
-    return render_template('error_publico.html', error_code=403, error_message='Acceso prohibido'), 403
 
 # ============================================================
 # CONFIGURACIÓN DE LA APLICACIÓN
@@ -143,6 +67,25 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # Crear carpeta de uploads si no existe
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# QR local
+import qrcode
+QR_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'qrs')
+os.makedirs(QR_FOLDER, exist_ok=True)
+
+def generar_qr_restaurante(url, filename):
+    qr_path = os.path.join(QR_FOLDER, filename)
+    if not os.path.exists(qr_path):
+        img = qrcode.make(url)
+        img.save(qr_path)
+    return qr_path
+
+# Handler para error 403 (prohibido)
+@app.errorhandler(403)
+def forbidden_error(error):
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
+    return render_template('error_publico.html', error_code=403, error_message='Acceso prohibido'), 403
 
 # ============================================================
 # CONFIGURACIÓN MYSQL
@@ -538,7 +481,17 @@ def menu_gestion():
 @login_required
 def gestion_platos():
     """Página de gestión de platos."""
-    return render_template('gestion/platos.html')
+    db = get_db()
+    categorias = []
+    restaurante_id = session.get('restaurante_id')
+    if restaurante_id:
+        try:
+            with db.cursor() as cur:
+                cur.execute("SELECT id, nombre, icono FROM categorias WHERE restaurante_id = %s AND activo = 1 ORDER BY orden, nombre", (restaurante_id,))
+                categorias = list_from_rows(cur.fetchall())
+        except Exception:
+            categorias = []
+    return render_template('gestion/platos.html', categorias=categorias)
 
 
 @app.route('/gestion/categorias')
@@ -1058,6 +1011,67 @@ def superadmin_restaurantes():
                            restaurantes=restaurantes,
                            nuevos_este_mes=nuevos_este_mes,
                            total_usuarios=total_usuarios)
+
+
+@app.route('/superadmin/usuarios')
+@login_required
+@superadmin_required
+def superadmin_usuarios():
+    db = get_db()
+    with db.cursor() as cur:
+        cur.execute("SELECT id, nombre, email, rol, creado_en FROM usuarios_admin WHERE rol != 'superadmin' ORDER BY creado_en DESC")
+        usuarios = list_from_rows(cur.fetchall())
+    return render_template('superadmin/usuarios.html', usuarios=usuarios)
+
+
+@app.route('/superadmin/suscripciones')
+@login_required
+@superadmin_required
+def superadmin_suscripciones():
+    # Placeholder por ahora
+    return render_template('superadmin/suscripciones.html')
+
+
+@app.route('/superadmin/estadisticas')
+@login_required
+@superadmin_required
+def superadmin_estadisticas():
+    return render_template('superadmin/estadisticas.html')
+
+
+@app.route('/api/superadmin/stats')
+@login_required
+@superadmin_required
+def api_superadmin_stats():
+    db = get_db()
+    with db.cursor() as cur:
+        # Total restaurantes
+        cur.execute("SELECT COUNT(*) as total FROM restaurantes")
+        total_restaurantes = cur.fetchone()['total']
+        # Total usuarios (sin superadmin)
+        cur.execute("SELECT COUNT(*) as total FROM usuarios_admin WHERE rol != 'superadmin'")
+        total_usuarios = cur.fetchone()['total']
+        # Total visitas y escaneos
+        cur.execute("SELECT COALESCE(SUM(visitas),0) as visitas, COALESCE(SUM(escaneos_qr),0) as escaneos FROM estadisticas_diarias")
+        row = cur.fetchone()
+        total_visitas = row['visitas']
+        total_escaneos = row['escaneos']
+        # Visitas últimos 30 días
+        cur.execute("""
+            SELECT fecha, COALESCE(SUM(visitas),0) as visitas
+            FROM estadisticas_diarias
+            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY fecha
+            ORDER BY fecha
+        """)
+        visitas_30dias = list_from_rows(cur.fetchall())
+    return jsonify({
+        'total_restaurantes': total_restaurantes,
+        'total_usuarios': total_usuarios,
+        'total_visitas': total_visitas,
+        'total_escaneos': total_escaneos,
+        'visitas_30dias': visitas_30dias
+    })
 
 
 @app.route('/api/restaurantes', methods=['GET', 'POST'])

@@ -60,4 +60,12 @@ os.environ['BASE_URL'] = 'https://MiMenudigital.pythonanywhere.com'
 # ============================================================
 # IMPORTAR APLICACIÓN
 # ============================================================
-from app_menu import app as application
+try:
+    # Intentar import directo (si el módulo está en project_home)
+    from app_menu import app as application
+except Exception:
+    # Fallback: importar como paquete si existe la carpeta 'mimenudigital'
+    try:
+        from mimenudigital.app_menu import app as application
+    except Exception as e:
+        raise
