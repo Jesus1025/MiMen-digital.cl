@@ -5,8 +5,11 @@
 # En el dashboard Web -> pestaña WSGI configuration file
 # ============================================================
 
+
 import sys
 import os
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 # ============================================================
 # RUTA DEL PROYECTO - AJUSTAR SEGÚN TU ESTRUCTURA
