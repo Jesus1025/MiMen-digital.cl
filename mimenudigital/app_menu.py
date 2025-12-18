@@ -20,7 +20,14 @@
 
 import os
 from dotenv import load_dotenv
-load_dotenv()
+# Load local env first (gitignored `.env.local`), then fallback to `.env` if present.
+base_dir = os.path.dirname(os.path.abspath(__file__))
+env_local_path = os.path.join(base_dir, '.env.local')
+env_path = os.path.join(base_dir, '.env')
+if os.path.exists(env_local_path):
+    load_dotenv(env_local_path)
+elif os.path.exists(env_path):
+    load_dotenv(env_path)
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, g, send_from_directory
 import pymysql
 from pymysql.cursors import DictCursor
@@ -48,7 +55,14 @@ logger = logging.getLogger(__name__)
 # ============================================================
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'menu_digital_divergent_secret_key_2025_prod')
+# Load secret key from environment; do NOT hardcode a production secret in source.
+secret_key = os.environ.get('SECRET_KEY')
+if not secret_key:
+    # Use a clearly invalid placeholder locally; ensure production sets SECRET_KEY.
+    secret_key = 'please-set-a-secret-key'
+    if os.environ.get('FLASK_ENV') == 'production':
+        logger.warning('SECRET_KEY not set in environment. Set SECRET_KEY in production.')
+app.secret_key = secret_key
 
 # Añadir función now() a Jinja2 para templates
 app.jinja_env.globals['now'] = datetime.now
