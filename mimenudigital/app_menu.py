@@ -1,4 +1,22 @@
 # =====================
+# SUPERADMIN USUARIOS Y SUSCRIPCIONES
+# =====================
+@app.route('/superadmin/usuarios')
+@login_required
+@superadmin_required
+def superadmin_usuarios():
+    db = get_db()
+    with db.cursor() as cur:
+        cur.execute("SELECT id, nombre, email, rol, creado_en FROM usuarios_admin WHERE rol != 'superadmin' ORDER BY creado_en DESC")
+        usuarios = cur.fetchall()
+    return render_template('superadmin/usuarios.html', usuarios=usuarios)
+
+@app.route('/superadmin/suscripciones')
+@login_required
+@superadmin_required
+def superadmin_suscripciones():
+    return render_template('superadmin/suscripciones.html')
+# =====================
 # SUPERADMIN DASHBOARD ESTADÍSTICAS
 # =====================
 @app.route('/superadmin/estadisticas')
