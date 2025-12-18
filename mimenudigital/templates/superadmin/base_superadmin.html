@@ -237,7 +237,7 @@
         
         <nav class="sidebar-menu">
             <div class="menu-label">Panel Principal</div>
-            <a href="{{ url_for('superadmin_restaurantes') }}" class="menu-item active">
+            <a href="{{ url_for('superadmin_restaurantes') }}" class="menu-item{% if request.endpoint == 'superadmin_restaurantes' %} active{% endif %}">
                 <i class="fas fa-store"></i>
                 Restaurantes
             </a>
@@ -247,7 +247,7 @@
                 <i class="fas fa-users"></i>
                 Usuarios
             </a>
-            <a href="#" class="menu-item">
+            <a href="{{ url_for('superadmin_estadisticas') }}" class="menu-item{% if request.endpoint == 'superadmin_estadisticas' %} active{% endif %}">
                 <i class="fas fa-chart-bar"></i>
                 Estadísticas
             </a>

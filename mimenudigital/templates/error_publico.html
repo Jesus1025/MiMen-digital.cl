@@ -82,20 +82,38 @@
 <body>
     <div class="error-container">
         <div class="error-icon">
-            <i class="fas fa-exclamation-triangle"></i>
+            {% if error_code == 404 %}
+                <i class="fas fa-search"></i>
+            {% elif error_code == 403 %}
+                <i class="fas fa-ban"></i>
+            {% elif error_code == 500 %}
+                <i class="fas fa-bug"></i>
+            {% else %}
+                <i class="fas fa-exclamation-triangle"></i>
+            {% endif %}
         </div>
-        <div class="error-code">¡Oops!</div>
-        <h1 class="error-title">Algo salió mal</h1>
+        <div class="error-code">{{ error_code if error_code else '¡Oops!' }}</div>
+        <h1 class="error-title">
+            {% if error_code == 404 %}
+                Página no encontrada
+            {% elif error_code == 403 %}
+                Acceso prohibido
+            {% elif error_code == 500 %}
+                Error interno del servidor
+            {% else %}
+                Algo salió mal
+            {% endif %}
+        </h1>
         <p class="error-message">
-            Estamos experimentando dificultades técnicas. 
-            Por favor, intenta nuevamente en unos momentos.
+            {{ error_message if error_message else 'Estamos experimentando dificultades técnicas. Por favor, intenta nuevamente en unos momentos.' }}
         </p>
         <button onclick="location.reload()" class="btn-retry">
             <i class="fas fa-redo"></i>
             Intentar de nuevo
         </button>
         <p class="support-text">
-            Si el problema persiste, contacta al restaurante directamente.
+            Si el problema persiste, contacta al restaurante directamente.<br>
+            <span style="color:#e67e22;">Código de error: {{ error_code if error_code else 'N/A' }}</span>
         </p>
     </div>
 </body>

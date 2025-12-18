@@ -1,11 +1,79 @@
+# =====================
+# SUPERADMIN DASHBOARD ESTADÍSTICAS
+# =====================
+@app.route('/superadmin/estadisticas')
+@login_required
+@superadmin_required
+def superadmin_estadisticas():
+    return render_template('superadmin/estadisticas.html')
+
+# API para estadísticas globales
+@app.route('/api/superadmin/stats')
+@login_required
+@superadmin_required
+def api_superadmin_stats():
+    db = get_db()
+    with db.cursor() as cur:
+        # Total restaurantes
+        cur.execute("SELECT COUNT(*) as total FROM restaurantes")
+        total_restaurantes = cur.fetchone()['total']
+        # Total usuarios (sin superadmin)
+        cur.execute("SELECT COUNT(*) as total FROM usuarios_admin WHERE rol != 'superadmin'")
+        total_usuarios = cur.fetchone()['total']
+        # Total visitas y escaneos
+        cur.execute("SELECT COALESCE(SUM(visitas),0) as visitas, COALESCE(SUM(escaneos_qr),0) as escaneos FROM estadisticas_diarias")
+        row = cur.fetchone()
+        total_visitas = row['visitas']
+        total_escaneos = row['escaneos']
+        # Visitas últimos 30 días
+        cur.execute("""
+            SELECT fecha, COALESCE(SUM(visitas),0) as visitas
+            FROM estadisticas_diarias
+            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY fecha
+            ORDER BY fecha
+        """)
+        visitas_30dias = list_from_rows(cur.fetchall())
+    return jsonify({
+        'total_restaurantes': total_restaurantes,
+        'total_usuarios': total_usuarios,
+        'total_visitas': total_visitas,
+        'total_escaneos': total_escaneos,
+        'visitas_30dias': visitas_30dias
+    })
+import qrcode
+# Carpeta para los QR
+QR_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'qrs')
+os.makedirs(QR_FOLDER, exist_ok=True)
+
+def generar_qr_restaurante(url, filename):
+    qr_path = os.path.join(QR_FOLDER, filename)
+    if not os.path.exists(qr_path):
+        img = qrcode.make(url)
+        img.save(qr_path)
+    return qr_path
 # ============================================================
 # MENU DIGITAL SAAS - DIVERGENT STUDIO
 # Sistema Multi-Tenant para Menús Digitales
 # Versión: 2.0 - MySQL Production Ready
 # ============================================================
+# ...existing code...
+# Ejemplo de uso en una vista (ajusta según tu lógica):
+#
+# @app.route('/superadmin/generar_qr/<int:restaurante_id>')
+# def generar_qr(restaurante_id):
+#     # Obtén el restaurante y su url_slug desde la base de datos
+#     restaurante = ... # tu lógica aquí
+#     url = f"{BASE_URL}/menu/{restaurante['url_slug']}"
+#     filename = f"{restaurante['id']}_qr.png"
+#     qr_path = generar_qr_restaurante(url, filename)
+#     return send_from_directory(QR_FOLDER, filename)
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, g, send_from_directory
+
 import os
+from dotenv import load_dotenv
+load_dotenv()
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, g, send_from_directory
 import pymysql
 from pymysql.cursors import DictCursor
 import uuid
@@ -16,9 +84,22 @@ from werkzeug.utils import secure_filename
 import traceback
 import logging
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+# Configurar logging para archivo y consola
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s',
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
+# Handler para error 403 (prohibido)
+@app.errorhandler(403)
+def forbidden_error(error):
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
+    return render_template('error_publico.html', error_code=403, error_message='Acceso prohibido'), 403
 
 # ============================================================
 # CONFIGURACIÓN DE LA APLICACIÓN

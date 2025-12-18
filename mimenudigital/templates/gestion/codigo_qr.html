@@ -118,7 +118,7 @@
             
             <div class="qr-container">
                 <div class="qr-frame" id="qrFrame">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ menu_url|urlencode }}" 
+                    <img src="{{ url_for('static', filename='uploads/qrs/' + qr_filename) }}" 
                          alt="Código QR" 
                          class="qr-image"
                          id="qrImage">
@@ -127,9 +127,9 @@
                 </div>
                 
                 <div class="qr-actions no-print">
-                    <button class="btn-primary btn-large" onclick="descargarQR()">
+                    <a class="btn-primary btn-large" href="{{ url_for('static', filename='uploads/qrs/' + qr_filename) }}" download="QR_{{ restaurante.url_slug }}.png">
                         <i class="fas fa-download"></i> Descargar PNG
-                    </button>
+                    </a>
                     <button class="btn-secondary btn-large" onclick="imprimirQR()">
                         <i class="fas fa-print"></i> Imprimir
                     </button>
@@ -150,7 +150,7 @@
                 <h3>{{ restaurante.nombre }}</h3>
                 <p>Escanea para ver nuestro menú</p>
                 <div class="qr-frame" style="padding: 1rem;">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ menu_url|urlencode }}" 
+                    <img src="{{ url_for('static', filename='uploads/qrs/' + qr_filename) }}" 
                          alt="QR" style="width: 150px; height: 150px;">
                 </div>
                 <p style="font-size: 0.8rem; margin-top: 1rem;">{{ menu_url }}</p>
@@ -249,18 +249,8 @@ async function cargarEstadisticas() {
     }
 }
 
-function descargarQR() {
-    const size = document.getElementById('qrSize').value;
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(MENU_URL)}`;
-    
-    // Crear link de descarga
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `QR_${RESTAURANTE_NOMBRE.replace(/\s+/g, '_')}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+
+// La descarga ahora es un <a> directo al PNG generado localmente
 
 function copiarURL() {
     navigator.clipboard.writeText(MENU_URL).then(() => {
