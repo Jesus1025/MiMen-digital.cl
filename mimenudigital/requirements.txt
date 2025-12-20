@@ -3,35 +3,48 @@
 # Divergent Studio - 2025
 # ===========================================
 
-# Framework web
-Flask>=3.0.0
-Werkzeug>=3.0.0
+# Framework web (versiones estables)
+Flask>=3.0.0,<4.0.0
+Werkzeug>=3.0.0,<4.0.0
 
-# MySQL driver
-PyMySQL>=1.1.0
+# MySQL driver (estable y probado)
+PyMySQL>=1.1.0,<2.0.0
 
 # Variables de entorno (recomendado)
-python-dotenv>=1.0.0
+python-dotenv>=1.0.0,<2.0.0
 
-# PDF se genera en el navegador con html2pdf.js (no requiere dependencia del servidor)
+# QR generation (local image generation)
+qrcode[pil]>=7.4.0,<8.0.0
 
-# Para producción en PythonAnywhere no necesitas Gunicorn
-# porque PythonAnywhere usa su propio servidor WSGI
+# Logging y monitoreo
+python-json-logger>=2.0.7  # JSON logging para producción
 
-# Opcional: Para generar QR como imagen (en lugar de API externa)
-qrcode[pil]>=7.4.0
-Pillow>=9.0.0
+# ===========================================
+# OPCIONALES (Descomenta según necesites)
+# ===========================================
 
-# Opcional: Para envío de emails
+# Para envío de emails
 # Flask-Mail>=0.9.1
 
-# Opcional: Para validación de formularios
+# Para validación de formularios
 # WTForms>=3.0.0
 # Flask-WTF>=1.1.0
 
-# Opcional: Para migración futura a MySQL
-# mysqlclient>=2.1.0
-# PyMySQL>=1.0.0
+# Para gestión mejorada de sesiones
+# Flask-Session>=0.5.0
+
+# Para validación de datos
+# marshmallow>=3.20.0
+
+# ===========================================
+# DESARROLLO (Descomenta para desarrollo local)
+# ===========================================
+
+# pytest>=7.0.0  # Testing
+# pytest-cov>=4.0.0  # Coverage reports
+# black>=23.0.0  # Code formatter
+# flake8>=6.0.0  # Linter
+# mypy>=1.0.0  # Type checking
 
 # ===========================================
 # INSTALACIÓN
@@ -40,3 +53,8 @@ Pillow>=9.0.0
 #
 # En PythonAnywhere:
 # pip install --user -r requirements.txt
+#
+# Con venv:
+# python -m venv venv
+# source venv/bin/activate  # En Windows: venv\Scripts\activate
+# pip install -r requirements.txt
