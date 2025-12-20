@@ -19,7 +19,9 @@
 
 
 import os
+import sys
 from dotenv import load_dotenv
+
 # Load local env first (gitignored `.env.local`), then fallback to `.env` if present.
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_local_path = os.path.join(base_dir, '.env.local')
@@ -28,7 +30,11 @@ if os.path.exists(env_local_path):
     load_dotenv(env_local_path)
 elif os.path.exists(env_path):
     load_dotenv(env_path)
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, g, send_from_directory
+
+from flask import (
+    Flask, render_template, request, jsonify, redirect, url_for, 
+    flash, session, g, send_from_directory
+)
 import pymysql
 from pymysql.cursors import DictCursor
 import uuid
@@ -39,16 +45,11 @@ from werkzeug.utils import secure_filename
 import traceback
 import logging
 from logging.handlers import RotatingFileHandler
-import io
-try:
-    from PIL import Image, UnidentifiedImageError
-    PIL_AVAILABLE = True
-except Exception:
-    PIL_AVAILABLE = False
-    # We'll log at runtime if someone tries to upload without Pillow installed
 
-# Configurar logging para archivo (rotativo) y consola
-log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+# ============================================================
+# CONFIGURACIÓN DE LOGGING
+# ============================================================
+log_dir = os.path.join(base_dir, 'logs')
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, 'app.log')
 
@@ -57,127 +58,71 @@ logger.setLevel(logging.INFO)
 
 # Rotating file handler: 5MB por archivo, 3 backups
 file_handler = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
-file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s [%(request_id)s] %(name)s %(threadName)s : %(message)s'))
+file_formatter = logging.Formatter(
+    '%(asctime)s | %(levelname)-8s | %(name)s | %(funcName)s:%(lineno)d | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
 
-# Console handler
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter('%(levelname)s [%(request_id)s]: %(message)s'))
+# Console handler para desarrollo
+console_handler = logging.StreamHandler(sys.stdout)
+console_formatter = logging.Formatter('%(levelname)-8s: %(message)s')
+console_handler.setFormatter(console_formatter)
 logger.addHandler(console_handler)
 
-
-# --- Request ID support for logs -------------------------------------------------
-class RequestIDFilter(logging.Filter):
-    """Logging filter that injects request_id into the LogRecord if available."""
-    def filter(self, record):
-        try:
-            # Import inside function to avoid import-time app context issues
-            from flask import has_request_context, g
-            if has_request_context() and getattr(g, 'request_id', None):
-                record.request_id = g.request_id
-            else:
-                record.request_id = '-'
-        except Exception:
-            record.request_id = '-'
-        return True
-
-# Add the filter to existing handlers so every log has request_id
-req_filter = RequestIDFilter()
-file_handler.addFilter(req_filter)
-console_handler.addFilter(req_filter)
-
-
-# Generate a short request id for each incoming request and attach to g
-@app.before_request
-def attach_request_id():
-    try:
-        rid = uuid.uuid4().hex
-        from flask import g
-        g.request_id = rid
-        # also expose to the request environ for other middlewares/tools
-        request.environ['HTTP_X_REQUEST_ID'] = rid
-        logger.info('Start request %s %s', request.method, request.path)
-    except Exception:
-        # Do not break requests if logging fails
-        pass
-
-
-@app.after_request
-def add_request_id_header(response):
-    try:
-        rid = getattr(g, 'request_id', None)
-        if rid:
-            response.headers['X-Request-ID'] = rid
-            logger.info('End request %s %s -> %s', request.method, request.path, response.status_code)
-    except Exception:
-        pass
-    return response
-
+logger.info("=" * 60)
+logger.info("Iniciando aplicación Menu Digital")
+logger.info("=" * 60)
 
 # ============================================================
 # CONFIGURACIÓN DE LA APLICACIÓN
 # ============================================================
 
 app = Flask(__name__)
-# Load secret key from environment; do NOT hardcode a production secret in source.
+
+# Cargar configuración desde variables de entorno
 secret_key = os.environ.get('SECRET_KEY')
 if not secret_key:
-    # Use a clearly invalid placeholder locally; ensure production sets SECRET_KEY.
     secret_key = 'please-set-a-secret-key'
     if os.environ.get('FLASK_ENV') == 'production':
         logger.warning('SECRET_KEY not set in environment. Set SECRET_KEY in production.')
+
 app.secret_key = secret_key
 
-# Añadir función now() a Jinja2 para templates
-app.jinja_env.globals['now'] = lambda: datetime.utcnow()
-
-# Configuración de sesiones
+# Configuración de sesiones (mejorada)
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
-# Configuración de subida de imágenes
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
+# Función now() para templates
+app.jinja_env.globals['now'] = lambda: datetime.utcnow()
+
+# ============================================================
+# CONFIGURACIÓN DE UPLOADS Y ARCHIVOS
+# ============================================================
+
+UPLOAD_FOLDER = os.path.join(base_dir, 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB máximo
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-# Crear carpeta de uploads si no existe
+# Crear carpetas necesarias
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+logger.info(f"Upload folder configured: {UPLOAD_FOLDER}")
 
-# QR local (import qrcode lazily to avoid import-time errors if la librería falta)
-QR_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'qrs')
+QR_FOLDER = os.path.join(base_dir, 'static', 'uploads', 'qrs')
 os.makedirs(QR_FOLDER, exist_ok=True)
-
-def generar_qr_restaurante(url, filename):
-    qr_path = os.path.join(QR_FOLDER, filename)
-    if not os.path.exists(qr_path):
-        try:
-            import qrcode
-        except Exception as e:
-            logger.error('qrcode module not available: %s', e)
-            raise RuntimeError('QR generation unavailable: missing dependency qrcode')
-
-        try:
-            img = qrcode.make(url)
-            img.save(qr_path)
-        except Exception as e:
-            logger.error('Failed to generate QR for %s: %s', url, e)
-            raise
-    return qr_path
-
-# Handler para error 403 (prohibido)
-@app.errorhandler(403)
-def forbidden_error(error):
-    if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
-    return render_template('error_publico.html', error_code=403, error_message='Acceso prohibido'), 403
+logger.info(f"QR folder configured: {QR_FOLDER}")
 
 # ============================================================
-# CONFIGURACIÓN MYSQL
+# CONFIGURACIÓN DE BASE DE DATOS
 # ============================================================
-# Leer configuración desde app.config (se puede sobreescribir con env vars)
+
 app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST', 'localhost')
 app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER', 'root')
 app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD', '')
@@ -185,21 +130,22 @@ app.config['MYSQL_DB'] = os.environ.get('MYSQL_DB', 'menu_digital')
 app.config['MYSQL_PORT'] = int(os.environ.get('MYSQL_PORT', 3306))
 app.config['MYSQL_CHARSET'] = 'utf8mb4'
 
-# Para PythonAnywhere, las variables de entorno típicas serán:
-# MYSQL_HOST=tuusuario.mysql.pythonanywhere-services.com
-# MYSQL_USER=tuusuario
-# MYSQL_PASSWORD=tu_password
-# MYSQL_DB=tuusuario$menu_digital
+logger.info(f"Database config: {app.config['MYSQL_HOST']}:{app.config['MYSQL_PORT']}/{app.config['MYSQL_DB']}")
 
-# Dominio base (se detecta automáticamente)
-BASE_URL = os.environ.get('BASE_URL', '')
+# URL base
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
+app.config['BASE_URL'] = BASE_URL
+logger.info(f"Base URL: {BASE_URL}")
 
 # ============================================================
-# CONEXIÓN A BASE DE DATOS MYSQL
+# FUNCIONES DE BASE DE DATOS
 # ============================================================
 
 def get_db():
-    """Obtiene una conexión a MySQL con soporte de reconexión."""
+    """
+    Obtiene una conexión a MySQL con reconexión automática.
+    Reutiliza la conexión existente si está activa.
+    """
     if 'db' not in g:
         try:
             db_config = {
@@ -213,14 +159,16 @@ def get_db():
                 'autocommit': False
             }
             g.db = pymysql.connect(**db_config)
+            logger.debug(f"New database connection created")
         except pymysql.Error as e:
-            print(f"❌ Error conectando a MySQL: {e}")
+            logger.error(f"Failed to connect to MySQL: {e}")
             raise
     else:
         # Verificar si la conexión sigue activa
         try:
             g.db.ping(reconnect=True)
-        except pymysql.Error:
+        except pymysql.Error as e:
+            logger.warning(f"Lost database connection, reconnecting: {e}")
             try:
                 db_config = {
                     'host': app.config.get('MYSQL_HOST'),
@@ -234,7 +182,7 @@ def get_db():
                 }
                 g.db = pymysql.connect(**db_config)
             except pymysql.Error as e:
-                print(f"❌ Error reconectando a MySQL: {e}")
+                logger.error(f"Failed to reconnect to MySQL: {e}")
                 raise
     return g.db
 
@@ -246,23 +194,72 @@ def close_db(error=None):
     if db is not None:
         try:
             db.close()
-        except:
-            pass
-
+            logger.debug("Database connection closed")
+        except Exception as e:
+            logger.warning(f"Error closing database: {e}")
 
 # ============================================================
-# MANEJADORES DE ERRORES GLOBALES
+# GENERACIÓN DE CÓDIGOS QR
 # ============================================================
+
+def generar_qr_restaurante(url, filename):
+    """
+    Genera un código QR en formato imagen.
+    
+    Args:
+        url (str): URL a codificar
+        filename (str): Nombre del archivo (e.g., "123_qr.png")
+    
+    Returns:
+        str: Ruta al archivo QR generado
+    """
+    qr_path = os.path.join(QR_FOLDER, filename)
+    
+    # No regenerar si ya existe
+    if os.path.exists(qr_path):
+        logger.debug(f"QR already exists: {qr_path}")
+        return qr_path
+    
+    try:
+        import qrcode
+    except ImportError as e:
+        logger.error('qrcode module not available')
+        raise RuntimeError('QR generation unavailable: install qrcode[pil]') from e
+
+    try:
+        logger.info(f"Generating QR code for: {url}")
+        img = qrcode.make(url)
+        img.save(qr_path)
+        logger.info(f"QR code saved: {qr_path}")
+        return qr_path
+    except Exception as e:
+        logger.error(f'Failed to generate QR for {url}: {e}')
+        raise
+
+# ============================================================
+# MANEJADORES DE ERRORES
+# ============================================================
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Maneja errores 403 (acceso denegado)."""
+    logger.warning(f"403 Forbidden error: {request.path}")
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
+    return render_template('error_publico.html', 
+                          error_code=403, 
+                          error_message='Acceso prohibido'), 403
+
+
 
 @app.errorhandler(500)
 def internal_error(error):
-    """Manejador de errores internos del servidor."""
-    logger.error(f"Error 500: {error}\n{traceback.format_exc()}")
+    """Maneja errores 500 (error interno del servidor)."""
+    logger.error(f"500 Internal Server Error: {traceback.format_exc()}")
     if request.path.startswith('/api/'):
         return jsonify({
             'success': False, 
-            'error': 'Error interno del servidor',
-            'details': str(error)
+            'error': 'Error interno del servidor'
         }), 500
     return render_template('error_publico.html', 
                           error_code=500, 
@@ -271,7 +268,8 @@ def internal_error(error):
 
 @app.errorhandler(404)
 def not_found_error(error):
-    """Manejador de errores 404."""
+    """Maneja errores 404 (no encontrado)."""
+    logger.debug(f"404 Not Found: {request.path}")
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': 'Recurso no encontrado'}), 404
     return render_template('error_publico.html', 
@@ -281,18 +279,22 @@ def not_found_error(error):
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Manejador global de excepciones."""
-    logger.error(f"Excepción no manejada: {e}\n{traceback.format_exc()}")
+    """Maneja excepciones globales no controladas."""
+    logger.error(f"Unhandled exception: {type(e).__name__}: {e}\n{traceback.format_exc()}")
     if request.path.startswith('/api/'):
         return jsonify({
             'success': False, 
-            'error': str(e),
+            'error': 'Error interno',
             'type': type(e).__name__
         }), 500
     return render_template('error_publico.html', 
                           error_code=500, 
                           error_message=f'Error: {str(e)}'), 500
 
+
+# ============================================================
+# FUNCIONES UTILITARIAS
+# ============================================================
 
 def dict_from_row(row):
     """Convierte una fila a diccionario (PyMySQL con DictCursor ya lo hace)."""
@@ -306,7 +308,10 @@ def list_from_rows(rows):
 
 def allowed_file(filename):
     """Verifica si la extensión del archivo está permitida."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    if not filename or '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
 
 
 # Context processor para inyectar menu_url en todos los templates
@@ -332,37 +337,48 @@ def inject_menu_url():
 # ============================================================
 
 def login_required(f):
+    """Decorador que requiere login. Redirige a login si no está autenticado."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
             if request.path.startswith('/api/'):
                 return jsonify({'error': 'No autorizado'}), 401
+            flash('Debes iniciar sesión para acceder a esta página', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
 
 
 def restaurante_owner_required(f):
-    """Permite solo acceso al administrador del restaurante actual o a un superadmin."""
+    """
+    Decorador que permite solo acceso al administrador del restaurante 
+    actual o a un superadmin.
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
-        if 'rol' in session and session.get('rol') == 'consulta':
+        # Permitir solo si el rol es admin o superadmin (no consulta)
+        if session.get('rol') == 'consulta':
             if request.path.startswith('/api/'):
                 return jsonify({'error': 'Acceso denegado. Rol de solo lectura.'}), 403
             flash('No tienes permisos para modificar el menú', 'error')
+            logger.warning(f"Access denied for user {session.get('user_id')} with role 'consulta'")
             return redirect(url_for('menu_gestion'))
         return f(*args, **kwargs)
     return decorated
 
 
 def superadmin_required(f):
-    """Solo permite acceso a superadmins."""
+    """
+    Decorador que solo permite acceso a superadmins.
+    Rechaza acceso a administradores normales.
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
         if session.get('rol') != 'superadmin':
             if request.path.startswith('/api/'):
                 return jsonify({'error': 'Acceso denegado. Solo superadmin.'}), 403
             flash('No tienes permisos de superadministrador', 'error')
+            logger.warning(f"Superadmin access denied for user {session.get('user_id')} with role {session.get('rol')}")
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
@@ -373,7 +389,13 @@ def superadmin_required(f):
 # ============================================================
 
 def registrar_visita(restaurante_id, req):
-    """Registra una visita/escaneo QR para el restaurante."""
+    """
+    Registra una visita/escaneo QR para el restaurante.
+    
+    Args:
+        restaurante_id (int): ID del restaurante
+        req: Flask request object
+    """
     try:
         db = get_db()
         with db.cursor() as cur:
@@ -385,20 +407,22 @@ def registrar_visita(restaurante_id, req):
             user_agent = req.headers.get('User-Agent', '')[:500]
             referer = req.headers.get('Referer', '')[:500]
             
-            # Detectar si es móvil
+            # Detectar dispositivo y origen
             es_movil = any(x in user_agent.lower() for x in ['mobile', 'android', 'iphone', 'ipad'])
             es_qr = 'qr' in referer.lower() or req.args.get('qr') == '1'
             
             # Insertar registro de visita
             cur.execute('''
-                INSERT INTO visitas (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, fecha)
+                INSERT INTO visitas 
+                (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, fecha)
                 VALUES (%s, %s, %s, %s, %s, %s, NOW())
             ''', (restaurante_id, ip_address, user_agent, referer, 1 if es_movil else 0, 1 if es_qr else 0))
             
-            # Actualizar contador diario
+            # Actualizar estadísticas diarias
             hoy = date.today().isoformat()
             cur.execute('''
-                INSERT INTO estadisticas_diarias (restaurante_id, fecha, visitas, escaneos_qr, visitas_movil, visitas_desktop)
+                INSERT INTO estadisticas_diarias 
+                (restaurante_id, fecha, visitas, escaneos_qr, visitas_movil, visitas_desktop)
                 VALUES (%s, %s, 1, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
                     visitas = visitas + 1,
@@ -416,9 +440,10 @@ def registrar_visita(restaurante_id, req):
             ))
             
             db.commit()
+            logger.debug(f"Visit registered for restaurant {restaurante_id} (mobile={es_movil}, qr={es_qr})")
             
     except Exception as e:
-        print(f"Error registrando visita: {e}")
+        logger.error(f"Error registrando visita para restaurante {restaurante_id}: {e}")
         try:
             db.rollback()
         except:
@@ -970,47 +995,13 @@ def api_subir_logo():
         return jsonify({'success': False, 'error': 'Archivo vacío'}), 400
     
     if file and allowed_file(file.filename):
-        if not PIL_AVAILABLE:
-            logger.error('Pillow (PIL) not installed; cannot validate image uploads')
-            return jsonify({'success': False, 'error': 'Server missing image support (install Pillow)'}), 500
-
-        # Leer contenido en memoria y validar tamaño
-        data = file.read()
-        if len(data) > app.config.get('MAX_CONTENT_LENGTH', 5 * 1024 * 1024):
-            return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 413
-
-        # Validar que es una imagen válida con Pillow
-        try:
-            img = Image.open(io.BytesIO(data))
-            img.verify()  # comprueba integridad
-            img_format = img.format.upper() if img.format else ''
-        except UnidentifiedImageError:
-            return jsonify({'success': False, 'error': 'El archivo no es una imagen válida'}), 400
-        except Exception as e:
-            logger.exception('Error validating uploaded image: %s', e)
-            return jsonify({'success': False, 'error': 'Error al procesar la imagen'}), 400
-
-        # Sólo formatos permitidos
-        allowed_formats = {'PNG', 'JPEG', 'GIF', 'WEBP'}
-        if img_format not in allowed_formats:
-            return jsonify({'success': False, 'error': f'Formato de imagen no permitido: {img_format}'}), 400
-
-        # Determinar extensión segura basada en el formato
-        ext = 'jpg' if img_format == 'JPEG' else img_format.lower()
+        # Generar nombre único
+        orig_name = secure_filename(file.filename)
+        ext = orig_name.rsplit('.', 1)[1].lower() if '.' in orig_name else 'png'
         filename = f"logo_{session['restaurante_id']}_{uuid.uuid4().hex[:8]}.{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-        # Reabrir y guardar la imagen de forma segura (reencode)
-        try:
-            img = Image.open(io.BytesIO(data))
-            # Convertir si necesario para JPEG
-            save_kwargs = {}
-            if img_format == 'JPEG' and img.mode in ('RGBA', 'LA'):
-                img = img.convert('RGB')
-            img.save(filepath, format=img_format)
-        except Exception as e:
-            logger.exception('Failed to save validated image: %s', e)
-            return jsonify({'success': False, 'error': 'No se pudo guardar la imagen'}), 500
+        
+        file.save(filepath)
         
         # Actualizar en BD
         logo_url = f"/static/uploads/{filename}"

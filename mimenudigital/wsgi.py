@@ -8,6 +8,12 @@
 
 import sys
 import os
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 try:
     # Optional: use python-dotenv locally for convenience (don't commit .env)
     from dotenv import load_dotenv
@@ -17,130 +23,114 @@ try:
     # Prefer .env.local for development convenience (it's gitignored)
     if os.path.exists(env_local):
         load_dotenv(env_local)
+        logger.info("Loaded environment variables from .env.local")
     elif os.path.exists(env_file):
         load_dotenv(env_file)
-except Exception:
+        logger.info("Loaded environment variables from .env")
+except Exception as e:
     # dotenv is optional; in production you should set real ENV vars
-    pass
-
-# Basic logging for WSGI import-time diagnostics (writes to stderr so PA shows it)
-import logging
-_wsgi_logger = logging.getLogger('wsgi')
-if not _wsgi_logger.handlers:
-    ch = logging.StreamHandler()
-    ch.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
-    _wsgi_logger.addHandler(ch)
-_wsgi_logger.setLevel(logging.INFO)
+    logger.warning(f"Could not load .env file: {e}")
 
 # ============================================================
 # RUTA DEL PROYECTO - AJUSTAR SEGÚN TU ESTRUCTURA
 # ============================================================
-# Opción 1: Si clonaste directamente (sin carpeta anidada)
-# project_home = '/home/MiMenudigital/MiMen-digital.cl'
+def find_project_home():
+    """Localiza el directorio del proyecto de forma dinámica."""
+    home = os.path.expanduser('~')
+    candidates = [
+        os.path.join(home, 'MiMen-digital.cl'),
+        os.path.join(home, 'MiMen-digital.cl', 'mimenudigital'),
+        os.path.join(home, 'MiMen-digital.cl', 'mimenúdigital'),
+        os.path.join(home, 'MiMen-digital.cl', 'MiMen-digital.cl'),
+    ]
 
-# Opción 2: Si hay carpeta anidada con caracteres especiales
-# Prueba estas variantes según tu estructura:
-# Try to locate the project directory dynamically. This avoids problems with
-# accented folder names or different layouts between local and PythonAnywhere.
-home = os.path.expanduser('~')
-candidates = [
-    os.path.join(home, 'MiMen-digital.cl'),
-    os.path.join(home, 'MiMen-digital.cl', 'mimenudigital'),
-    os.path.join(home, 'MiMen-digital.cl', 'mimenúdigital'),
-    os.path.join(home, 'MiMen-digital.cl', 'MiMen-digital.cl'),
-]
+    for candidate in candidates:
+        if os.path.isdir(candidate) and 'app_menu.py' in os.listdir(candidate):
+            logger.info(f"Found project home: {candidate}")
+            return candidate
 
-project_home = None
-for c in candidates:
-    if os.path.isdir(c) and 'app_menu.py' in os.listdir(c):
-        project_home = c
-        break
-
-if project_home is None:
     # Fallback: scan home for a directory containing app_menu.py
-    for entry in os.listdir(home):
-        full = os.path.join(home, entry)
-        if os.path.isdir(full):
-            try:
-                if 'app_menu.py' in os.listdir(full):
-                    project_home = full
-                    break
-            except Exception:
-                continue
+    try:
+        for entry in os.listdir(home):
+            full = os.path.join(home, entry)
+            if os.path.isdir(full):
+                try:
+                    if 'app_menu.py' in os.listdir(full):
+                        logger.info(f"Found project home (fallback scan): {full}")
+                        return full
+                except (PermissionError, OSError):
+                    continue
+    except (PermissionError, OSError) as e:
+        logger.warning(f"Could not scan home directory: {e}")
 
-if project_home is None:
     # Last resort: use current directory
-    project_home = os.getcwd()
+    cwd = os.getcwd()
+    logger.info(f"Using current working directory: {cwd}")
+    return cwd
+
+project_home = find_project_home()
 
 if project_home not in sys.path:
     sys.path.insert(0, project_home)
+    logger.info(f"Added {project_home} to sys.path")
 
 try:
     os.chdir(project_home)
-except Exception:
-    pass
-
-_wsgi_logger.info('WSGI: Using project_home=%s', project_home)
+    logger.info(f"Changed working directory to {project_home}")
+except (OSError, IOError) as e:
+    logger.error(f"Could not change directory to {project_home}: {e}")
 
 # ============================================================
-# VARIABLES DE ENTORNO - CONFIGURACIÓN MYSQL
+# VARIABLES DE ENTORNO - CONFIGURACIÓN
 # ============================================================
 # Runtime environment: prefer to read from real environment variables.
 # DO NOT commit secrets to the repository. Set these in PythonAnywhere
 # Web -> Environment variables, or create a local `.env` (gitignored).
+
+def validate_environment():
+    """Valida que las variables de entorno críticas estén configuradas."""
+    flask_env = os.environ.get('FLASK_ENV', 'production')
+    logger.info(f"Flask environment: {flask_env}")
+    
+    if flask_env == 'production':
+        secret_key = os.environ.get('SECRET_KEY')
+        if not secret_key or secret_key == 'please-set-a-secret-key-in-your-env':
+            logger.warning("SECRET_KEY not properly configured in production!")
+
 os.environ.setdefault('FLASK_ENV', os.environ.get('FLASK_ENV', 'production'))
 
 # Application secret key (must be set in production)
-if os.environ.get('FLASK_ENV') == 'production':
-    if not os.environ.get('SECRET_KEY') or os.environ.get('SECRET_KEY') == 'please-set-a-secret-key-in-your-env':
-        # Fail fast in production: do not start with an insecure placeholder
-        msg = (
-            'SECRET_KEY is not set for production environment. ' 
-            'Set SECRET_KEY in the Web -> Environment variables on PythonAnywhere and reload the app.'
-        )
-        _wsgi_logger.error(msg)
-        raise RuntimeError(msg)
-else:
-    # Keep a clear placeholder for development convenience
-    os.environ.setdefault('SECRET_KEY', 'please-set-a-secret-key-in-your-env')
-
-# MySQL / Database settings - set these in the server environment
-# Example variables expected: MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB, MYSQL_PORT
-# Leave them empty here so deployment environment (PythonAnywhere) provides them.
+if not os.environ.get('SECRET_KEY'):
+    logger.warning("SECRET_KEY not set. Set it in production environment variables.")
+    os.environ['SECRET_KEY'] = 'please-set-a-secret-key-in-your-env'
 
 # Base URL (used in some templates/links)
 os.environ.setdefault('BASE_URL', os.environ.get('BASE_URL', 'http://localhost:5000'))
 
-# Log presence of common DB envs (non-fatal)
-for k in ('MYSQL_HOST', 'MYSQL_USER', 'MYSQL_DB'):
-    _wsgi_logger.info('%s=%s', k, bool(os.environ.get(k)))
+validate_environment()
 
 # ============================================================
 # IMPORTAR APLICACIÓN
 # ============================================================
-try:
-    # Prefer importing as a package (when app is inside `mimenudigital` package)
-    from mimenudigital.app_menu import app as application
-except Exception:
-    # Fallback: try a top-level module named app_menu
+def import_application():
+    """Importa la aplicación Flask con manejo robusto de errores."""
     try:
-        from app_menu import app as application
-    except Exception as e:
-        # Provide a helpful error explaining why import failed.
-        _wsgi_logger.exception('Failed to import Flask application: %s', e)
+        from app_menu import app
+        logger.info("Successfully imported Flask application")
+        return app
+    except ImportError as e:
+        logger.error(f"Failed to import Flask application: {e}")
         raise ImportError(
-            "Failed to import Flask application. Check project path, package layout, and dependencies. "
-            "Ensure `app = Flask(__name__)` is defined in `app_menu.py` before routes, and that required "
-            "env vars (e.g., SECRET_KEY) are set. Original error: %s" % e
-        )
-    else:
-        _wsgi_logger.info('Imported application from top-level module app_menu')
-else:
-    _wsgi_logger.info('Imported application from package mimenudigital.app_menu')
+            "Failed to import Flask application. Troubleshooting:\n"
+            "1. Verify 'app_menu.py' exists in the project directory\n"
+            "2. Check that 'app = Flask(__name__)' is defined in app_menu.py\n"
+            "3. Ensure all required dependencies are installed\n"
+            "4. Verify database environment variables are correctly set\n"
+            f"Original error: {e}"
+        ) from e
 
-# Ensure WSGI callable is named 'application' (some servers require this)
-if 'application' not in globals():
-    try:
-        application = application
-    except NameError:
-        raise ImportError('WSGI callable `application` not found; ensure your Flask app is assigned to `app`')
+try:
+    application = import_application()
+except ImportError as e:
+    logger.critical(f"Critical error: {e}")
+    raise
