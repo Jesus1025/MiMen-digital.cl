@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Proyectos - TekneTau{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-project-diagram"></i> Reporte de Estado de Proyectos</h1>
+        <p class="text-muted">Visualiza el estado financiero de cada proyecto, comparando el presupuesto con lo facturado.</p>
+    </div>
+</div>
+
+<!-- Tarjeta de Resumen de Proyectos -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-info">
+            <div class="card-body text-center">
+                <i class="fas fa-tasks fa-2x mb-3"></i>
+                <h5 id="totalProyectosActivos">0</h5>
+                <p class="mb-0">Proyectos Activos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body text-center">
+                <i class="fas fa-dollar-sign fa-2x mb-3"></i>
+                <h5 id="totalPresupuestado">0</h5>
+                <p class="mb-0">Presupuesto Total</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-file-invoice-dollar fa-2x mb-3"></i>
+                <h5 id="totalFacturadoProyectos">0</h5>
+                <p class="mb-0">Total Facturado</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Reporte de Proyectos -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list-alt"></i> Detalle de Proyectos
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary me-2" onclick="cargarReporteProyectos()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                    <button class="btn btn-sm btn-success" onclick="exportarReporteProyectosExcel()">
+                        <i class="fas fa-file-excel"></i> Exportar a Excel
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="tablaReporteProyectos">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Proyecto (Código)</th>
+                                <th>Cliente</th>
+                                <th>Presupuesto</th>
+                                <th>Total Facturado</th>
+                                <th>Saldo Pendiente</th>
+                                <th>% Facturado</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpoReporteProyectos">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                    <p class="mt-2">Cargando datos de proyectos...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver facturas de un proyecto -->
+<div class="modal fade" id="modalFacturasProyecto" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Facturas del Proyecto: <span id="nombreProyectoModal"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="detalleFacturasProyecto" class="table-responsive">
+                    <!-- Contenido dinámico -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Función para formatear moneda
+function formatoMoneda(numero) {
+    if (numero === null || typeof numero === 'undefined' || isNaN(numero)) return '$0';
+    return '$' + new Intl.NumberFormat('es-CL', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(numero);
+}
+
+// Función para cargar los datos del reporte de proyectos
+function cargarReporteProyectos() {
+    fetch('/api/reporte-proyectos')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error al cargar el reporte: ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const tbody = document.getElementById('cuerpoReporteProyectos');
+            const totalProyectosActivos = document.getElementById('totalProyectosActivos');
+            const totalPresupuestado = document.getElementById('totalPresupuestado');
+            const totalFacturadoProyectos = document.getElementById('totalFacturadoProyectos');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No se encontraron proyectos activos.</td></tr>';
+                totalProyectosActivos.textContent = '0';
+                totalPresupuestado.textContent = formatoMoneda(0);
+                totalFacturadoProyectos.textContent = formatoMoneda(0);
+                return;
+            }
+
+            let html = '';
+            let sumaPresupuesto = 0;
+            let sumaFacturado = 0;
+            let proyectosActivos = 0;
+
+            data.forEach(proyecto => {
+                const saldo = (proyecto.presupuesto || 0) - (proyecto.total_facturado || 0);
+                const porcentajeFacturado = (proyecto.presupuesto > 0) ? ((proyecto.total_facturado / proyecto.presupuesto) * 100) : 0;
+                
+                let saldoClass = 'text-success';
+                if (saldo < 0) {
+                    saldoClass = 'text-danger';
+                } else if (saldo < (proyecto.presupuesto * 0.1)) {
+                    saldoClass = 'text-warning';
+                }
+
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${proyecto.nombre}</strong><br>
+                            <small class="text-muted">${proyecto.codigo}</small>
+                        </td>
+                        <td>${proyecto.razon_social || '<em>Sin cliente</em>'}</td>
+                        <td>${formatoMoneda(proyecto.presupuesto)}</td>
+                        <td>${formatoMoneda(proyecto.total_facturado)}</td>
+                        <td><strong class="${saldoClass}">${formatoMoneda(saldo)}</strong></td>
+                        <td>
+                            <div class="progress" title="${porcentajeFacturado.toFixed(2)}%">
+                                <div class="progress-bar ${porcentajeFacturado > 100 ? 'bg-danger' : 'bg-success'}" 
+                                     role="progressbar" style="width: ${Math.min(porcentajeFacturado, 100)}%;" 
+                                     aria-valuenow="${porcentajeFacturado}" aria-valuemin="0" aria-valuemax="100">
+                                     ${porcentajeFacturado.toFixed(0)}%
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge bg-primary">${proyecto.estado}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" 
+                                    onclick="verFacturas('${proyecto.codigo}', '${proyecto.nombre}')" 
+                                    title="Ver Facturas">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+
+                if (proyecto.estado === 'Activo') {
+                    proyectosActivos++;
+                    sumaPresupuesto += proyecto.presupuesto || 0;
+                    sumaFacturado += proyecto.total_facturado || 0;
+                }
+            });
+            
+            tbody.innerHTML = html;
+            totalProyectosActivos.textContent = proyectosActivos;
+            totalPresupuestado.textContent = formatoMoneda(sumaPresupuesto);
+            totalFacturadoProyectos.textContent = formatoMoneda(sumaFacturado);
+        })
+        .catch(error => {
+            const tbody = document.getElementById('cuerpoReporteProyectos');
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger"><strong>Error:</strong> ${error.message}</td></tr>`;
+            console.error('Error al cargar el reporte de proyectos:', error);
+        });
+}
+
+// Función para ver las facturas de un proyecto específico
+function verFacturas(codigoProyecto, nombreProyecto) {
+    document.getElementById('nombreProyectoModal').textContent = nombreProyecto;
+    const modalBody = document.getElementById('detalleFacturasProyecto');
+    modalBody.innerHTML = '<p class="text-center">Cargando facturas...</p>';
+
+    const modal = new bootstrap.Modal(document.getElementById('modalFacturasProyecto'));
+    modal.show();
+
+    fetch(`/api/facturas?proyecto_codigo=${codigoProyecto}`)
+        .then(response => response.json())
+        .then(facturas => {
+            if (!facturas || facturas.length === 0) {
+                modalBody.innerHTML = '<div class="alert alert-info">No se encontraron facturas para este proyecto.</div>';
+                return;
+            }
+
+            let html = `
+                <table class="table table-sm table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>N° Doc</th>
+                            <th>Tipo</th>
+                            <th>Fecha Emisión</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            <th>Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            let total = 0;
+            facturas.forEach(f => {
+                html += `
+                    <tr>
+                        <td>${f.numero_doc}</td>
+                        <td>${f.tipo_doc}</td>
+                        <td>${new Date(f.fecha_emision).toLocaleDateString('es-CL')}</td>
+                        <td>${f.descripcion}</td>
+                        <td><span class="badge bg-${f.estado === 'Pagado' ? 'success' : 'warning'}">${f.estado}</span></td>
+                        <td class="text-end">${formatoMoneda(f.valor_total)}</td>
+                    </tr>
+                `;
+                total += f.valor_total;
+            });
+
+            html += `
+                    </tbody>
+                    <tfoot class="table-dark">
+                        <tr>
+                            <td colspan="5" class="text-end"><strong>Total Facturado:</strong></td>
+                            <td class="text-end"><strong>${formatoMoneda(total)}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+
+            modalBody.innerHTML = html;
+        })
+        .catch(error => {
+            modalBody.innerHTML = '<div class="alert alert-danger">Error al cargar las facturas.</div>';
+            console.error('Error en verFacturas:', error);
+        });
+}
+
+// Función para exportar el reporte a Excel
+function exportarReporteProyectosExcel() {
+    // Redirigir a la URL de exportación de la API
+    window.open('/api/reporte-proyectos/exportar-excel', '_blank');
+}
+
+// Cargar los datos cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    cargarReporteProyectos();
+});
+</script>
+{% endblock %}
