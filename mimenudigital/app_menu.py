@@ -38,17 +38,81 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import traceback
 import logging
+from logging.handlers import RotatingFileHandler
+import io
+try:
+    from PIL import Image, UnidentifiedImageError
+    PIL_AVAILABLE = True
+except Exception:
+    PIL_AVAILABLE = False
+    # We'll log at runtime if someone tries to upload without Pillow installed
 
-# Configurar logging para archivo y consola
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s',
-    handlers=[
-        logging.FileHandler("app.log"),
-        logging.StreamHandler()
-    ]
-)
+# Configurar logging para archivo (rotativo) y consola
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, 'app.log')
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Rotating file handler: 5MB por archivo, 3 backups
+file_handler = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
+file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s [%(request_id)s] %(name)s %(threadName)s : %(message)s'))
+logger.addHandler(file_handler)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(levelname)s [%(request_id)s]: %(message)s'))
+logger.addHandler(console_handler)
+
+
+# --- Request ID support for logs -------------------------------------------------
+class RequestIDFilter(logging.Filter):
+    """Logging filter that injects request_id into the LogRecord if available."""
+    def filter(self, record):
+        try:
+            # Import inside function to avoid import-time app context issues
+            from flask import has_request_context, g
+            if has_request_context() and getattr(g, 'request_id', None):
+                record.request_id = g.request_id
+            else:
+                record.request_id = '-'
+        except Exception:
+            record.request_id = '-'
+        return True
+
+# Add the filter to existing handlers so every log has request_id
+req_filter = RequestIDFilter()
+file_handler.addFilter(req_filter)
+console_handler.addFilter(req_filter)
+
+
+# Generate a short request id for each incoming request and attach to g
+@app.before_request
+def attach_request_id():
+    try:
+        rid = uuid.uuid4().hex
+        from flask import g
+        g.request_id = rid
+        # also expose to the request environ for other middlewares/tools
+        request.environ['HTTP_X_REQUEST_ID'] = rid
+        logger.info('Start request %s %s', request.method, request.path)
+    except Exception:
+        # Do not break requests if logging fails
+        pass
+
+
+@app.after_request
+def add_request_id_header(response):
+    try:
+        rid = getattr(g, 'request_id', None)
+        if rid:
+            response.headers['X-Request-ID'] = rid
+            logger.info('End request %s %s -> %s', request.method, request.path, response.status_code)
+    except Exception:
+        pass
+    return response
+
 
 # ============================================================
 # CONFIGURACIÓN DE LA APLICACIÓN
@@ -65,7 +129,7 @@ if not secret_key:
 app.secret_key = secret_key
 
 # Añadir función now() a Jinja2 para templates
-app.jinja_env.globals['now'] = datetime.now
+app.jinja_env.globals['now'] = lambda: datetime.utcnow()
 
 # Configuración de sesiones
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
@@ -82,16 +146,25 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # Crear carpeta de uploads si no existe
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# QR local
-import qrcode
+# QR local (import qrcode lazily to avoid import-time errors if la librería falta)
 QR_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'qrs')
 os.makedirs(QR_FOLDER, exist_ok=True)
 
 def generar_qr_restaurante(url, filename):
     qr_path = os.path.join(QR_FOLDER, filename)
     if not os.path.exists(qr_path):
-        img = qrcode.make(url)
-        img.save(qr_path)
+        try:
+            import qrcode
+        except Exception as e:
+            logger.error('qrcode module not available: %s', e)
+            raise RuntimeError('QR generation unavailable: missing dependency qrcode')
+
+        try:
+            img = qrcode.make(url)
+            img.save(qr_path)
+        except Exception as e:
+            logger.error('Failed to generate QR for %s: %s', url, e)
+            raise
     return qr_path
 
 # Handler para error 403 (prohibido)
@@ -104,19 +177,15 @@ def forbidden_error(error):
 # ============================================================
 # CONFIGURACIÓN MYSQL
 # ============================================================
-# Para desarrollo local (XAMPP/WAMP):
-MYSQL_CONFIG = {
-    'host': os.environ.get('MYSQL_HOST', 'localhost'),
-    'user': os.environ.get('MYSQL_USER', 'root'),
-    'password': os.environ.get('MYSQL_PASSWORD', ''),
-    'database': os.environ.get('MYSQL_DB', 'menu_digital'),
-    'port': int(os.environ.get('MYSQL_PORT', 3306)),
-    'charset': 'utf8mb4',
-    'cursorclass': DictCursor,
-    'autocommit': False
-}
+# Leer configuración desde app.config (se puede sobreescribir con env vars)
+app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST', 'localhost')
+app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER', 'root')
+app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD', '')
+app.config['MYSQL_DB'] = os.environ.get('MYSQL_DB', 'menu_digital')
+app.config['MYSQL_PORT'] = int(os.environ.get('MYSQL_PORT', 3306))
+app.config['MYSQL_CHARSET'] = 'utf8mb4'
 
-# Para PythonAnywhere, las variables de entorno serán:
+# Para PythonAnywhere, las variables de entorno típicas serán:
 # MYSQL_HOST=tuusuario.mysql.pythonanywhere-services.com
 # MYSQL_USER=tuusuario
 # MYSQL_PASSWORD=tu_password
@@ -133,7 +202,17 @@ def get_db():
     """Obtiene una conexión a MySQL con soporte de reconexión."""
     if 'db' not in g:
         try:
-            g.db = pymysql.connect(**MYSQL_CONFIG)
+            db_config = {
+                'host': app.config.get('MYSQL_HOST'),
+                'user': app.config.get('MYSQL_USER'),
+                'password': app.config.get('MYSQL_PASSWORD'),
+                'database': app.config.get('MYSQL_DB'),
+                'port': int(app.config.get('MYSQL_PORT', 3306)),
+                'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
+                'cursorclass': DictCursor,
+                'autocommit': False
+            }
+            g.db = pymysql.connect(**db_config)
         except pymysql.Error as e:
             print(f"❌ Error conectando a MySQL: {e}")
             raise
@@ -143,7 +222,17 @@ def get_db():
             g.db.ping(reconnect=True)
         except pymysql.Error:
             try:
-                g.db = pymysql.connect(**MYSQL_CONFIG)
+                db_config = {
+                    'host': app.config.get('MYSQL_HOST'),
+                    'user': app.config.get('MYSQL_USER'),
+                    'password': app.config.get('MYSQL_PASSWORD'),
+                    'database': app.config.get('MYSQL_DB'),
+                    'port': int(app.config.get('MYSQL_PORT', 3306)),
+                    'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
+                    'cursorclass': DictCursor,
+                    'autocommit': False
+                }
+                g.db = pymysql.connect(**db_config)
             except pymysql.Error as e:
                 print(f"❌ Error reconectando a MySQL: {e}")
                 raise
@@ -881,12 +970,47 @@ def api_subir_logo():
         return jsonify({'success': False, 'error': 'Archivo vacío'}), 400
     
     if file and allowed_file(file.filename):
-        # Generar nombre único
-        ext = file.filename.rsplit('.', 1)[1].lower()
+        if not PIL_AVAILABLE:
+            logger.error('Pillow (PIL) not installed; cannot validate image uploads')
+            return jsonify({'success': False, 'error': 'Server missing image support (install Pillow)'}), 500
+
+        # Leer contenido en memoria y validar tamaño
+        data = file.read()
+        if len(data) > app.config.get('MAX_CONTENT_LENGTH', 5 * 1024 * 1024):
+            return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 413
+
+        # Validar que es una imagen válida con Pillow
+        try:
+            img = Image.open(io.BytesIO(data))
+            img.verify()  # comprueba integridad
+            img_format = img.format.upper() if img.format else ''
+        except UnidentifiedImageError:
+            return jsonify({'success': False, 'error': 'El archivo no es una imagen válida'}), 400
+        except Exception as e:
+            logger.exception('Error validating uploaded image: %s', e)
+            return jsonify({'success': False, 'error': 'Error al procesar la imagen'}), 400
+
+        # Sólo formatos permitidos
+        allowed_formats = {'PNG', 'JPEG', 'GIF', 'WEBP'}
+        if img_format not in allowed_formats:
+            return jsonify({'success': False, 'error': f'Formato de imagen no permitido: {img_format}'}), 400
+
+        # Determinar extensión segura basada en el formato
+        ext = 'jpg' if img_format == 'JPEG' else img_format.lower()
         filename = f"logo_{session['restaurante_id']}_{uuid.uuid4().hex[:8]}.{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        
-        file.save(filepath)
+
+        # Reabrir y guardar la imagen de forma segura (reencode)
+        try:
+            img = Image.open(io.BytesIO(data))
+            # Convertir si necesario para JPEG
+            save_kwargs = {}
+            if img_format == 'JPEG' and img.mode in ('RGBA', 'LA'):
+                img = img.convert('RGB')
+            img.save(filepath, format=img_format)
+        except Exception as e:
+            logger.exception('Failed to save validated image: %s', e)
+            return jsonify({'success': False, 'error': 'No se pudo guardar la imagen'}), 500
         
         # Actualizar en BD
         logo_url = f"/static/uploads/{filename}"
@@ -1473,7 +1597,7 @@ if __name__ == '__main__':
     print("=" * 50)
     print("🍽️  MENÚ DIGITAL SAAS - Divergent Studio")
     print("=" * 50)
-    print(f"📦 MySQL: {MYSQL_CONFIG['host']}:{MYSQL_CONFIG['port']}/{MYSQL_CONFIG['database']}")
+    print(f"📦 MySQL: {app.config.get('MYSQL_HOST')}:{app.config.get('MYSQL_PORT')}/{app.config.get('MYSQL_DB')}")
     print(f"🌐 Servidor: http://127.0.0.1:5000")
     print("=" * 50)
     print("⚠️  Antes de usar, ejecuta: GET /api/init-db")
