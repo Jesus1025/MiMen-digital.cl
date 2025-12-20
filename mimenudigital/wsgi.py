@@ -23,6 +23,15 @@ except Exception:
     # dotenv is optional; in production you should set real ENV vars
     pass
 
+# Basic logging for WSGI import-time diagnostics (writes to stderr so PA shows it)
+import logging
+_wsgi_logger = logging.getLogger('wsgi')
+if not _wsgi_logger.handlers:
+    ch = logging.StreamHandler()
+    ch.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+    _wsgi_logger.addHandler(ch)
+_wsgi_logger.setLevel(logging.INFO)
+
 # ============================================================
 # RUTA DEL PROYECTO - AJUSTAR SEGÚN TU ESTRUCTURA
 # ============================================================
@@ -71,6 +80,8 @@ try:
 except Exception:
     pass
 
+_wsgi_logger.info('WSGI: Using project_home=%s', project_home)
+
 # ============================================================
 # VARIABLES DE ENTORNO - CONFIGURACIÓN MYSQL
 # ============================================================
@@ -80,9 +91,18 @@ except Exception:
 os.environ.setdefault('FLASK_ENV', os.environ.get('FLASK_ENV', 'production'))
 
 # Application secret key (must be set in production)
-if not os.environ.get('SECRET_KEY'):
-    # note: we don't set a production secret here; raise helpful message
-    os.environ['SECRET_KEY'] = 'please-set-a-secret-key-in-your-env'
+if os.environ.get('FLASK_ENV') == 'production':
+    if not os.environ.get('SECRET_KEY') or os.environ.get('SECRET_KEY') == 'please-set-a-secret-key-in-your-env':
+        # Fail fast in production: do not start with an insecure placeholder
+        msg = (
+            'SECRET_KEY is not set for production environment. ' 
+            'Set SECRET_KEY in the Web -> Environment variables on PythonAnywhere and reload the app.'
+        )
+        _wsgi_logger.error(msg)
+        raise RuntimeError(msg)
+else:
+    # Keep a clear placeholder for development convenience
+    os.environ.setdefault('SECRET_KEY', 'please-set-a-secret-key-in-your-env')
 
 # MySQL / Database settings - set these in the server environment
 # Example variables expected: MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB, MYSQL_PORT
@@ -90,6 +110,10 @@ if not os.environ.get('SECRET_KEY'):
 
 # Base URL (used in some templates/links)
 os.environ.setdefault('BASE_URL', os.environ.get('BASE_URL', 'http://localhost:5000'))
+
+# Log presence of common DB envs (non-fatal)
+for k in ('MYSQL_HOST', 'MYSQL_USER', 'MYSQL_DB'):
+    _wsgi_logger.info('%s=%s', k, bool(os.environ.get(k)))
 
 # ============================================================
 # IMPORTAR APLICACIÓN
@@ -103,10 +127,20 @@ except Exception:
         from app_menu import app as application
     except Exception as e:
         # Provide a helpful error explaining why import failed.
+        _wsgi_logger.exception('Failed to import Flask application: %s', e)
         raise ImportError(
-            "Failed to import Flask application. Make sure your project path is correct, "
-            "that the `mimenudigital` package exists (or `app_menu.py` at project root), "
-            "and that `app = Flask(__name__)` is defined in `app_menu.py` (before any @app.route). "
-            "Also ensure required dependencies are installed and environment variables are set. "
-            f"Original error: {e!s}"
+            "Failed to import Flask application. Check project path, package layout, and dependencies. "
+            "Ensure `app = Flask(__name__)` is defined in `app_menu.py` before routes, and that required "
+            "env vars (e.g., SECRET_KEY) are set. Original error: %s" % e
         )
+    else:
+        _wsgi_logger.info('Imported application from top-level module app_menu')
+else:
+    _wsgi_logger.info('Imported application from package mimenudigital.app_menu')
+
+# Ensure WSGI callable is named 'application' (some servers require this)
+if 'application' not in globals():
+    try:
+        application = application
+    except NameError:
+        raise ImportError('WSGI callable `application` not found; ensure your Flask app is assigned to `app`')

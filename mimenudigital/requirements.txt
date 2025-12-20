@@ -20,6 +20,7 @@ python-dotenv>=1.0.0
 
 # Opcional: Para generar QR como imagen (en lugar de API externa)
 qrcode[pil]>=7.4.0
+Pillow>=9.0.0
 
 # Opcional: Para envío de emails
 # Flask-Mail>=0.9.1
