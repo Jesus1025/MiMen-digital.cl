@@ -20,16 +20,21 @@
 
 import os
 import sys
-from dotenv import load_dotenv
 
-# Load local env first (gitignored `.env.local`), then fallback to `.env` if present.
-base_dir = os.path.dirname(os.path.abspath(__file__))
-env_local_path = os.path.join(base_dir, '.env.local')
-env_path = os.path.join(base_dir, '.env')
-if os.path.exists(env_local_path):
-    load_dotenv(env_local_path)
-elif os.path.exists(env_path):
-    load_dotenv(env_path)
+# Intentar cargar variables de entorno desde .env (solo si existe)
+# En PythonAnywhere, las variables se configuran en Web -> Environment variables
+try:
+    from dotenv import load_dotenv
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    env_local_path = os.path.join(base_dir, '.env.local')
+    env_path = os.path.join(base_dir, '.env')
+    if os.path.exists(env_local_path):
+        load_dotenv(env_local_path)
+    elif os.path.exists(env_path):
+        load_dotenv(env_path)
+except ImportError:
+    # dotenv no instalado, está bien - las vars vienen de PythonAnywhere
+    base_dir = os.path.dirname(os.path.abspath(__file__))
 
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for, 
