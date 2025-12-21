@@ -128,18 +128,45 @@ logger.info(f"QR folder configured: {QR_FOLDER}")
 # CONFIGURACIÓN DE BASE DE DATOS
 # ============================================================
 
-# Debug: mostrar qué variables se están leyendo
-print("DEBUG - Environment variables:")
-print(f"  MYSQL_HOST={os.environ.get('MYSQL_HOST')}")
-print(f"  MYSQL_USER={os.environ.get('MYSQL_USER')}")
-print(f"  MYSQL_DB={os.environ.get('MYSQL_DB')}")
-print(f"  MYSQL_PORT={os.environ.get('MYSQL_PORT')}")
+# Leer configuración de variables de entorno
+MYSQL_HOST = os.environ.get('MYSQL_HOST')
+MYSQL_USER = os.environ.get('MYSQL_USER')
+MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD')
+MYSQL_DB = os.environ.get('MYSQL_DB')
+MYSQL_PORT = os.environ.get('MYSQL_PORT', '3306')
 
-app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST', 'localhost')
-app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER', 'root')
-app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD', '')
-app.config['MYSQL_DB'] = os.environ.get('MYSQL_DB', 'menu_digital')
-app.config['MYSQL_PORT'] = int(os.environ.get('MYSQL_PORT', 3306))
+# Debug: mostrar qué variables se están leyendo
+print("=" * 60)
+print("APP_MENU DEBUG - Database configuration:")
+print(f"  MYSQL_HOST={MYSQL_HOST}")
+print(f"  MYSQL_USER={MYSQL_USER}")
+print(f"  MYSQL_DB={MYSQL_DB}")
+print(f"  MYSQL_PORT={MYSQL_PORT}")
+print(f"  FLASK_ENV={os.environ.get('FLASK_ENV')}")
+print("=" * 60)
+
+# Validar que las variables críticas estén configuradas
+if not MYSQL_HOST or MYSQL_HOST == 'localhost':
+    raise ValueError(
+        "MYSQL_HOST no está configurada o es 'localhost'. "
+        "En PythonAnywhere, ve a Web -> Environment variables y configura:\n"
+        "  MYSQL_HOST = Jesus1025.mysql.pythonanywhere-services.com\n"
+        "  MYSQL_USER = Jesus1025\n"
+        "  MYSQL_PASSWORD = tu_contraseña\n"
+        "  MYSQL_DB = Jesus1025$menu_digital"
+    )
+
+if not MYSQL_USER:
+    raise ValueError("MYSQL_USER no está configurada")
+
+if not MYSQL_DB:
+    raise ValueError("MYSQL_DB no está configurada")
+
+app.config['MYSQL_HOST'] = MYSQL_HOST
+app.config['MYSQL_USER'] = MYSQL_USER
+app.config['MYSQL_PASSWORD'] = MYSQL_PASSWORD
+app.config['MYSQL_DB'] = MYSQL_DB
+app.config['MYSQL_PORT'] = int(MYSQL_PORT)
 app.config['MYSQL_CHARSET'] = 'utf8mb4'
 
 logger.info(f"Database config: {app.config['MYSQL_HOST']}:{app.config['MYSQL_PORT']}/{app.config['MYSQL_DB']}")
