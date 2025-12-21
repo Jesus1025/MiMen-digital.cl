@@ -128,6 +128,13 @@ logger.info(f"QR folder configured: {QR_FOLDER}")
 # CONFIGURACIÓN DE BASE DE DATOS
 # ============================================================
 
+# Debug: mostrar qué variables se están leyendo
+print("DEBUG - Environment variables:")
+print(f"  MYSQL_HOST={os.environ.get('MYSQL_HOST')}")
+print(f"  MYSQL_USER={os.environ.get('MYSQL_USER')}")
+print(f"  MYSQL_DB={os.environ.get('MYSQL_DB')}")
+print(f"  MYSQL_PORT={os.environ.get('MYSQL_PORT')}")
+
 app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST', 'localhost')
 app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER', 'root')
 app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD', '')
