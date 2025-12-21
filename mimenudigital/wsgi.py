@@ -14,7 +14,9 @@ path = '/home/Jesus1025/MiMen-digital.cl'
 if path not in sys.path:
     sys.path.insert(0, path)
 
-# 2. IMPORTAR VARIABLES DE ENTORNO (solo en desarrollo si existe .env)
+# 2. CARGAR VARIABLES DE ENTORNO
+# En desarrollo, cargar desde .env si existe
+# En producción (PythonAnywhere), las variables ya están en os.environ
 try:
     from dotenv import load_dotenv
     env_file = os.path.join(path, '.env')
@@ -25,19 +27,28 @@ except ImportError:
 except Exception:
     pass
 
-# 3. IMPORTAR LA APP
+# 3. VALIDAR Y MOSTRAR VARIABLES DE ENTORNO
+# Debug: mostrar qué variables tiene PythonAnywhere
+print("=" * 60)
+print("WSGI DEBUG - Checking environment variables:")
+print(f"  MYSQL_HOST: {os.environ.get('MYSQL_HOST', 'NOT SET')}")
+print(f"  MYSQL_USER: {os.environ.get('MYSQL_USER', 'NOT SET')}")
+print(f"  MYSQL_DB: {os.environ.get('MYSQL_DB', 'NOT SET')}")
+print(f"  FLASK_ENV: {os.environ.get('FLASK_ENV', 'NOT SET')}")
+print("=" * 60)
+
+# 4. IMPORTAR LA APP
 try:
     from app_menu import app as application
 except ImportError as e:
-    # Si falla, mostrar error útil
+    # Si falla, crear una app dummy que muestre el error
     import traceback
-    error_msg = f"Error importando app_menu: {str(e)}\n{traceback.format_exc()}"
-    print(error_msg)
-    
-    # Crear una app dummy que muestre el error
     from flask import Flask
     application = Flask(__name__)
     
+    error_msg = f"Error importando app_menu: {str(e)}\n{traceback.format_exc()}"
+    print(f"ERROR: {error_msg}")
+    
     @application.route('/')
     def error():
-        return f"<pre>Error: {error_msg}</pre>", 500
+        return f"<pre>Import Error:\n{error_msg}</pre>", 500
