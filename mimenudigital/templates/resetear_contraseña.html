@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resetear Contraseña - Menú Digital</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .card-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .card-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .card-body {
+            padding: 30px;
+        }
+        
+        .alert {
+            margin-bottom: 20px;
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .alert-error {
+            background-color: #fee;
+            color: #c33;
+            border-left: 4px solid #c33;
+        }
+        
+        .alert-success {
+            background-color: #efe;
+            color: #3c3;
+            border-left: 4px solid #3c3;
+        }
+        
+        .alert-info {
+            background-color: #eef;
+            color: #33c;
+            border-left: 4px solid #33c;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        input[type="email"],
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        input[type="email"]:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .form-footer {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .form-footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .icon {
+            margin-right: 8px;
+        }
+        
+        .password-strength {
+            margin-top: 8px;
+            font-size: 12px;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .password-strength-bar {
+            height: 100%;
+            width: 0;
+            transition: width 0.3s, background-color 0.3s;
+            background-color: #e0e0e0;
+        }
+        
+        .password-strength.weak .password-strength-bar {
+            width: 33%;
+            background-color: #f44336;
+        }
+        
+        .password-strength.medium .password-strength-bar {
+            width: 66%;
+            background-color: #ff9800;
+        }
+        
+        .password-strength.strong .password-strength-bar {
+            width: 100%;
+            background-color: #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1><i class="fas fa-lock icon"></i>Resetear Contraseña</h1>
+                <p>Ingresa tu nueva contraseña</p>
+            </div>
+            
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <div class="info-box">
+                    <i class="fas fa-shield-alt icon"></i>
+                    Ingresa una nueva contraseña segura con al menos 6 caracteres.
+                </div>
+                
+                <form method="POST" id="resetForm">
+                    <div class="form-group">
+                        <label for="email">
+                            <i class="fas fa-envelope icon"></i>Email
+                        </label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            value="{{ email }}"
+                            disabled
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">
+                            <i class="fas fa-lock icon"></i>Nueva Contraseña
+                        </label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Mínimo 6 caracteres"
+                            required
+                            autofocus
+                            onkeyup="evaluarFuerza(this.value)"
+                        >
+                        <div id="strengthMeter" class="password-strength">
+                            <div class="password-strength-bar"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password_confirm">
+                            <i class="fas fa-lock icon"></i>Confirmar Contraseña
+                        </label>
+                        <input 
+                            type="password" 
+                            id="password_confirm" 
+                            name="password_confirm" 
+                            placeholder="Repite tu contraseña"
+                            required
+                            onkeyup="validarCoincidencia()"
+                        >
+                        <div id="coincidenciaMsg" style="margin-top: 8px; font-size: 12px; color: #999;"></div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check icon"></i>Actualizar Contraseña
+                    </button>
+                </form>
+                
+                <div class="form-footer">
+                    <a href="{{ url_for('login') }}">
+                        <i class="fas fa-arrow-left"></i> Volver al Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function evaluarFuerza(password) {
+            const meter = document.getElementById('strengthMeter');
+            
+            if (password.length === 0) {
+                meter.classList.remove('weak', 'medium', 'strong');
+                return;
+            }
+            
+            let fuerza = 0;
+            if (password.length >= 6) fuerza++;
+            if (password.length >= 10) fuerza++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) fuerza++;
+            if (/\d/.test(password)) fuerza++;
+            if (/[^a-zA-Z\d]/.test(password)) fuerza++;
+            
+            meter.classList.remove('weak', 'medium', 'strong');
+            
+            if (fuerza <= 1) {
+                meter.classList.add('weak');
+            } else if (fuerza <= 3) {
+                meter.classList.add('medium');
+            } else {
+                meter.classList.add('strong');
+            }
+        }
+        
+        function validarCoincidencia() {
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('password_confirm').value;
+            const msg = document.getElementById('coincidenciaMsg');
+            
+            if (!confirm) {
+                msg.textContent = '';
+                return;
+            }
+            
+            if (password === confirm) {
+                msg.textContent = '✓ Las contraseñas coinciden';
+                msg.style.color = '#4caf50';
+            } else {
+                msg.textContent = '✗ Las contraseñas no coinciden';
+                msg.style.color = '#f44336';
+            }
+        }
+        
+        document.getElementById('resetForm').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('password_confirm').value;
+            
+            if (password.length < 6) {
+                e.preventDefault();
+                alert('La contraseña debe tener al menos 6 caracteres');
+                return false;
+            }
+            
+            if (password !== confirm) {
+                e.preventDefault();
+                alert('Las contraseñas no coinciden');
+                return false;
+            }
+        });
+    </script>
+</body>
+</html>

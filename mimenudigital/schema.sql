@@ -216,6 +216,24 @@ CREATE TABLE IF NOT EXISTS audit_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- TABLA: RECUPERACIÓN DE CONTRASEÑA
+-- ============================================================
+CREATE TABLE IF NOT EXISTS password_resets (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    usuario_id INT NOT NULL,
+    token VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    fecha_expiracion TIMESTAMP NOT NULL,
+    utilizado TINYINT(1) DEFAULT 0,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    INDEX idx_usuario (usuario_id),
+    INDEX idx_token (token),
+    INDEX idx_expiracion (fecha_expiracion),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios_admin(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- USUARIO SUPERADMIN INICIAL
 -- El usuario superadmin se crea automáticamente al visitar /api/init-db
 -- Password por defecto: superadmin123 (cambiar en producción!)

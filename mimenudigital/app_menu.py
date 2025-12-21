@@ -607,6 +607,120 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/recuperar-contraseña', methods=['GET', 'POST'])
+def recuperar_contraseña():
+    """Solicita recuperación de contraseña."""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Por favor ingresa tu email', 'error')
+            return render_template('recuperar_contraseña.html')
+        
+        db = get_db()
+        try:
+            with db.cursor() as cur:
+                # Buscar usuario por email
+                cur.execute("SELECT id, nombre, email FROM usuarios_admin WHERE email = %s AND activo = 1", (email,))
+                user = cur.fetchone()
+                
+                if not user:
+                    # No revelar si el email existe
+                    flash('Si el email está registrado, recibirás instrucciones en breve', 'info')
+                    return render_template('recuperar_contraseña.html')
+                
+                # Generar token único (40 caracteres hexadecimales)
+                import secrets
+                token = secrets.token_hex(20)
+                fecha_expiracion = datetime.utcnow() + __import__('datetime').timedelta(hours=24)
+                
+                # Guardar token en BD (válido por 24 horas)
+                cur.execute('''
+                    INSERT INTO password_resets (usuario_id, token, email, fecha_expiracion)
+                    VALUES (%s, %s, %s, %s)
+                ''', (user['id'], token, email, fecha_expiracion))
+                db.commit()
+                
+                # Link de reset
+                reset_url = f"{BASE_URL}/resetear-contraseña/{token}"
+                
+                # En producción, enviar email. Por ahora mostramos el link en desarrollo
+                logger.info(f"Password reset requested for {email}. Token: {token}")
+                
+                if os.environ.get('FLASK_ENV') == 'production':
+                    # TODO: Implementar envío de email real
+                    flash('Se ha enviado un link de recuperación a tu email', 'success')
+                else:
+                    # En desarrollo, mostrar el link
+                    flash(f'Link de reset: <a href="{reset_url}">Haz clic aquí</a>', 'success')
+                
+                return render_template('recuperar_contraseña.html')
+        
+        except Exception as e:
+            logger.error(f"Error en recuperar_contraseña: {traceback.format_exc()}")
+            flash('Error al procesar la solicitud', 'error')
+    
+    return render_template('recuperar_contraseña.html')
+
+
+@app.route('/resetear-contraseña/<token>', methods=['GET', 'POST'])
+def resetear_contraseña(token):
+    """Permite resetear la contraseña con un token válido."""
+    db = get_db()
+    
+    try:
+        with db.cursor() as cur:
+            # Buscar token válido y no expirado
+            cur.execute('''
+                SELECT pr.id, pr.usuario_id, pr.email, u.nombre
+                FROM password_resets pr
+                JOIN usuarios_admin u ON pr.usuario_id = u.id
+                WHERE pr.token = %s AND pr.utilizado = 0 AND pr.fecha_expiracion > NOW()
+            ''', (token,))
+            reset = cur.fetchone()
+            
+            if not reset:
+                flash('Link de recuperación inválido o expirado', 'error')
+                return redirect(url_for('login'))
+            
+            if request.method == 'POST':
+                password = request.form.get('password', '').strip()
+                password_confirm = request.form.get('password_confirm', '').strip()
+                
+                if not password or len(password) < 6:
+                    flash('La contraseña debe tener al menos 6 caracteres', 'error')
+                    return render_template('resetear_contraseña.html', token=token, email=reset['email'])
+                
+                if password != password_confirm:
+                    flash('Las contraseñas no coinciden', 'error')
+                    return render_template('resetear_contraseña.html', token=token, email=reset['email'])
+                
+                # Hashear nueva contraseña
+                password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+                
+                # Actualizar contraseña y marcar token como utilizado
+                cur.execute('''
+                    UPDATE usuarios_admin SET password_hash = %s WHERE id = %s
+                ''', (password_hash, reset['usuario_id']))
+                
+                cur.execute('''
+                    UPDATE password_resets SET utilizado = 1 WHERE id = %s
+                ''', (reset['id'],))
+                
+                db.commit()
+                
+                logger.info(f"Password reset successfully for user {reset['usuario_id']}")
+                flash('Contraseña actualizada correctamente. Ya puedes iniciar sesión', 'success')
+                return redirect(url_for('login'))
+            
+            return render_template('resetear_contraseña.html', token=token, email=reset['email'])
+    
+    except Exception as e:
+        logger.error(f"Error en resetear_contraseña: {traceback.format_exc()}")
+        flash('Error al procesar la solicitud', 'error')
+        return redirect(url_for('login'))
+
+
 # ============================================================
 # RUTAS DE GESTIÓN (PANEL ADMIN)
 # ============================================================
