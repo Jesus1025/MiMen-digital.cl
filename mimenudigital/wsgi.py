@@ -27,6 +27,16 @@ except ImportError:
 except Exception:
     pass
 
+# FALLBACK TEMPORAL: Si las variables no están en el panel de PA, establecerlas aquí
+# (NOTA: Esta es una solución temporal - en producción estas variables deberían estar en el panel)
+os.environ.setdefault('MYSQL_HOST', 'MiMenudigital.mysql.pythonanywhere-services.com')
+os.environ.setdefault('MYSQL_USER', 'MiMenudigital')
+os.environ.setdefault('MYSQL_PASSWORD', '19101810Aa')
+os.environ.setdefault('MYSQL_DB', 'MiMenudigital$menu_digital')
+os.environ.setdefault('MYSQL_PORT', '3306')
+os.environ.setdefault('FLASK_ENV', 'production')
+os.environ.setdefault('BASE_URL', 'https://mimenudigital.pythonanywhere.com')
+
 # 3. VALIDAR Y MOSTRAR VARIABLES DE ENTORNO
 # Debug: mostrar qué variables tiene PythonAnywhere
 print("=" * 60)
