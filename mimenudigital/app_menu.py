@@ -136,16 +136,6 @@ MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or '19101810Aa'
 MYSQL_DB = os.environ.get('MYSQL_DB') or 'MiMenudigital$menu_digital'
 MYSQL_PORT = os.environ.get('MYSQL_PORT') or '3306'
 
-# Debug: mostrar qué variables se están leyendo
-print("=" * 60)
-print("APP_MENU DEBUG - Database configuration:")
-print(f"  MYSQL_HOST={MYSQL_HOST}")
-print(f"  MYSQL_USER={MYSQL_USER}")
-print(f"  MYSQL_DB={MYSQL_DB}")
-print(f"  MYSQL_PORT={MYSQL_PORT}")
-print(f"  FLASK_ENV={os.environ.get('FLASK_ENV')}")
-print("=" * 60)
-
 app.config['MYSQL_HOST'] = MYSQL_HOST
 app.config['MYSQL_USER'] = MYSQL_USER
 app.config['MYSQL_PASSWORD'] = MYSQL_PASSWORD
@@ -1171,7 +1161,7 @@ def superadmin_restaurantes():
 def superadmin_usuarios():
     db = get_db()
     with db.cursor() as cur:
-        cur.execute("SELECT id, nombre, email, rol, creado_en FROM usuarios_admin WHERE rol != 'superadmin' ORDER BY creado_en DESC")
+        cur.execute("SELECT id, nombre, email, rol, fecha_creacion FROM usuarios_admin WHERE rol != 'superadmin' ORDER BY fecha_creacion DESC")
         usuarios = list_from_rows(cur.fetchall())
     return render_template('superadmin/usuarios.html', usuarios=usuarios)
 

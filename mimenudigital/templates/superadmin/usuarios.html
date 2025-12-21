@@ -27,7 +27,7 @@
                     <td>{{ u.nombre }}</td>
                     <td>{{ u.email }}</td>
                     <td>{{ u.rol }}</td>
-                    <td>{{ u.creado_en.strftime('%d/%m/%Y %H:%M') if u.creado_en else '' }}</td>
+                    <td>{{ u.fecha_creacion.strftime('%d/%m/%Y %H:%M') if u.fecha_creacion else '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
