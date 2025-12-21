@@ -129,11 +129,12 @@ logger.info(f"QR folder configured: {QR_FOLDER}")
 # ============================================================
 
 # Leer configuración de variables de entorno
-MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
-MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
-MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
-MYSQL_DB = os.environ.get('MYSQL_DB', 'menu_digital')
-MYSQL_PORT = os.environ.get('MYSQL_PORT', '3306')
+# Valores por defecto NUNCA deben ser 'localhost' en producción
+MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'MiMenudigital.mysql.pythonanywhere-services.com'
+MYSQL_USER = os.environ.get('MYSQL_USER') or 'MiMenudigital'
+MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or '19101810Aa'
+MYSQL_DB = os.environ.get('MYSQL_DB') or 'MiMenudigital$menu_digital'
+MYSQL_PORT = os.environ.get('MYSQL_PORT') or '3306'
 
 # Debug: mostrar qué variables se están leyendo
 print("=" * 60)
