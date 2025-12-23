@@ -38,7 +38,7 @@ except ImportError:
 
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for, 
-    flash, session, g, send_from_directory
+    flash, session, g, send_from_directory, make_response
 )
 import pymysql
 from pymysql.cursors import DictCursor
@@ -53,10 +53,25 @@ import traceback
 import logging
 from logging.handlers import RotatingFileHandler
 
+# Intentar importar pdfkit para generación de PDFs
+try:
+    import pdfkit
+    PDFKIT_AVAILABLE = True
+except ImportError:
+    pdfkit = None
+    PDFKIT_AVAILABLE = False
+
+# Intentar importar SDK de Mercado Pago
+try:
+    import mercadopago
+    MERCADOPAGO_AVAILABLE = True
+except ImportError:
+    mercadopago = None
+    MERCADOPAGO_AVAILABLE = False
+
 # ============================================================
 # CONFIGURACIÓN DE LOGGING
 # ============================================================
-log_dir = os.path.join(base_dir, 'logs')
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, 'app.log')
 
@@ -141,6 +156,39 @@ def init_cloudinary():
 
 # Inicializar Cloudinary después de crear la app
 init_cloudinary()
+
+# Variable global para almacenar cliente de Mercado Pago
+MERCADOPAGO_CLIENT = None
+
+def init_mercadopago():
+    """
+    Inicializa el cliente de Mercado Pago.
+    Se llama después de que Flask está completamente cargado.
+    """
+    global MERCADOPAGO_CLIENT
+    
+    if not MERCADOPAGO_AVAILABLE:
+        logger.warning("SDK de Mercado Pago no está instalado. Los pagos no funcionarán.")
+        return False
+    
+    access_token = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
+    
+    if access_token:
+        try:
+            MERCADOPAGO_CLIENT = mercadopago.SDK(access_token)
+            logger.info("Mercado Pago configurado correctamente")
+            return True
+        except Exception as e:
+            logger.error(f"Error configurando Mercado Pago: {e}")
+            MERCADOPAGO_CLIENT = None
+            return False
+    else:
+        logger.warning("MERCADO_PAGO_ACCESS_TOKEN no está configurada en las variables de entorno.")
+        MERCADOPAGO_CLIENT = None
+        return False
+
+# Inicializar Mercado Pago
+init_mercadopago()
 
 # ============================================================
 # CONFIGURACIÓN DE UPLOADS Y ARCHIVOS
@@ -890,6 +938,154 @@ def gestion_apariencia():
     return render_template('gestion/apariencia.html', restaurante=restaurante)
 
 
+@app.route('/gestion/descargas')
+@login_required
+@verificar_suscripcion
+def gestion_descargas():
+    """Página de descargas - PDF del menú."""
+    db = get_db()
+    restaurante_id = session['restaurante_id']
+    
+    try:
+        with db.cursor() as cur:
+            # Obtener restaurante
+            cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
+            restaurante = dict_from_row(cur.fetchone())
+            
+            # Obtener categorías y platos
+            cur.execute("""
+                SELECT c.id, c.nombre, c.orden 
+                FROM categorias c 
+                WHERE c.restaurante_id = %s AND c.activo = 1 
+                ORDER BY c.orden, c.nombre
+            """, (restaurante_id,))
+            categorias = list_from_rows(cur.fetchall())
+            
+            # Obtener platos para cada categoría
+            menu = []
+            for cat in categorias:
+                cur.execute("""
+                    SELECT * FROM platos 
+                    WHERE categoria_id = %s AND restaurante_id = %s AND activo = 1 
+                    ORDER BY orden, nombre
+                """, (cat['id'], restaurante_id))
+                platos = list_from_rows(cur.fetchall())
+                
+                # Procesar etiquetas (split por coma)
+                for plato in platos:
+                    if plato.get('etiquetas'):
+                        plato['etiquetas'] = [tag.strip() for tag in plato['etiquetas'].split(',')]
+                    else:
+                        plato['etiquetas'] = []
+                
+                menu.append({
+                    'id': cat['id'],
+                    'nombre': cat['nombre'],
+                    'platos': platos
+                })
+        
+        return render_template('gestion/descargas.html', restaurante=restaurante, menu=menu)
+    
+    except Exception as e:
+        logger.error(f"Error en gestion_descargas: {traceback.format_exc()}")
+        flash('Error al cargar la página de descargas', 'error')
+        return redirect(url_for('gestion_platos'))
+
+
+@app.route('/api/menu/pdf')
+@login_required
+@verificar_suscripcion
+def api_menu_pdf():
+    """API para descargar el menú en PDF."""
+    db = get_db()
+    restaurante_id = session['restaurante_id']
+    
+    try:
+        with db.cursor() as cur:
+            # Obtener restaurante
+            cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
+            restaurante = dict_from_row(cur.fetchone())
+            
+            # Obtener categorías y platos
+            cur.execute("""
+                SELECT c.id, c.nombre, c.orden 
+                FROM categorias c 
+                WHERE c.restaurante_id = %s AND c.activo = 1 
+                ORDER BY c.orden, c.nombre
+            """, (restaurante_id,))
+            categorias = list_from_rows(cur.fetchall())
+            
+            # Obtener platos para cada categoría
+            menu = []
+            for cat in categorias:
+                cur.execute("""
+                    SELECT * FROM platos 
+                    WHERE categoria_id = %s AND restaurante_id = %s AND activo = 1 
+                    ORDER BY orden, nombre
+                """, (cat['id'], restaurante_id))
+                platos = list_from_rows(cur.fetchall())
+                
+                # Procesar etiquetas
+                for plato in platos:
+                    if plato.get('etiquetas'):
+                        plato['etiquetas'] = [tag.strip() for tag in plato['etiquetas'].split(',')]
+                    else:
+                        plato['etiquetas'] = []
+                
+                menu.append({
+                    'id': cat['id'],
+                    'nombre': cat['nombre'],
+                    'platos': platos
+                })
+            
+            # Renderizar HTML
+            base_url = request.host_url.rstrip('/')
+            html_content = render_template(
+                'menu_pdf.html',
+                restaurante=restaurante,
+                menu=menu,
+                base_url=base_url
+            )
+            
+            # Generar PDF usando pdfkit
+            if PDFKIT_AVAILABLE:
+                try:
+                    pdf_content = pdfkit.from_string(
+                        html_content,
+                        False,
+                        options={
+                            'page-size': 'A4',
+                            'margin-top': '0.5in',
+                            'margin-right': '0.5in',
+                            'margin-bottom': '0.5in',
+                            'margin-left': '0.5in',
+                            'encoding': "UTF-8",
+                            'no-outline': None,
+                            'enable-local-file-access': None,
+                        }
+                    )
+                    
+                    # Crear respuesta con el PDF
+                    response = make_response(pdf_content)
+                    response.headers['Content-Type'] = 'application/pdf'
+                    response.headers['Content-Disposition'] = f'attachment; filename="menu_{restaurante["nombre"].replace(" ", "_")}.pdf"'
+                    return response
+                
+                except Exception as e:
+                    logger.error(f"Error generando PDF con pdfkit: {traceback.format_exc()}")
+                    return jsonify({'success': False, 'error': f'Error al generar PDF: {str(e)}'}), 500
+            else:
+                # Fallback: devolver HTML para que el navegador lo convierta a PDF
+                logger.warning("pdfkit no disponible, devolviendo HTML para imprimir")
+                response = make_response(html_content)
+                response.headers['Content-Type'] = 'text/html; charset=utf-8'
+                return response
+    
+    except Exception as e:
+        logger.error(f"Error en api_menu_pdf: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/gestion/pago-pendiente')
 @login_required
 def gestion_pago_pendiente():
@@ -909,6 +1105,207 @@ def gestion_pago_pendiente():
     return render_template('gestion/pago_pendiente.html', 
                           restaurante=restaurante, 
                           dias_vencido=dias_vencido)
+
+
+@app.route('/api/pago/crear-preferencia', methods=['POST'])
+@login_required
+def api_crear_preferencia_pago():
+    """API para crear una preferencia de pago en Mercado Pago."""
+    if not MERCADOPAGO_CLIENT:
+        return jsonify({'success': False, 'error': 'Mercado Pago no está configurado'}), 500
+    
+    try:
+        db = get_db()
+        restaurante_id = session.get('restaurante_id')
+        data = request.get_json()
+        
+        # Obtener datos del restaurante
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT nombre, email FROM restaurantes WHERE id = %s",
+                (restaurante_id,)
+            )
+            restaurante = dict_from_row(cur.fetchone())
+        
+        # Definir parámetros del pago
+        plan_type = data.get('plan_type', 'mensual')
+        
+        # Configurar precio según plan
+        if plan_type == 'mensual':
+            precio = 9.99
+            descripcion = 'Suscripción Mensual - Menú Digital'
+        elif plan_type == 'anual':
+            precio = 99.99
+            descripcion = 'Suscripción Anual - Menú Digital'
+        else:
+            precio = 9.99
+            descripcion = 'Suscripción - Menú Digital'
+        
+        # Crear preferencia de pago
+        preference_data = {
+            "items": [
+                {
+                    "title": descripcion,
+                    "quantity": 1,
+                    "currency_id": "CLP",  # Cambiar según país
+                    "unit_price": precio
+                }
+            ],
+            "payer": {
+                "email": restaurante.get('email', 'no-email@example.com')
+            },
+            "back_urls": {
+                "success": f"{request.host_url.rstrip('/')}/pago/exito",
+                "failure": f"{request.host_url.rstrip('/')}/pago/fallo",
+                "pending": f"{request.host_url.rstrip('/')}/pago/pendiente"
+            },
+            "notification_url": f"{request.host_url.rstrip('/')}/webhook/mercado-pago",
+            "external_reference": f"rest_{restaurante_id}_{int(datetime.utcnow().timestamp())}",
+            "auto_return": "approved"
+        }
+        
+        # Crear preferencia
+        response = MERCADOPAGO_CLIENT.preference().create(preference_data)
+        
+        if response.get("status") == 201:
+            preference = response.get("response", {})
+            
+            # Guardar referencia en BD
+            with db.cursor() as cur:
+                cur.execute("""
+                    UPDATE restaurantes 
+                    SET ultima_preferencia_pago = %s,
+                        fecha_ultimo_intento_pago = NOW()
+                    WHERE id = %s
+                """, (preference.get('id'), restaurante_id))
+                db.commit()
+            
+            logger.info(f"Preferencia de pago creada para restaurante {restaurante_id}: {preference.get('id')}")
+            
+            return jsonify({
+                'success': True,
+                'preferencia_id': preference.get('id'),
+                'init_point': preference.get('init_point')
+            })
+        else:
+            error_msg = response.get('response', {}).get('message', 'Error desconocido')
+            logger.error(f"Error creando preferencia: {error_msg}")
+            return jsonify({'success': False, 'error': error_msg}), 500
+    
+    except Exception as e:
+        logger.error(f"Error en api_crear_preferencia_pago: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/webhook/mercado-pago', methods=['POST'])
+def webhook_mercado_pago():
+    """Webhook para recibir notificaciones de Mercado Pago."""
+    try:
+        data = request.get_json() or request.form.to_dict()
+        
+        # Validar que sea una notificación de pago
+        if not data or 'data' not in data:
+            logger.warning(f"Webhook recibido sin datos de pago: {data}")
+            return jsonify({'status': 'ignored'}), 200
+        
+        payment_id = data['data'].get('id')
+        
+        if not payment_id:
+            logger.warning(f"Webhook sin payment_id: {data}")
+            return jsonify({'status': 'ignored'}), 200
+        
+        # Obtener detalles del pago desde Mercado Pago
+        payment_info = MERCADOPAGO_CLIENT.payment().get(payment_id)
+        
+        if payment_info.get('status') != 200:
+            logger.error(f"Error obteniendo pago {payment_id}: {payment_info}")
+            return jsonify({'status': 'error'}), 500
+        
+        payment = payment_info.get('response', {})
+        external_reference = payment.get('external_reference', '')
+        payment_status = payment.get('status')
+        
+        # Extraer restaurante_id de external_reference (formato: rest_RESTAURANTE_ID_TIMESTAMP)
+        if not external_reference.startswith('rest_'):
+            logger.warning(f"External reference inválido: {external_reference}")
+            return jsonify({'status': 'ignored'}), 200
+        
+        try:
+            restaurante_id = int(external_reference.split('_')[1])
+        except (IndexError, ValueError):
+            logger.error(f"No se pudo extraer restaurante_id de: {external_reference}")
+            return jsonify({'status': 'error'}), 500
+        
+        # Procesar según estado del pago
+        db = get_db()
+        
+        if payment_status == 'approved':
+            # Pago aprobado - Extender suscripción
+            plan_type = 'mensual'  # Podría obtenerse del pago
+            dias_extension = 30  # Por defecto mensual
+            
+            with db.cursor() as cur:
+                # Obtener fecha de vencimiento actual
+                cur.execute(
+                    "SELECT fecha_vencimiento FROM restaurantes WHERE id = %s",
+                    (restaurante_id,)
+                )
+                result = dict_from_row(cur.fetchone())
+                
+                fecha_vencimiento_actual = result.get('fecha_vencimiento') if result else date.today()
+                
+                # Si está vencido, comenzar desde hoy
+                if fecha_vencimiento_actual < date.today():
+                    fecha_vencimiento_actual = date.today()
+                
+                # Calcular nueva fecha
+                nueva_fecha = fecha_vencimiento_actual + timedelta(days=dias_extension)
+                
+                # Actualizar BD
+                cur.execute("""
+                    UPDATE restaurantes 
+                    SET estado_suscripcion = 'activa',
+                        fecha_vencimiento = %s,
+                        ultimo_pago_mercadopago = %s,
+                        fecha_ultimo_pago = NOW()
+                    WHERE id = %s
+                """, (nueva_fecha, payment_id, restaurante_id))
+                db.commit()
+            
+            logger.info(f"Pago aprobado para restaurante {restaurante_id}. Suscripción extendida hasta {nueva_fecha}")
+        
+        elif payment_status == 'pending':
+            logger.info(f"Pago pendiente para restaurante {restaurante_id}: {payment_id}")
+        
+        elif payment_status == 'rejected':
+            logger.warning(f"Pago rechazado para restaurante {restaurante_id}: {payment_id}")
+        
+        return jsonify({'status': 'success'}), 200
+    
+    except Exception as e:
+        logger.error(f"Error en webhook_mercado_pago: {traceback.format_exc()}")
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/pago/exito')
+@login_required
+def pago_exito():
+    """Página de confirmación de pago exitoso."""
+    return render_template('pago_exito.html')
+
+
+@app.route('/pago/fallo')
+@login_required
+def pago_fallo():
+    """Página de error de pago."""
+    return render_template('pago_fallo.html')
+
+
+@app.route('/pago/pendiente')
+@login_required
+def pago_pendiente_status():
+    """Página de pago pendiente."""
+    return render_template('pago_pendiente_status.html')
 
 
 # ============================================================
