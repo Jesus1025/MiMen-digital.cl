@@ -836,7 +836,16 @@ def gestion_codigo_qr():
     
     base_url = request.host_url.rstrip('/')
     menu_url = f"{base_url}/menu/{restaurante['url_slug']}"
-    return render_template('gestion/codigo_qr.html', restaurante=restaurante, menu_url=menu_url)
+    
+    # Generar QR
+    qr_filename = f"{restaurante['id']}_qr.png"
+    try:
+        generar_qr_restaurante(menu_url, qr_filename)
+    except Exception as e:
+        logger.error(f"Error generando QR: {e}")
+        qr_filename = None
+    
+    return render_template('gestion/codigo_qr.html', restaurante=restaurante, menu_url=menu_url, qr_filename=qr_filename)
 
 
 @app.route('/gestion/apariencia')
