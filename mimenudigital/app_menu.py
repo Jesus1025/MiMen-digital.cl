@@ -108,6 +108,41 @@ app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 app.jinja_env.globals['now'] = lambda: datetime.utcnow()
 
 # ============================================================
+# FUNCIONES DE INICIALIZACIÓN
+# ============================================================
+
+# Variable global para almacenar si Cloudinary está configurado
+CLOUDINARY_CONFIGURED = False
+
+def init_cloudinary():
+    """
+    Inicializa la configuración de Cloudinary.
+    Se llama después de que Flask está completamente cargado.
+    Maneja elegantemente el caso donde CLOUDINARY_URL no esté configurada.
+    """
+    global CLOUDINARY_CONFIGURED
+    
+    cloudinary_url = os.environ.get('CLOUDINARY_URL')
+    
+    if cloudinary_url:
+        try:
+            cloudinary.config_from_url(cloudinary_url)
+            logger.info("Cloudinary configurado correctamente")
+            CLOUDINARY_CONFIGURED = True
+            return True
+        except Exception as e:
+            logger.error(f"Error configurando Cloudinary: {e}")
+            CLOUDINARY_CONFIGURED = False
+            return False
+    else:
+        logger.warning("CLOUDINARY_URL no está configurada en las variables de entorno.")
+        CLOUDINARY_CONFIGURED = False
+        return False
+
+# Inicializar Cloudinary después de crear la app
+init_cloudinary()
+
+# ============================================================
 # CONFIGURACIÓN DE UPLOADS Y ARCHIVOS
 # ============================================================
 
@@ -141,20 +176,6 @@ logger.info(f"Database config: {app.config['MYSQL_HOST']}:{app.config['MYSQL_POR
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 app.config['BASE_URL'] = BASE_URL
 logger.info(f"Base URL: {BASE_URL}")
-
-# ============================================================
-# CONFIGURACIÓN DE CLOUDINARY (OBLIGATORIO)
-# ============================================================
-
-CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
-if not CLOUDINARY_URL:
-    raise ValueError(
-        "CLOUDINARY_URL no está configurada. Es requerida para el funcionamiento de la aplicación. "
-        "Configúrala en las variables de entorno del servidor."
-    )
-
-cloudinary.config_from_url(CLOUDINARY_URL)
-logger.info("Cloudinary configurado correctamente")
 
 # ============================================================
 # FUNCIONES DE BASE DE DATOS
@@ -923,6 +944,9 @@ def api_platos():
                     file = request.files['imagen']
                     if file and allowed_file(file.filename):
                         try:
+                            if not CLOUDINARY_CONFIGURED:
+                                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
+                            
                             # Subir a Cloudinary con transformaciones
                             result = cloudinary_upload(
                                 file,
@@ -998,6 +1022,9 @@ def api_plato(plato_id):
                     file = request.files['imagen']
                     if file and allowed_file(file.filename):
                         try:
+                            if not CLOUDINARY_CONFIGURED:
+                                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
+                            
                             # Subir a Cloudinary con transformaciones
                             result = cloudinary_upload(
                                 file,
@@ -1264,6 +1291,9 @@ def api_subir_logo():
     
     if file and allowed_file(file.filename):
         try:
+            if not CLOUDINARY_CONFIGURED:
+                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
+            
             # Subir a Cloudinary
             result = cloudinary_upload(
                 file,
