@@ -36,9 +36,9 @@
         </div>
         
         <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-            <a href="#" class="button is-fullwidth" style="background: white; color: #667eea; font-weight: bold; border: none; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
-                <i class="fas fa-credit-card"></i> Reactivar Suscripción
-            </a>
+            <button id="btn-pagar-mercadopago" class="button" style="flex: 1; background: #009EE3; color: white; font-weight: bold; border: none; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                <i class="fas fa-credit-card"></i> Pagar con Mercado Pago
+            </button>
         </div>
         
         <div style="display: flex; gap: 15px;">
@@ -99,4 +99,42 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
 </style>
+
+<script>
+document.getElementById('btn-pagar-mercadopago').addEventListener('click', function() {
+    const btn = this;
+    const originalHTML = btn.innerHTML;
+    
+    // Mostrar estado de carga
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    
+    // Crear preferencia de pago
+    fetch('/api/pago/crear-preferencia', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            plan_type: 'mensual'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Redirigir a Mercado Pago
+            window.location.href = data.init_point;
+        } else {
+            throw new Error(data.error || 'Error al crear preferencia de pago');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        alert('Error: ' + error.message);
+    });
+});
+</script>
 {% endblock %}
+

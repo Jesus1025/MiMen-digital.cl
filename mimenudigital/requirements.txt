@@ -16,6 +16,12 @@ python-dotenv>=1.0.0,<2.0.0
 # QR generation (local image generation)
 qrcode[pil]>=7.4.0,<8.0.0
 
+# PDF generation (HTML to PDF conversion)
+pdfkit>=1.0.0,<2.0.0
+
+# Payment Gateway (Mercado Pago)
+mercado-pago>=2.0.0,<3.0.0
+
 # Logging y monitoreo
 python-json-logger>=2.0.7  # JSON logging para producción
 
