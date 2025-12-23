@@ -44,7 +44,7 @@ import pymysql
 from pymysql.cursors import DictCursor
 import uuid
 from functools import wraps
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import traceback
@@ -397,6 +397,59 @@ def superadmin_required(f):
     return decorated
 
 
+def verificar_suscripcion(f):
+    """
+    Decorador que verifica si la suscripción del restaurante está vigente.
+    Permite acceso libre a superadmin.
+    Para otros usuarios, redirige a pago-pendiente si la suscripción expiró.
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Superadmin siempre tiene acceso
+        if session.get('rol') == 'superadmin':
+            return f(*args, **kwargs)
+        
+        # Usuarios normales: verificar suscripción
+        restaurante_id = session.get('restaurante_id')
+        if restaurante_id:
+            try:
+                db = get_db()
+                with db.cursor() as cur:
+                    cur.execute('''
+                        SELECT fecha_vencimiento, estado_suscripcion 
+                        FROM restaurantes WHERE id = %s
+                    ''', (restaurante_id,))
+                    rest = cur.fetchone()
+                    
+                    if rest:
+                        fecha_vencimiento = rest['fecha_vencimiento']
+                        
+                        # Si no tiene fecha de vencimiento, asignar 30 días
+                        if not fecha_vencimiento:
+                            fecha_vencimiento = (date.today() + timedelta(days=30)).isoformat()
+                            cur.execute('''
+                                UPDATE restaurantes 
+                                SET fecha_vencimiento = %s, estado_suscripcion = 'prueba'
+                                WHERE id = %s
+                            ''', (fecha_vencimiento, restaurante_id))
+                            db.commit()
+                            return f(*args, **kwargs)
+                        
+                        # Verificar si la suscripción expiró
+                        if date.today() > fecha_vencimiento:
+                            logger.warning(f"Suscripción expirada para restaurante {restaurante_id}")
+                            flash('Tu período de prueba o suscripción ha terminado', 'warning')
+                            return redirect(url_for('gestion_pago_pendiente'))
+                    
+                    return f(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"Error al verificar suscripción: {e}")
+                return f(*args, **kwargs)
+        
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ============================================================
 # TRACKING DE VISITAS Y ESCANEOS QR
 # ============================================================
@@ -632,7 +685,7 @@ def recuperar_contraseña():
                 # Generar token único (40 caracteres hexadecimales)
                 import secrets
                 token = secrets.token_hex(20)
-                fecha_expiracion = datetime.utcnow() + __import__('datetime').timedelta(hours=24)
+                fecha_expiracion = datetime.utcnow() + timedelta(hours=24)
                 
                 # Guardar token en BD (válido por 24 horas)
                 cur.execute('''
@@ -727,6 +780,7 @@ def resetear_contraseña(token):
 
 @app.route('/gestion')
 @login_required
+@verificar_suscripcion
 def menu_gestion():
     """Panel de gestión principal."""
     return render_template('gestion/dashboard.html')
@@ -734,6 +788,7 @@ def menu_gestion():
 
 @app.route('/gestion/platos')
 @login_required
+@verificar_suscripcion
 def gestion_platos():
     """Página de gestión de platos."""
     db = get_db()
@@ -751,6 +806,7 @@ def gestion_platos():
 
 @app.route('/gestion/categorias')
 @login_required
+@verificar_suscripcion
 def gestion_categorias():
     """Página de gestión de categorías."""
     return render_template('gestion/categorias.html')
@@ -758,6 +814,7 @@ def gestion_categorias():
 
 @app.route('/gestion/mi-restaurante')
 @login_required
+@verificar_suscripcion
 def gestion_mi_restaurante():
     """Página de configuración del restaurante."""
     db = get_db()
@@ -769,6 +826,7 @@ def gestion_mi_restaurante():
 
 @app.route('/gestion/codigo-qr')
 @login_required
+@verificar_suscripcion
 def gestion_codigo_qr():
     """Página del código QR."""
     db = get_db()
@@ -783,6 +841,7 @@ def gestion_codigo_qr():
 
 @app.route('/gestion/apariencia')
 @login_required
+@verificar_suscripcion
 def gestion_apariencia():
     """Página de personalización de apariencia."""
     db = get_db()
@@ -790,6 +849,27 @@ def gestion_apariencia():
         cur.execute("SELECT * FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
         restaurante = dict_from_row(cur.fetchone())
     return render_template('gestion/apariencia.html', restaurante=restaurante)
+
+
+@app.route('/gestion/pago-pendiente')
+@login_required
+def gestion_pago_pendiente():
+    """Página que se muestra cuando la suscripción ha expirado."""
+    db = get_db()
+    restaurante_id = session.get('restaurante_id')
+    
+    with db.cursor() as cur:
+        cur.execute('''
+            SELECT nombre, fecha_vencimiento, estado_suscripcion, email, whatsapp
+            FROM restaurantes WHERE id = %s
+        ''', (restaurante_id,))
+        restaurante = dict_from_row(cur.fetchone())
+    
+    dias_vencido = (date.today() - restaurante['fecha_vencimiento']).days if restaurante['fecha_vencimiento'] else 0
+    
+    return render_template('gestion/pago_pendiente.html', 
+                          restaurante=restaurante, 
+                          dias_vencido=dias_vencido)
 
 
 # ============================================================
@@ -1357,18 +1437,24 @@ def api_restaurantes():
                 if cur.fetchone():
                     return jsonify({'success': False, 'error': 'El URL slug ya existe'}), 400
                 
+                # Calcular fecha de vencimiento (30 días desde hoy)
+                fecha_vencimiento = (date.today() + timedelta(days=30)).isoformat()
+                
                 cur.execute('''
-                    INSERT INTO restaurantes (nombre, rut, url_slug, logo_url, tema, plan_id, activo)
-                    VALUES (%s, %s, %s, %s, %s, %s, 1)
+                    INSERT INTO restaurantes 
+                    (nombre, rut, url_slug, logo_url, tema, plan_id, activo, estado_suscripcion, fecha_vencimiento)
+                    VALUES (%s, %s, %s, %s, %s, %s, 1, 'prueba', %s)
                 ''', (
                     data['nombre'],
                     data.get('rut', ''),
                     data['url_slug'],
                     data.get('logo_url', ''),
                     data.get('tema', 'elegante'),
-                    data.get('plan_id', 1)  # Plan gratis por defecto
+                    data.get('plan_id', 1),  # Plan gratis por defecto
+                    fecha_vencimiento
                 ))
                 db.commit()
+                logger.info(f"Nuevo restaurante creado: {data['nombre']} con vencimiento {fecha_vencimiento}")
                 return jsonify({'success': True, 'id': cur.lastrowid})
 
     except pymysql.IntegrityError as e:
