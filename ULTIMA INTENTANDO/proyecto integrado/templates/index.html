@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - TekneTau{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+    </div>
+</div>
+
+<!-- Estadísticas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ stats.total_clientes }}</h4>
+                        <p class="mb-0">Clientes Activos</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ stats.total_proyectos }}</h4>
+                        <p class="mb-0">Proyectos Activos</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-project-diagram fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ stats.documentos_pendientes }}</h4>
+                        <p class="mb-0">Docs Pendientes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-invoice fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>${{ "{:,.0f}".format(stats.deuda_total) }}</h4>
+                        <p class="mb-0">Deuda Total</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-money-bill-wave fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Columna Izquierda: Acciones Rápidas -->
+    <div class="col-md-6">
+        <!-- Boleta Rápida -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt"></i> Boleta Rápida
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="formBoletaRapida">
+                    <div class="mb-3">
+                        <label for="cliente_rapido" class="form-label">Cliente *</label>
+                        <select class="form-select" id="cliente_rapido" name="cliente_rut" required>
+                            <option value="">Seleccionar Cliente</option>
+                            {% for cliente in clientes %}
+                            <option value="{{ cliente.rut }}">{{ cliente.razon_social }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion_rapida" class="form-label">Descripción *</label>
+                        <input type="text" class="form-control" id="descripcion_rapida" name="descripcion" 
+                               placeholder="Ej: Servicio de soporte técnico" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="monto_rapido" class="form-label">Monto Neto *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="monto_rapido" name="valor_neto" 
+                                   min="0" step="0.01" placeholder="0" required>
+                        </div>
+                    </div>
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6"><strong>IVA (19%):</strong></div>
+                                <div class="col-6 text-end">$<span id="iva_rapido">0</span></div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-6"><strong>Total:</strong></div>
+                                <div class="col-6 text-end"><h5 class="mb-0">$<span id="total_rapido">0</span></h5></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-success w-100" onclick="generarBoletaRapida()">
+                        <i class="fas fa-receipt"></i> Generar Boleta Rápida
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Acciones Rápidas -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Acciones Rápidas</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a href="{{ url_for('clientes') }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-user-plus"></i> Nuevo Cliente
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('proyectos') }}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-plus-circle"></i> Nuevo Proyecto
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('facturas') }}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-file-invoice-dollar"></i> Nueva Factura
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('boletas') }}" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-receipt"></i> Nueva Boleta
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna Derecha: Documentos Recientes y Pendientes -->
+    <div class="col-md-6">
+        <!-- Documentos Pendientes de Pago -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock text-warning"></i> Documentos Pendientes
+                </h5>
+                <span class="badge bg-warning" id="contadorPendientes">0</span>
+            </div>
+            <div class="card-body">
+                <div id="listaPendientes" style="max-height: 300px; overflow-y: auto;">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-spinner fa-spin"></i> Cargando...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Documentos Recientes -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Documentos Recientes</h5>
+            </div>
+            <div class="card-body">
+                {% if documentos %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Cliente</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documentos %}
+                            <tr>
+                                <td>
+                                    <small>
+                                        {% if doc.tipo_doc == 'FAC' %}
+                                            <span class="badge bg-primary">FAC</span>
+                                        {% else %}
+                                            <span class="badge bg-info">BOL</span>
+                                        {% endif %}
+                                        {{ doc.numero_doc }}
+                                    </small>
+                                </td>
+                                <td><small>{{ doc.razon_social[:20] }}{% if doc.razon_social|length > 20 %}...{% endif %}</small></td>
+                                <td><small>${{ "{:,.0f}".format(doc.valor_total) }}</small></td>
+                                <td>
+                                    {% if doc.estado == 'Pagado' %}
+                                        <span class="badge bg-success">Pagado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Pendiente</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay documentos recientes.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para marcar como pagado -->
+<div class="modal fade" id="modalPagar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Marcar como Pagado</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres marcar este documento como <strong>PAGADO</strong>?</p>
+                <div id="detalleDocumentoPago"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btnConfirmarPago">Sí, Marcar como Pagado</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let documentoAPagar = null;
+
+// Calcular IVA y Total en boleta rápida
+function calcularBoletaRapida() {
+    const montoNeto = parseFloat(document.getElementById('monto_rapido').value) || 0;
+    const iva = montoNeto * 0.19;
+    const total = montoNeto + iva;
+    
+    document.getElementById('iva_rapido').textContent = iva.toFixed(2);
+    document.getElementById('total_rapido').textContent = total.toFixed(2);
+}
+
+// Generar boleta rápida
+function generarBoletaRapida() {
+    const formData = new FormData(document.getElementById('formBoletaRapida'));
+    const data = {
+        cliente_rut: formData.get('cliente_rut'),
+        descripcion: formData.get('descripcion'),
+        valor_neto: parseFloat(formData.get('valor_neto')),
+        iva: parseFloat(document.getElementById('iva_rapido').textContent),
+        valor_total: parseFloat(document.getElementById('total_rapido').textContent)
+    };
+    
+    if (!data.cliente_rut || !data.descripcion || data.valor_neto <= 0) {
+        alert('Por favor complete todos los campos correctamente');
+        return;
+    }
+    
+    fetch('/api/generar-boleta-rapida', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(`✅ Boleta #${result.numero_boleta} generada exitosamente`);
+            document.getElementById('formBoletaRapida').reset();
+            document.getElementById('iva_rapido').textContent = '0';
+            document.getElementById('total_rapido').textContent = '0';
+            cargarDocumentosPendientes(); // Recargar la lista
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+
+// Cargar documentos pendientes
+function cargarDocumentosPendientes() {
+    fetch('/api/documentos-pendientes')
+        .then(response => response.json())
+        .then(documentos => {
+            const container = document.getElementById('listaPendientes');
+            const contador = document.getElementById('contadorPendientes');
+            
+            contador.textContent = documentos.length;
+            
+            if (documentos.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-success">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <p class="mb-0">No hay documentos pendientes</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            documentos.forEach(doc => {
+                const fecha = new Date(doc.fecha_emision).toLocaleDateString('es-CL');
+                html += `
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>
+                                    ${doc.tipo_doc === 'FAC' ? 'Factura' : 'Boleta'} #${doc.numero_doc}
+                                </strong>
+                                <br>
+                                <small class="text-muted">${doc.razon_social}</small>
+                                <br>
+                                <small>${fecha} - $${doc.valor_total.toLocaleString('es-CL')}</small>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-success" onclick="prepararPago(${doc.id})">
+                                    <i class="fas fa-check"></i> Pagar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error al cargar documentos pendientes:', error);
+        });
+}
+
+// Preparar pago de documento
+function prepararPago(documentoId) {
+    documentoAPagar = documentoId;
+    
+    // Buscar información del documento
+    fetch('/api/documentos-pendientes')
+        .then(response => response.json())
+        .then(documentos => {
+            const doc = documentos.find(d => d.id === documentoId);
+            if (doc) {
+                const fecha = new Date(doc.fecha_emision).toLocaleDateString('es-CL');
+                document.getElementById('detalleDocumentoPago').innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>${doc.tipo_doc === 'FAC' ? 'Factura' : 'Boleta'} #${doc.numero_doc}</strong><br>
+                        <strong>Cliente:</strong> ${doc.razon_social}<br>
+                        <strong>Fecha:</strong> ${fecha}<br>
+                        <strong>Monto:</strong> $${doc.valor_total.toLocaleString('es-CL')}<br>
+                        <strong>Descripción:</strong> ${doc.descripcion}
+                    </div>
+                `;
+                
+                const modal = new bootstrap.Modal(document.getElementById('modalPagar'));
+                modal.show();
+            }
+        });
+}
+
+// Confirmar pago
+document.getElementById('btnConfirmarPago').addEventListener('click', function() {
+    if (!documentoAPagar) return;
+    
+    fetch(`/api/documentos/${documentoAPagar}/estado`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ estado: 'Pagado' })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('✅ Documento marcado como pagado');
+            // Cerrar modal y recargar lista
+            bootstrap.Modal.getInstance(document.getElementById('modalPagar')).hide();
+            cargarDocumentosPendientes();
+            // Recargar página para actualizar estadísticas
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+});
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    // Calcular IVA en tiempo real
+    document.getElementById('monto_rapido').addEventListener('input', calcularBoletaRapida);
+    
+    // Cargar documentos pendientes
+    cargarDocumentosPendientes();
+    
+    // Cargar cada 30 segundos
+    setInterval(cargarDocumentosPendientes, 30000);
+});
+</script>
+{% endblock %}

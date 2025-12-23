@@ -1,0 +1,175 @@
+/* Estilos Personalizados para TekneTau - VERSIÓN 1.2 */
+
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #3498db;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --danger-color: #e74c3c;
+    --nc-color: #27ae60;
+    --nd-color: #f39c12;
+}
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    background-color: #f8f9fa;
+}
+
+.btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+}
+
+/* Estadísticas Dashboard */
+.card.bg-primary { background: linear-gradient(45deg, #3498db, #2980b9) !important; }
+.card.bg-success { background: linear-gradient(45deg, #27ae60, #219a52) !important; }
+.card.bg-warning { background: linear-gradient(45deg, #f39c12, #e67e22) !important; }
+.card.bg-danger { background: linear-gradient(45deg, #e74c3c, #c0392b) !important; }
+
+/* Badges para NC/ND */
+.badge.bg-nc { background-color: var(--nc-color) !important; }
+.badge.bg-nd { background-color: var(--nd-color) !important; }
+
+/* Tablas */
+.table-responsive {
+    border-radius: 0.375rem;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Formularios */
+.form-control, .form-select {
+    border-radius: 0.375rem;
+    border: 1px solid #ced4da;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+/* Modal */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Items en facturas/boletas */
+#tablaItems input {
+    border: none;
+    background: transparent;
+}
+
+#tablaItems input:focus {
+    background: white;
+    border: 1px solid #3498db;
+}
+
+/* Colores específicos para NC/ND */
+.text-nc { color: var(--nc-color); }
+.text-nd { color: var(--nd-color); }
+.bg-nc-light { background-color: rgba(39, 174, 96, 0.1); }
+.bg-nd-light { background-color: rgba(243, 156, 18, 0.1); }
+
+/* Estados de documentos */
+.estado-pagado { color: var(--success-color); }
+.estado-pendiente { color: var(--warning-color); }
+.estado-anulado { color: var(--danger-color); }
+.estado-aplicada { color: var(--nc-color); }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn {
+        font-size: 0.875rem;
+    }
+    
+    .navbar-nav .dropdown-menu {
+        position: static;
+        float: none;
+    }
+}
+
+/* Animaciones */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Mejoras para dropdowns */
+.dropdown-item {
+    padding: 0.5rem 1rem;
+}
+
+.dropdown-item i {
+    width: 20px;
+    text-align: center;
+    margin-right: 0.5rem;
+}
+
+/* Cards informativas */
+.card .card-body .small {
+    font-size: 0.875rem;
+    line-height: 1.4;
+}

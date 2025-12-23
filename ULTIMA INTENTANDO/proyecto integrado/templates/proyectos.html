@@ -1,0 +1,594 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Proyectos - TekneTau{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-project-diagram"></i> Gestión de Proyectos</h1>
+            <div>
+                <a href="/api/exportar-proyectos-csv" class="btn btn-success me-2">
+                    <i class="fas fa-file-csv"></i> Exportar CSV
+                </a>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalProyecto">
+                    <i class="fas fa-plus"></i> Nuevo Proyecto
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Lista de Proyectos</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Cliente</th>
+                                <th>Presupuesto / Progreso</th>
+                                <th>Fechas</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for proyecto in proyectos %}
+                            <tr>
+                                <td><strong>{{ proyecto.codigo }}</strong></td>
+                                <td>
+                                    <div class="fw-bold">{{ proyecto.nombre }}</div>
+                                    <small class="text-muted">{{ proyecto.descripcion or '' }}</small>
+                                </td>
+                                <td>{{ proyecto.razon_social or 'Sin cliente' }}</td>
+                                <td style="min-width: 200px;">
+                                    <div class="mb-1">
+                                        <strong>${{ "{:,.0f}".format(proyecto.presupuesto or 0) }}</strong>
+                                    </div>
+                                    <div class="progress" style="height: 20px;" id="progress-{{ proyecto.codigo }}">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: 0%;" 
+                                             id="progressbar-{{ proyecto.codigo }}">0%</div>
+                                    </div>
+                                    <small class="text-muted" id="progress-text-{{ proyecto.codigo }}">Cargando...</small>
+                                </td>
+                                <td>
+                                    <small>
+                                        Inicio: {{ proyecto.fecha_inicio or 'N/A' }}<br>
+                                        {% if proyecto.fecha_termino %}
+                                        Término: {{ proyecto.fecha_termino }}
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if proyecto.estado == 'Activo' %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% elif proyecto.estado == 'Completado' %}
+                                        <span class="badge bg-primary">Completado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-info btn-ver-documentos" 
+                                            data-codigo="{{ proyecto.codigo }}"
+                                            data-nombre="{{ proyecto.nombre }}"
+                                            title="Ver documentos">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary btn-editar-proyecto"
+                                            data-codigo="{{ proyecto.codigo }}"
+                                            data-nombre="{{ proyecto.nombre }}"
+                                            data-descripcion="{{ proyecto.descripcion or '' }}"
+                                            data-cliente_rut="{{ proyecto.cliente_rut or '' }}"
+                                            data-presupuesto="{{ proyecto.presupuesto or 0 }}"
+                                            data-fecha_inicio="{{ proyecto.fecha_inicio or '' }}"
+                                            data-fecha_termino="{{ proyecto.fecha_termino or '' }}"
+                                            data-estado="{{ proyecto.estado or 'Activo' }}"
+                                            title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger btn-eliminar-proyecto"
+                                            data-codigo="{{ proyecto.codigo }}"
+                                            data-nombre="{{ proyecto.nombre }}"
+                                            title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Proyecto -->
+<div class="modal fade" id="modalProyecto" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalProyectoTitulo">Nuevo Proyecto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formProyecto">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="codigo" class="form-label">Código Proyecto *</label>
+                            <input type="text" class="form-control" id="codigo" name="codigo" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre" class="form-label">Nombre Proyecto *</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="cliente_rut" class="form-label">Cliente *</label>
+                            <select class="form-select" id="cliente_rut" name="cliente_rut" required>
+                                <option value="">Seleccionar Cliente</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.rut }}">{{ cliente.razon_social }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="presupuesto" class="form-label">Presupuesto Total *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="presupuesto" name="presupuesto" value="0" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_inicio" class="form-label">Fecha Inicio *</label>
+                            <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha_termino" class="form-label">Fecha Término</label>
+                            <input type="date" class="form-control" id="fecha_termino" name="fecha_termino">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="estado" class="form-label">Estado</label>
+                        <select class="form-select" id="estado" name="estado">
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                            <option value="Completado">Completado</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarProyecto()">Guardar Proyecto</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ver Documentos del Proyecto -->
+<div class="modal fade" id="modalDocumentos" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-invoice"></i> Documentos del Proyecto: <span id="nombreProyectoModal"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Resumen del proyecto -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h6>Presupuesto</h6>
+                                <h4 id="resumenPresupuesto">$0</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h6>Facturado</h6>
+                                <h4 id="resumenFacturado">$0</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h6>Pagado</h6>
+                                <h4 id="resumenPagado">$0</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-dark">
+                            <div class="card-body text-center">
+                                <h6>Pendiente</h6>
+                                <h4 id="resumenPendiente">$0</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Barra de progreso grande -->
+                <div class="mb-4">
+                    <label class="form-label"><strong>Progreso de Pago</strong></label>
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar bg-success" role="progressbar" id="barraProgresoModal" style="width: 0%;">
+                            <span id="textoProgresoModal">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tabla de documentos -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6><i class="fas fa-list"></i> Lista de Documentos</h6>
+                    <a href="#" id="btnExportarDocsCSV" class="btn btn-sm btn-success">
+                        <i class="fas fa-file-csv"></i> Exportar CSV
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>N° Doc</th>
+                                <th>Tipo</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaDocumentosProyecto">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let proyectoEditando = null;
+let codigoProyectoActual = null;
+
+// Formatear moneda
+function formatMoney(amount) {
+    return '$' + new Intl.NumberFormat('es-CL').format(amount || 0);
+}
+
+// Cargar progreso de todos los proyectos al cargar la página
+function cargarProgresoProyectos() {
+    const proyectos = document.querySelectorAll('[id^="progress-"]');
+    proyectos.forEach(elem => {
+        const codigo = elem.id.replace('progress-', '');
+        if (codigo) {
+            fetch(`/api/proyecto/${encodeURIComponent(codigo)}/progreso`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.progreso) {
+                        const porcentaje = data.progreso.porcentaje_pagado;
+                        const progressBar = document.getElementById(`progressbar-${codigo}`);
+                        const progressText = document.getElementById(`progress-text-${codigo}`);
+                        
+                        progressBar.style.width = `${porcentaje}%`;
+                        progressBar.textContent = `${porcentaje}%`;
+                        
+                        // Color según progreso
+                        if (porcentaje >= 100) {
+                            progressBar.className = 'progress-bar bg-success';
+                        } else if (porcentaje >= 50) {
+                            progressBar.className = 'progress-bar bg-info';
+                        } else if (porcentaje > 0) {
+                            progressBar.className = 'progress-bar bg-warning';
+                        }
+                        
+                        progressText.textContent = `Pagado: ${formatMoney(data.progreso.total_pagado)} / ${formatMoney(data.proyecto.presupuesto)}`;
+                    }
+                })
+                .catch(() => {
+                    document.getElementById(`progress-text-${codigo}`).textContent = 'Sin documentos';
+                });
+        }
+    });
+}
+
+function guardarProyecto() {
+    const formData = new FormData(document.getElementById('formProyecto'));
+    const data = Object.fromEntries(formData);
+    
+    const url = proyectoEditando ? `/api/proyectos/${encodeURIComponent(proyectoEditando.codigo)}` : '/api/proyectos';
+    const method = proyectoEditando ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Cerrar el modal correctamente antes de recargar
+            const modalElement = document.getElementById('modalProyecto');
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            // Remover manualmente el backdrop si existe
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            alert('Proyecto guardado exitosamente');
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+}
+
+function editarProyecto(proyecto) {
+    proyectoEditando = proyecto;
+    document.getElementById('modalProyectoTitulo').textContent = 'Editar Proyecto';
+    
+    document.getElementById('codigo').value = proyecto.codigo;
+    document.getElementById('nombre').value = proyecto.nombre;
+    document.getElementById('descripcion').value = proyecto.descripcion || '';
+    document.getElementById('cliente_rut').value = proyecto.cliente_rut;
+    document.getElementById('presupuesto').value = proyecto.presupuesto;
+    document.getElementById('fecha_inicio').value = proyecto.fecha_inicio;
+    document.getElementById('fecha_termino').value = proyecto.fecha_termino || '';
+    document.getElementById('estado').value = proyecto.estado;
+    
+    document.getElementById('codigo').readOnly = true;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalProyecto'));
+    modal.show();
+}
+
+function eliminarProyecto(codigo, nombre) {
+    if (!confirm(`¿Estás seguro de que quieres eliminar el proyecto "${nombre}"?`)) {
+        return;
+    }
+
+    fetch(`/api/proyectos/${encodeURIComponent(codigo)}`, { method: 'DELETE' })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Limpiar cualquier modal/backdrop antes de recargar
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                
+                alert('Proyecto eliminado exitosamente');
+                location.reload();
+            } else {
+                alert('Error: ' + (result.error || 'No se pudo eliminar el proyecto'));
+            }
+        })
+        .catch(error => alert('Error: ' + error));
+}
+
+function verDocumentosProyecto(codigo, nombre) {
+    codigoProyectoActual = codigo;
+    document.getElementById('nombreProyectoModal').textContent = nombre;
+    document.getElementById('btnExportarDocsCSV').href = `/api/exportar-proyecto-documentos-csv/${encodeURIComponent(codigo)}`;
+    
+    // Cargar datos del proyecto
+    fetch(`/api/proyecto/${encodeURIComponent(codigo)}/progreso`)
+        .then(response => response.json())
+        .then(data => {
+            // Actualizar resumen
+            document.getElementById('resumenPresupuesto').textContent = formatMoney(data.proyecto.presupuesto);
+            document.getElementById('resumenFacturado').textContent = formatMoney(data.progreso.total_facturado);
+            document.getElementById('resumenPagado').textContent = formatMoney(data.progreso.total_pagado);
+            document.getElementById('resumenPendiente').textContent = formatMoney(data.progreso.total_pendiente);
+            
+            // Actualizar barra de progreso
+            const porcentaje = data.progreso.porcentaje_pagado;
+            document.getElementById('barraProgresoModal').style.width = `${porcentaje}%`;
+            document.getElementById('textoProgresoModal').textContent = `${porcentaje}% pagado`;
+            
+            // Llenar tabla de documentos
+            const tbody = document.getElementById('tablaDocumentosProyecto');
+            if (data.documentos && data.documentos.length > 0) {
+                let html = '';
+                data.documentos.forEach(doc => {
+                    const tipoLabel = doc.tipo_doc === 'FAC' ? 'Factura' : doc.tipo_doc === 'BOL' ? 'Boleta' : doc.tipo_doc;
+                    const estadoClass = doc.estado === 'Pagado' ? 'bg-success' : doc.estado === 'Anulado' ? 'bg-danger' : 'bg-warning';
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${doc.numero_doc}</strong></td>
+                            <td><span class="badge bg-secondary">${tipoLabel}</span></td>
+                            <td>${doc.fecha_emision}</td>
+                            <td>${doc.cliente_nombre || 'N/A'}</td>
+                            <td><strong>${formatMoney(doc.valor_total)}</strong></td>
+                            <td><span class="badge ${estadoClass}">${doc.estado}</span></td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-success" onclick="cambiarEstadoDoc(${doc.id}, 'Pagado')" title="Marcar Pagado">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-outline-warning" onclick="cambiarEstadoDoc(${doc.id}, 'Pendiente')" title="Marcar Pendiente">
+                                        <i class="fas fa-clock"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="cambiarEstadoDoc(${doc.id}, 'Anulado')" title="Anular">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No hay documentos asociados a este proyecto</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('tablaDocumentosProyecto').innerHTML = 
+                '<tr><td colspan="7" class="text-center text-danger">Error al cargar documentos</td></tr>';
+        });
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalDocumentos'));
+    modal.show();
+}
+
+function cambiarEstadoDoc(docId, nuevoEstado) {
+    fetch(`/api/documentos/${docId}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: nuevoEstado })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Solo actualizar datos, NO crear nuevo modal
+            if (codigoProyectoActual) {
+                actualizarDatosModalDocumentos(codigoProyectoActual);
+            }
+            // Recargar progreso en la tabla principal
+            cargarProgresoProyectos();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+}
+
+// Función para actualizar solo los datos del modal sin crear uno nuevo
+function actualizarDatosModalDocumentos(codigo) {
+    fetch(`/api/proyecto/${encodeURIComponent(codigo)}/progreso`)
+        .then(response => response.json())
+        .then(data => {
+            // Actualizar resumen
+            document.getElementById('resumenPresupuesto').textContent = formatMoney(data.proyecto.presupuesto);
+            document.getElementById('resumenFacturado').textContent = formatMoney(data.progreso.total_facturado);
+            document.getElementById('resumenPagado').textContent = formatMoney(data.progreso.total_pagado);
+            document.getElementById('resumenPendiente').textContent = formatMoney(data.progreso.total_pendiente);
+            
+            // Actualizar barra de progreso
+            const porcentaje = data.progreso.porcentaje_pagado;
+            document.getElementById('barraProgresoModal').style.width = `${porcentaje}%`;
+            document.getElementById('textoProgresoModal').textContent = `${porcentaje}% pagado`;
+            
+            // Actualizar tabla de documentos
+            const tbody = document.getElementById('tablaDocumentosProyecto');
+            if (data.documentos && data.documentos.length > 0) {
+                let html = '';
+                data.documentos.forEach(doc => {
+                    const tipoLabel = doc.tipo_doc === 'FAC' ? 'Factura' : doc.tipo_doc === 'BOL' ? 'Boleta' : doc.tipo_doc;
+                    const estadoClass = doc.estado === 'Pagado' ? 'bg-success' : doc.estado === 'Anulado' ? 'bg-danger' : 'bg-warning';
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${doc.numero_doc}</strong></td>
+                            <td><span class="badge bg-secondary">${tipoLabel}</span></td>
+                            <td>${doc.fecha_emision}</td>
+                            <td>${doc.cliente_nombre || 'N/A'}</td>
+                            <td><strong>${formatMoney(doc.valor_total)}</strong></td>
+                            <td><span class="badge ${estadoClass}">${doc.estado}</span></td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-success" onclick="cambiarEstadoDoc(${doc.id}, 'Pagado')" title="Marcar Pagado">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-outline-warning" onclick="cambiarEstadoDoc(${doc.id}, 'Pendiente')" title="Marcar Pendiente">
+                                        <i class="fas fa-clock"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="cambiarEstadoDoc(${doc.id}, 'Anulado')" title="Anular">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No hay documentos asociados</td></tr>';
+            }
+        })
+        .catch(error => console.error('Error actualizando modal:', error));
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar progreso de todos los proyectos
+    cargarProgresoProyectos();
+    
+    // Botones de editar
+    document.querySelectorAll('.btn-editar-proyecto').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const proyecto = {
+                codigo: this.dataset.codigo,
+                nombre: this.dataset.nombre,
+                descripcion: this.dataset.descripcion,
+                cliente_rut: this.dataset.cliente_rut,
+                presupuesto: this.dataset.presupuesto,
+                fecha_inicio: this.dataset.fecha_inicio,
+                fecha_termino: this.dataset.fecha_termino,
+                estado: this.dataset.estado
+            };
+            editarProyecto(proyecto);
+        });
+    });
+
+    // Botones de eliminar
+    document.querySelectorAll('.btn-eliminar-proyecto').forEach(btn => {
+        btn.addEventListener('click', function() {
+            eliminarProyecto(this.dataset.codigo, this.dataset.nombre);
+        });
+    });
+    
+    // Botones de ver documentos
+    document.querySelectorAll('.btn-ver-documentos').forEach(btn => {
+        btn.addEventListener('click', function() {
+            verDocumentosProyecto(this.dataset.codigo, this.dataset.nombre);
+        });
+    });
+});
+
+// Resetear modal cuando se cierra
+document.getElementById('modalProyecto').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('formProyecto').reset();
+    document.getElementById('modalProyectoTitulo').textContent = 'Nuevo Proyecto';
+    document.getElementById('codigo').readOnly = false;
+    proyectoEditando = null;
+});
+</script>
+{% endblock %}
