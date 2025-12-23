@@ -1,0 +1,102 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin: 50px auto;">
+    <div class="box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 12px; text-align: center;">
+        
+        <div style="font-size: 48px; margin-bottom: 20px;">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        
+        <h1 style="font-size: 28px; margin-bottom: 10px;">
+            Período de Prueba Expirado
+        </h1>
+        
+        <p style="font-size: 16px; opacity: 0.9; margin-bottom: 30px;">
+            {% if dias_vencido > 0 %}
+                Tu período de prueba expiró hace <strong>{{ dias_vencido }} día(s)</strong>
+            {% else %}
+                Tu período de prueba ha expirado
+            {% endif %}
+        </p>
+        
+        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: left;">
+            <p><strong>Restaurante:</strong> {{ restaurante.nombre }}</p>
+            <p><strong>Estado:</strong> <span style="background: #f44336; padding: 4px 8px; border-radius: 4px;">{{ restaurante.estado_suscripcion|upper }}</span></p>
+            <p><strong>Vencimiento:</strong> {{ restaurante.fecha_vencimiento }}</p>
+        </div>
+        
+        <div style="background: rgba(255, 255, 255, 0.15); padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <h3 style="font-size: 18px; margin-bottom: 15px;">¿Qué sucede ahora?</h3>
+            <ul style="text-align: left; list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;"><i class="fas fa-check-circle" style="margin-right: 10px;"></i> Tu menú seguirá siendo público</li>
+                <li style="margin-bottom: 10px;"><i class="fas fa-lock" style="margin-right: 10px;"></i> No puedes editar ni agregar contenido</li>
+                <li style="margin-bottom: 10px;"><i class="fas fa-chart-line" style="margin-right: 10px;"></i> No se registran nuevas estadísticas</li>
+            </ul>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+            <a href="#" class="button is-fullwidth" style="background: white; color: #667eea; font-weight: bold; border: none; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                <i class="fas fa-credit-card"></i> Reactivar Suscripción
+            </a>
+        </div>
+        
+        <div style="display: flex; gap: 15px;">
+            {% if restaurante.whatsapp %}
+                <a href="https://wa.me/{{ restaurante.whatsapp }}?text=Hola%20quisiera%20reactivar%20mi%20suscripci%C3%B3n" target="_blank" class="button is-fullwidth" style="background: rgba(255, 255, 255, 0.2); color: white; font-weight: bold; border: 2px solid white; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                </a>
+            {% endif %}
+            
+            {% if restaurante.email %}
+                <a href="mailto:{{ restaurante.email }}?subject=Reactivar%20suscripci%C3%B3n%20de%20men%C3%BA%20digital" class="button is-fullwidth" style="background: rgba(255, 255, 255, 0.2); color: white; font-weight: bold; border: 2px solid white; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-envelope"></i> Enviar Email
+                </a>
+            {% endif %}
+        </div>
+        
+        <hr style="border: none; border-top: 2px solid rgba(255, 255, 255, 0.3); margin: 30px 0;">
+        
+        <p style="font-size: 13px; opacity: 0.8;">
+            Si tienes preguntas o necesitas ayuda, no dudes en contactarnos.<br>
+            Estaremos felices de ayudarte a reactivar tu suscripción.
+        </p>
+    </div>
+    
+    <div class="box" style="margin-top: 30px; background: #f5f5f5;">
+        <h3 style="margin-bottom: 15px;">¿Por qué contratar una suscripción?</h3>
+        <ul style="list-style-position: inside;">
+            <li><strong>Edición completa:</strong> Agrega, modifica y elimina platos sin límites</li>
+            <li><strong>Análitica detallada:</strong> Monitorea visitas, escaneos QR y alcance</li>
+            <li><strong>Temas premium:</strong> Acceso a diseños exclusivos y personalizables</li>
+            <li><strong>Soporte prioritario:</strong> Asistencia técnica dedicada</li>
+            <li><strong>Sin anuncios:</strong> Un menú limpio y profesional</li>
+        </ul>
+    </div>
+    
+    <a href="{{ url_for('logout') }}" class="button is-fullwidth" style="margin-top: 20px; background: #e0e0e0; color: #333;">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+    </a>
+</div>
+
+<style>
+    .button {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .box {
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}

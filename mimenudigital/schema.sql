@@ -56,12 +56,16 @@ CREATE TABLE IF NOT EXISTS restaurantes (
     moneda VARCHAR(10) DEFAULT '$',
     plan_id INT DEFAULT 1,
     activo TINYINT(1) DEFAULT 1,
+    estado_suscripcion VARCHAR(20) DEFAULT 'prueba',
+    fecha_vencimiento DATE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     INDEX idx_url_slug (url_slug),
     INDEX idx_activo (activo),
     INDEX idx_plan (plan_id),
+    INDEX idx_estado_suscripcion (estado_suscripcion),
+    INDEX idx_fecha_vencimiento (fecha_vencimiento),
     FOREIGN KEY (plan_id) REFERENCES planes(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
