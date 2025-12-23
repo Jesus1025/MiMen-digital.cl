@@ -143,15 +143,18 @@ app.config['BASE_URL'] = BASE_URL
 logger.info(f"Base URL: {BASE_URL}")
 
 # ============================================================
-# CONFIGURACIÓN DE CLOUDINARY
+# CONFIGURACIÓN DE CLOUDINARY (OBLIGATORIO)
 # ============================================================
 
 CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
-if CLOUDINARY_URL:
-    cloudinary.config_from_url(CLOUDINARY_URL)
-    logger.info("Cloudinary configurado correctamente")
-else:
-    logger.warning("CLOUDINARY_URL no está configurada. Las imágenes no se subirán a la nube.")
+if not CLOUDINARY_URL:
+    raise ValueError(
+        "CLOUDINARY_URL no está configurada. Es requerida para el funcionamiento de la aplicación. "
+        "Configúrala en las variables de entorno del servidor."
+    )
+
+cloudinary.config_from_url(CLOUDINARY_URL)
+logger.info("Cloudinary configurado correctamente")
 
 # ============================================================
 # FUNCIONES DE BASE DE DATOS
@@ -920,9 +923,6 @@ def api_platos():
                     file = request.files['imagen']
                     if file and allowed_file(file.filename):
                         try:
-                            if not CLOUDINARY_URL:
-                                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
-                            
                             # Subir a Cloudinary con transformaciones
                             result = cloudinary_upload(
                                 file,
@@ -998,9 +998,6 @@ def api_plato(plato_id):
                     file = request.files['imagen']
                     if file and allowed_file(file.filename):
                         try:
-                            if not CLOUDINARY_URL:
-                                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
-                            
                             # Subir a Cloudinary con transformaciones
                             result = cloudinary_upload(
                                 file,
@@ -1267,9 +1264,6 @@ def api_subir_logo():
     
     if file and allowed_file(file.filename):
         try:
-            if not CLOUDINARY_URL:
-                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
-            
             # Subir a Cloudinary
             result = cloudinary_upload(
                 file,
