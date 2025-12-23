@@ -1,0 +1,64 @@
+# ⚡ RESUMEN RÁPIDO - Solución del Error log_dir
+
+## ✅ QUÉ SE FIX
+
+El error `NameError: name 'log_dir' is not defined` en línea 75 se solucionó agregando:
+
+```python
+# Líneas 76-77 en app_menu.py (ANTES DE USARLO)
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+```
+
+---
+
+## 🎯 PRÓXIMOS PASOS EN PYTHONANYWHERE
+
+### 1️⃣ Subir código corregido
+```bash
+cd /home/tu_usuario/tu_aplicacion
+git pull  # O subir app_menu.py manualmente
+```
+
+### 2️⃣ Ejecutar SQL (MySQL Console)
+Pega todo el contenido de: **PYTHONANYWHERE_MIGRATION.sql**
+
+### 3️⃣ Agregar variables de entorno (Web → Environment variables)
+```
+MERCADO_PAGO_ACCESS_TOKEN = APP_USR-1259548247582305-122300-5d8c3d2581d2b1ec853e7a0a3b069882-3089095564
+MERCADO_PAGO_PUBLIC_KEY = APP_USR-fd17b6ea-ef3b-4c7f-8f9d-2d94ae37b7c9
+FLASK_ENV = production
+SECRET_KEY = tu_clave_aqui
+CLOUDINARY_URL = tu_url_aqui
+DB_USER = tu_usuario
+DB_PASSWORD = tu_contraseña
+DB_HOST = tu_host
+DB_NAME = tu_db
+```
+
+### 4️⃣ Reiniciar app
+**Web** → Botón **Reload**
+
+### 5️⃣ Verificar logs
+**Web** → **Log files** → **error.log**
+
+---
+
+## 📋 Archivos Creados para Ayudarte
+
+1. **PYTHONANYWHERE_MIGRATION.sql** - SQL listo para copiar/pegar
+2. **PYTHONANYWHERE_CONFIG.md** - Guía de variables de entorno
+3. **LOG_DIR_FIX_REPORT.md** - Detalles técnicos del fix
+4. **PYTHONANYWHERE_DEPLOY_CHECKLIST.md** - Checklist completo de despliegue
+
+---
+
+## 🎉 ¡Hecho!
+
+El código está listo. Solo falta ejecutar los pasos en PythonAnywhere.
+
+**Preguntas frecuentes:**
+- ❓ ¿Dónde pongo el SQL? → En MySQL Console de PythonAnywhere
+- ❓ ¿Qué es log_dir? → Carpeta que se crea automáticamente para guardar logs
+- ❓ ¿Debo cambiar MERCADO_PAGO_PUBLIC_KEY? → No, ese es tu valor (APP_USR-...)
+
