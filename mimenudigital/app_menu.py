@@ -47,6 +47,8 @@ from functools import wraps
 from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+import cloudinary
+from cloudinary.uploader import upload as cloudinary_upload
 import traceback
 import logging
 from logging.handlers import RotatingFileHandler
@@ -109,20 +111,10 @@ app.jinja_env.globals['now'] = lambda: datetime.utcnow()
 # CONFIGURACIÓN DE UPLOADS Y ARCHIVOS
 # ============================================================
 
-UPLOAD_FOLDER = os.path.join(base_dir, 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB máximo
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-
-# Crear carpetas necesarias
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-logger.info(f"Upload folder configured: {UPLOAD_FOLDER}")
-
-QR_FOLDER = os.path.join(base_dir, 'static', 'uploads', 'qrs')
-os.makedirs(QR_FOLDER, exist_ok=True)
-logger.info(f"QR folder configured: {QR_FOLDER}")
 
 # ============================================================
 # CONFIGURACIÓN DE BASE DE DATOS
@@ -149,6 +141,17 @@ logger.info(f"Database config: {app.config['MYSQL_HOST']}:{app.config['MYSQL_POR
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 app.config['BASE_URL'] = BASE_URL
 logger.info(f"Base URL: {BASE_URL}")
+
+# ============================================================
+# CONFIGURACIÓN DE CLOUDINARY
+# ============================================================
+
+CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
+if CLOUDINARY_URL:
+    cloudinary.config_from_url(CLOUDINARY_URL)
+    logger.info("Cloudinary configurado correctamente")
+else:
+    logger.warning("CLOUDINARY_URL no está configurada. Las imágenes no se subirán a la nube.")
 
 # ============================================================
 # FUNCIONES DE BASE DE DATOS
@@ -226,7 +229,10 @@ def generar_qr_restaurante(url, filename):
     Returns:
         str: Ruta al archivo QR generado
     """
-    qr_path = os.path.join(QR_FOLDER, filename)
+    qr_folder = os.path.join(base_dir, 'static', 'uploads', 'qrs')
+    os.makedirs(qr_folder, exist_ok=True)
+    
+    qr_path = os.path.join(qr_folder, filename)
     
     # No regenerar si ya existe
     if os.path.exists(qr_path):
@@ -907,6 +913,29 @@ def api_platos():
             if request.method == 'POST':
                 data = request.get_json()
                 
+                # Procesar imagen si se envía como archivo
+                imagen_url = data.get('imagen_url', '')
+                
+                if 'imagen' in request.files and request.files['imagen']:
+                    file = request.files['imagen']
+                    if file and allowed_file(file.filename):
+                        try:
+                            if not CLOUDINARY_URL:
+                                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
+                            
+                            # Subir a Cloudinary con transformaciones
+                            result = cloudinary_upload(
+                                file,
+                                folder=f"mimenudigital/platos/{restaurante_id}",
+                                quality="auto",
+                                fetch_format="auto",
+                                resource_type="auto"
+                            )
+                            imagen_url = result['secure_url']
+                        except Exception as e:
+                            logger.error(f"Error subiendo imagen a Cloudinary: {traceback.format_exc()}")
+                            return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
+                
                 cur.execute('''
                     INSERT INTO platos (restaurante_id, categoria_id, nombre, descripcion, precio, 
                                         precio_oferta, imagen_url, etiquetas, es_vegetariano, es_vegano,
@@ -919,7 +948,7 @@ def api_platos():
                     data.get('descripcion', ''),
                     data.get('precio', 0),
                     data.get('precio_oferta'),
-                    data.get('imagen_url', ''),
+                    imagen_url,
                     data.get('etiquetas', ''),
                     data.get('es_vegetariano', 0),
                     data.get('es_vegano', 0),
@@ -961,6 +990,32 @@ def api_plato(plato_id):
                 
             if request.method == 'PUT':
                 data = request.get_json()
+                
+                # Procesar imagen si se envía como archivo
+                imagen_url = data.get('imagen_url', '')
+                
+                if 'imagen' in request.files and request.files['imagen']:
+                    file = request.files['imagen']
+                    if file and allowed_file(file.filename):
+                        try:
+                            if not CLOUDINARY_URL:
+                                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
+                            
+                            # Subir a Cloudinary con transformaciones
+                            result = cloudinary_upload(
+                                file,
+                                folder=f"mimenudigital/platos/{restaurante_id}",
+                                public_id=f"plato_{plato_id}",
+                                overwrite=True,
+                                quality="auto",
+                                fetch_format="auto",
+                                resource_type="auto"
+                            )
+                            imagen_url = result['secure_url']
+                        except Exception as e:
+                            logger.error(f"Error subiendo imagen a Cloudinary: {traceback.format_exc()}")
+                            return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
+                
                 cur.execute('''
                     UPDATE platos SET 
                         categoria_id = %s, nombre = %s, descripcion = %s, precio = %s,
@@ -975,7 +1030,7 @@ def api_plato(plato_id):
                     data.get('descripcion', ''),
                     data.get('precio', 0),
                     data.get('precio_oferta'),
-                    data.get('imagen_url', ''),
+                    imagen_url,
                     data.get('etiquetas', ''),
                     data.get('es_vegetariano', 0),
                     data.get('es_vegano', 0),
@@ -1202,7 +1257,7 @@ def api_actualizar_tema():
 @login_required
 @restaurante_owner_required
 def api_subir_logo():
-    """Sube el logo del restaurante."""
+    """Sube el logo del restaurante a Cloudinary."""
     if 'logo' not in request.files:
         return jsonify({'success': False, 'error': 'No se envió ningún archivo'}), 400
     
@@ -1211,23 +1266,34 @@ def api_subir_logo():
         return jsonify({'success': False, 'error': 'Archivo vacío'}), 400
     
     if file and allowed_file(file.filename):
-        # Generar nombre único
-        orig_name = secure_filename(file.filename)
-        ext = orig_name.rsplit('.', 1)[1].lower() if '.' in orig_name else 'png'
-        filename = f"logo_{session['restaurante_id']}_{uuid.uuid4().hex[:8]}.{ext}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        try:
+            if not CLOUDINARY_URL:
+                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
+            
+            # Subir a Cloudinary
+            result = cloudinary_upload(
+                file,
+                folder=f"mimenudigital/logos",
+                public_id=f"logo_{session['restaurante_id']}",
+                overwrite=True,
+                resource_type="auto"
+            )
+            
+            logo_url = result['secure_url']
+            
+            # Actualizar en BD
+            db = get_db()
+            with db.cursor() as cur:
+                cur.execute("UPDATE restaurantes SET logo_url = %s WHERE id = %s", 
+                           (logo_url, session['restaurante_id']))
+                db.commit()
+            
+            logger.info(f"Logo subido a Cloudinary para restaurante {session['restaurante_id']}")
+            return jsonify({'success': True, 'logo_url': logo_url})
         
-        file.save(filepath)
-        
-        # Actualizar en BD
-        logo_url = f"/static/uploads/{filename}"
-        db = get_db()
-        with db.cursor() as cur:
-            cur.execute("UPDATE restaurantes SET logo_url = %s WHERE id = %s", 
-                       (logo_url, session['restaurante_id']))
-            db.commit()
-        
-        return jsonify({'success': True, 'logo_url': logo_url})
+        except Exception as e:
+            logger.error(f"Error subiendo logo a Cloudinary: {traceback.format_exc()}")
+            return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
     
     return jsonify({'success': False, 'error': 'Tipo de archivo no permitido'}), 400
 
@@ -1796,10 +1862,11 @@ def health_check():
 # ARCHIVOS ESTÁTICOS
 # ============================================================
 
-@app.route('/static/uploads/<filename>')
+@app.route('/static/uploads/<path:filename>')
 def uploaded_file(filename):
-    """Sirve archivos subidos."""
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    """Sirve archivos subidos (QR y temporales)."""
+    upload_folder = os.path.join(base_dir, 'static', 'uploads')
+    return send_from_directory(upload_folder, filename)
 
 
 # ============================================================
