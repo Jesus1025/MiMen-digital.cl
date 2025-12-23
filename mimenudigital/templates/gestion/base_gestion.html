@@ -481,6 +481,135 @@
             justify-content: flex-end;
             gap: 0.75rem;
         }
+
+        /* Widget de Suscripción */
+        .subscription-widget {
+            margin: 1rem 1rem 1.5rem 1rem;
+            padding: 1rem;
+            border-radius: 10px;
+            border-left: 4px solid;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .subscription-widget.active {
+            border-left-color: #27ae60;
+            background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.1));
+        }
+
+        .subscription-widget.expiring-soon {
+            border-left-color: #f39c12;
+            background: linear-gradient(135deg, rgba(243, 156, 18, 0.1), rgba(230, 126, 34, 0.1));
+        }
+
+        .subscription-widget.expired {
+            border-left-color: #e74c3c;
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(192, 57, 43, 0.1));
+        }
+
+        .subscription-widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .subscription-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .subscription-status.active {
+            color: #27ae60;
+        }
+
+        .subscription-status.expiring-soon {
+            color: #f39c12;
+        }
+
+        .subscription-status.expired {
+            color: #e74c3c;
+        }
+
+        .subscription-status i {
+            font-size: 1.1rem;
+        }
+
+        .subscription-details {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .subscription-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #2c3e50;
+        }
+
+        .subscription-detail-item i {
+            width: 16px;
+            text-align: center;
+            opacity: 0.7;
+        }
+
+        .subscription-detail-item strong {
+            font-weight: 600;
+        }
+
+        .subscription-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn-renew {
+            flex: 1;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            min-height: 36px;
+        }
+
+        .btn-renew:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+        }
+
+        .btn-info {
+            background: #3498db;
+        }
+
+        .btn-info:hover {
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .subscription-details {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .subscription-actions {
+                flex-direction: column;
+            }
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -497,6 +626,44 @@
             </div>
             <div class="sidebar-subtitle">Panel de Gestión</div>
         </div>
+
+        <!-- Widget de Suscripción -->
+        {% if subscription_info %}
+        <div class="subscription-widget {% if subscription_info.status == 'active' and subscription_info.days_remaining > 5 %}active{% elif subscription_info.status == 'active' and subscription_info.days_remaining <= 5 %}expiring-soon{% else %}expired{% endif %}">
+            <div class="subscription-widget-header">
+                <div class="subscription-status {% if subscription_info.status == 'active' and subscription_info.days_remaining > 5 %}active{% elif subscription_info.status == 'active' and subscription_info.days_remaining <= 5 %}expiring-soon{% else %}expired{% endif %}">
+                    {% if subscription_info.status == 'active' and subscription_info.days_remaining > 5 %}
+                        <i class="fas fa-check-circle"></i>
+                        <span>Suscripción Activa</span>
+                    {% elif subscription_info.status == 'active' and subscription_info.days_remaining <= 5 %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>¡Vence Pronto!</span>
+                    {% else %}
+                        <i class="fas fa-times-circle"></i>
+                        <span>Suscripción Vencida</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="subscription-details">
+                <div class="subscription-detail-item">
+                    <i class="fas fa-calendar"></i>
+                    <span><strong>{{ subscription_info.days_remaining }}</strong> días</span>
+                </div>
+                <div class="subscription-detail-item">
+                    <i class="fas fa-clock"></i>
+                    <span>Vence: <strong>{{ subscription_info.expiration_date }}</strong></span>
+                </div>
+            </div>
+
+            <div class="subscription-actions">
+                <a href="{{ url_for('gestion_pago_pendiente') }}" class="btn-renew">
+                    <i class="fas fa-credit-card"></i>
+                    Renovar Ahora
+                </a>
+            </div>
+        </div>
+        {% endif %}
         
         <nav class="sidebar-menu">
             <div class="menu-label">Principal</div>
@@ -565,6 +732,28 @@
                 <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
             </div>
             <div class="navbar-right">
+                <!-- Indicador de Suscripción -->
+                {% if subscription_info %}
+                <div style="display: flex; align-items: center; gap: 1rem; padding-right: 1.5rem; border-right: 1px solid #ecf0f1;">
+                    {% if subscription_info.status == 'active' and subscription_info.days_remaining > 5 %}
+                        <div style="text-align: right; font-size: 0.85rem;">
+                            <div style="color: #27ae60; font-weight: 600;">✓ Activa</div>
+                            <div style="color: #7f8c8d; font-size: 0.75rem;">{{ subscription_info.days_remaining }} días</div>
+                        </div>
+                    {% elif subscription_info.status == 'active' and subscription_info.days_remaining <= 5 %}
+                        <div style="text-align: right; font-size: 0.85rem;">
+                            <div style="color: #f39c12; font-weight: 600;">⚠ ¡Vence Pronto!</div>
+                            <div style="color: #7f8c8d; font-size: 0.75rem;">{{ subscription_info.days_remaining }} días</div>
+                        </div>
+                    {% else %}
+                        <div style="text-align: right; font-size: 0.85rem;">
+                            <div style="color: #e74c3c; font-weight: 600;">✗ Vencida</div>
+                            <div style="color: #7f8c8d; font-size: 0.75rem;">Renovar ahora</div>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <div class="user-info">
                     <div class="user-avatar">
                         {{ session.get('nombre', 'U')[0]|upper }}

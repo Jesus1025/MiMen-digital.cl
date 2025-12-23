@@ -289,6 +289,102 @@ def close_db(error=None):
             logger.warning(f"Error closing database: {e}")
 
 # ============================================================
+# FUNCIONES AUXILIARES DE SUSCRIPCIÓN
+# ============================================================
+
+def get_subscription_info(restaurante_id):
+    """
+    Obtiene información de la suscripción del restaurante.
+    
+    Calcula:
+    - Estado: 'active', 'expiring_soon' (< 5 días), 'expired'
+    - Días restantes
+    - Fecha de vencimiento
+    
+    Returns:
+        dict: Con keys: status, days_remaining, expiration_date, fecha_vencimiento (object)
+    """
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT fecha_vencimiento FROM restaurantes WHERE id = %s",
+                (restaurante_id,)
+            )
+            result = cur.fetchone()
+            
+            if not result:
+                logger.warning(f"Restaurant {restaurante_id} not found")
+                return None
+            
+            fecha_vencimiento = result.get('fecha_vencimiento')
+            
+            if not fecha_vencimiento:
+                logger.warning(f"No expiration date for restaurant {restaurante_id}")
+                return None
+            
+            # Convertir a datetime si es string
+            if isinstance(fecha_vencimiento, str):
+                from datetime import datetime as dt
+                fecha_vencimiento = dt.strptime(fecha_vencimiento, '%Y-%m-%d').date()
+            
+            hoy = date.today()
+            dias_restantes = (fecha_vencimiento - hoy).days
+            
+            # Determinar estado
+            if dias_restantes < 0:
+                estado = 'expired'
+            elif dias_restantes <= 5:
+                estado = 'expiring_soon'
+            else:
+                estado = 'active'
+            
+            # Formatear fecha para mostrar
+            fecha_formateada = fecha_vencimiento.strftime('%d/%m/%Y')
+            
+            return {
+                'status': estado,
+                'days_remaining': max(0, dias_restantes),
+                'expiration_date': fecha_formateada,
+                'fecha_vencimiento': fecha_vencimiento
+            }
+    except Exception as e:
+        logger.error(f"Error getting subscription info: {e}")
+        return None
+
+
+# ============================================================
+# CONTEXTO GLOBAL PARA TEMPLATES
+# ============================================================
+
+@app.before_request
+def inject_subscription_info():
+    """
+    Inyecta información de suscripción en el contexto global de templates.
+    Se ejecuta antes de cada request para que esté disponible en todos los templates.
+    """
+    try:
+        if 'restaurante_id' in session:
+            subscription_info = get_subscription_info(session['restaurante_id'])
+            g.subscription_info = subscription_info
+        else:
+            g.subscription_info = None
+    except Exception as e:
+        logger.error(f"Error injecting subscription info: {e}")
+        g.subscription_info = None
+
+
+# Hacer disponible en templates
+@app.context_processor
+def inject_globals():
+    """Inyecta variables globales en todos los templates."""
+    return {
+        'subscription_info': g.get('subscription_info', None),
+        'now': datetime.utcnow()
+    }
+
+
+# ============================================================
 # GENERACIÓN DE CÓDIGOS QR
 # ============================================================
 
