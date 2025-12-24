@@ -66,12 +66,17 @@ MERCADOPAGO_IMPORT_ERROR = None
 try:
     import mercadopago
     MERCADOPAGO_AVAILABLE = True
+except ImportError as e:
+    mercadopago = None
+    MERCADOPAGO_AVAILABLE = False
+    MERCADOPAGO_IMPORT_ERROR = str(e)
+    # Friendly guidance to fix missing dependency (visible at startup)
+    print("[MercadoPago][IMPORT_ERROR] Mercado Pago SDK no encontrado. Instala con: pip install mercado-pago")
 except Exception as e:
     mercadopago = None
     MERCADOPAGO_AVAILABLE = False
     MERCADOPAGO_IMPORT_ERROR = str(e)
-    # Print so the error is visible in server startup logs even before logger is configured
-    print(f"[MercadoPago][IMPORT_ERROR] {MERCADOPAGO_IMPORT_ERROR}")
+    print(f"[MercadoPago][IMPORT_ERROR] Error al importar Mercado Pago: {MERCADOPAGO_IMPORT_ERROR}")
 
 # ============================================================
 # CONFIGURACIÓN DE LOGGING
@@ -610,32 +615,51 @@ def verificar_suscripcion(f):
             try:
                 db = get_db()
                 with db.cursor() as cur:
-                    cur.execute('''
-                        SELECT fecha_vencimiento, estado_suscripcion 
-                        FROM restaurantes WHERE id = %s
-                    ''', (restaurante_id,))
+                    # Proteger la consulta en caso de que la columna no exista todavía
+                    try:
+                        cur.execute('''
+                            SELECT fecha_vencimiento, estado_suscripcion 
+                            FROM restaurantes WHERE id = %s
+                        ''', (restaurante_id,))
+                    except pymysql.Error as e:
+                        logger.warning(f"No se pudo consultar fecha_vencimiento (BD posiblemente desactualizada): {e}")
+                        # No bloquear la ejecución; permitir acceso y reintentar en la próxima request
+                        return f(*args, **kwargs)
+
                     rest = cur.fetchone()
-                    
+
                     if rest:
-                        fecha_vencimiento = rest['fecha_vencimiento']
-                        
-                        # Si no tiene fecha de vencimiento, asignar 30 días
+                        # Usar .get por seguridad
+                        fecha_vencimiento = rest.get('fecha_vencimiento') if isinstance(rest, dict) else rest['fecha_vencimiento']
+
+                        # Si no tiene fecha de vencimiento, asignar 30 días (intento de corrección; fallbacks no críticos si falla la actualización)
                         if not fecha_vencimiento:
                             fecha_vencimiento = (date.today() + timedelta(days=30)).isoformat()
-                            cur.execute('''
-                                UPDATE restaurantes 
-                                SET fecha_vencimiento = %s, estado_suscripcion = 'prueba'
-                                WHERE id = %s
-                            ''', (fecha_vencimiento, restaurante_id))
-                            db.commit()
+                            try:
+                                cur.execute('''
+                                    UPDATE restaurantes 
+                                    SET fecha_vencimiento = %s, estado_suscripcion = 'prueba'
+                                    WHERE id = %s
+                                ''', (fecha_vencimiento, restaurante_id))
+                                db.commit()
+                            except pymysql.Error as e:
+                                logger.warning(f"No se pudo actualizar fecha_vencimiento (columna puede faltar): {e}")
                             return f(*args, **kwargs)
-                        
-                        # Verificar si la suscripción expiró
-                        if date.today() > fecha_vencimiento:
-                            logger.warning(f"Suscripción expirada para restaurante {restaurante_id}")
-                            flash('Tu período de prueba o suscripción ha terminado', 'warning')
-                            return redirect(url_for('gestion_pago_pendiente'))
-                    
+
+                        # Verificar si la suscripción expiró (manejar formatos de fecha inesperados)
+                        try:
+                            if isinstance(fecha_vencimiento, str):
+                                from datetime import datetime as _dt
+                                fecha_vencimiento = _dt.strptime(fecha_vencimiento, '%Y-%m-%d').date()
+
+                            if date.today() > fecha_vencimiento:
+                                logger.warning(f"Suscripción expirada para restaurante {restaurante_id}")
+                                flash('Tu período de prueba o suscripción ha terminado', 'warning')
+                                return redirect(url_for('gestion_pago_pendiente'))
+                        except Exception as e:
+                            logger.warning(f"Formato de fecha_vencimiento inesperado: {e}")
+                            return f(*args, **kwargs)
+
                     return f(*args, **kwargs)
             except Exception as e:
                 logger.error(f"Error al verificar suscripción: {e}")
