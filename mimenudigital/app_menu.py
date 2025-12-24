@@ -174,8 +174,17 @@ def init_mercadopago():
         return False
     
     access_token = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
-    
-    if access_token:
+    public_key = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
+    missing = []
+    if not access_token:
+        missing.append("MERCADO_PAGO_ACCESS_TOKEN")
+    if not public_key:
+        missing.append("MERCADO_PAGO_PUBLIC_KEY")
+    if missing:
+        print(f"[MercadoPago][ERROR] Faltan variables de entorno: {', '.join(missing)}")
+        print("[MercadoPago][INFO] Por favor, define las variables de entorno requeridas antes de continuar.")
+    # ...continúa inicialización solo si no faltan...
+    if not missing:
         try:
             MERCADOPAGO_CLIENT = mercadopago.SDK(access_token)
             logger.info("Mercado Pago configurado correctamente")
@@ -185,7 +194,16 @@ def init_mercadopago():
             MERCADOPAGO_CLIENT = None
             return False
     else:
-        logger.warning("MERCADO_PAGO_ACCESS_TOKEN no está configurada en las variables de entorno.")
+        # Log detallado para depuración
+        env_vars = dict(os.environ)
+        has_mp_access = 'MERCADO_PAGO_ACCESS_TOKEN' in env_vars
+        value_preview = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
+        if value_preview:
+            value_preview = value_preview[:4] + '...' + value_preview[-4:]
+        logger.error(
+            "MERCADO_PAGO_ACCESS_TOKEN no está configurada correctamente en las variables de entorno. "
+            f"Presente: {has_mp_access}. Valor actual: {value_preview if value_preview else '[VACÍO]'}"
+        )
         MERCADOPAGO_CLIENT = None
         return False
 
