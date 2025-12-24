@@ -62,12 +62,16 @@ except ImportError:
     PDFKIT_AVAILABLE = False
 
 # Intentar importar SDK de Mercado Pago
+MERCADOPAGO_IMPORT_ERROR = None
 try:
     import mercadopago
     MERCADOPAGO_AVAILABLE = True
-except ImportError:
+except Exception as e:
     mercadopago = None
     MERCADOPAGO_AVAILABLE = False
+    MERCADOPAGO_IMPORT_ERROR = str(e)
+    # Print so the error is visible in server startup logs even before logger is configured
+    print(f"[MercadoPago][IMPORT_ERROR] {MERCADOPAGO_IMPORT_ERROR}")
 
 # ============================================================
 # CONFIGURACIÓN DE LOGGING
@@ -171,6 +175,8 @@ def init_mercadopago():
 
     if not MERCADOPAGO_AVAILABLE:
         logger.warning("SDK de Mercado Pago no está instalado. Los pagos no funcionarán.")
+        if MERCADOPAGO_IMPORT_ERROR:
+            logger.error(f"Mercado Pago import error: {MERCADOPAGO_IMPORT_ERROR}")
         return False
 
     # Buscar explícitamente las variables esperadas (sin alias cortos)
@@ -1223,8 +1229,19 @@ def gestion_pago_pendiente():
 @login_required
 def api_crear_preferencia_pago():
     """API para crear una preferencia de pago en Mercado Pago."""
+    # Si el cliente no está inicializado en el arranque, reintentar inicialización bajo demanda
     if not MERCADOPAGO_CLIENT:
-        return jsonify({'success': False, 'error': 'Mercado Pago no está configurado'}), 500
+        logger.warning("MERCADOPAGO_CLIENT is None. Attempting on-demand initialization.")
+        try:
+            init_ok = init_mercadopago()
+            if not init_ok or not MERCADOPAGO_CLIENT:
+                # Log detallado de las variables de entorno que ve Python para depuración
+                logger.error(f"Falla de config. MP_PUBLIC_KEY: {os.environ.get('MERCADO_PAGO_PUBLIC_KEY')}")
+                logger.error(f"MERCADOPAGO_AVAILABLE={MERCADOPAGO_AVAILABLE}, MERCADOPAGO_CLIENT={MERCADOPAGO_CLIENT}, MERCADOPAGO_IMPORT_ERROR={MERCADOPAGO_IMPORT_ERROR}")
+                return jsonify({'success': False, 'error': 'Mercado Pago no está configurado', 'mp_public_key': os.environ.get('MERCADO_PAGO_PUBLIC_KEY')}), 500
+        except Exception as e:
+            logger.error(f"Error re-inicializando Mercado Pago: {e}\n{traceback.format_exc()}")
+            return jsonify({'success': False, 'error': 'Error al inicializar Mercado Pago'}), 500
     
     try:
         db = get_db()
