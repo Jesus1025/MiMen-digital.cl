@@ -101,7 +101,9 @@
 </style>
 
 <script>
-document.getElementById('btn-pagar-mercadopago').addEventListener('click', function() {
+    // Expose Mercado Pago public key to client-side JS (may be empty if not configured)
+    window.MERCADO_PAGO_PUBLIC_KEY = "{{ mercado_pago_public_key }}";
+    document.getElementById('btn-pagar-mercadopago').addEventListener('click', function() {
     const btn = this;
     const originalHTML = btn.innerHTML;
     

@@ -168,42 +168,37 @@ def init_mercadopago():
     Se llama después de que Flask está completamente cargado.
     """
     global MERCADOPAGO_CLIENT
-    
+
     if not MERCADOPAGO_AVAILABLE:
         logger.warning("SDK de Mercado Pago no está instalado. Los pagos no funcionarán.")
         return False
-    
+
+    # Buscar explícitamente las variables esperadas (sin alias cortos)
     access_token = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
     public_key = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
-    missing = []
+
+    # Requerir al menos el access token para inicializar el cliente en servidor.
     if not access_token:
-        missing.append("MERCADO_PAGO_ACCESS_TOKEN")
+        logger.error("MERCADO_PAGO_ACCESS_TOKEN no está configurada. Mercado Pago no podrá inicializarse.")
+        MERCADOPAGO_CLIENT = None
+        return False
+
+    # Mostrar vista previa segura (primeros 10 caracteres) para depuración en logs
+    try:
+        preview = access_token[:10]
+        logger.info(f"Mercado Pago access token preview: {preview}...")
+    except Exception:
+        logger.debug("No se pudo generar preview del access token.")
+
     if not public_key:
-        missing.append("MERCADO_PAGO_PUBLIC_KEY")
-    if missing:
-        print(f"[MercadoPago][ERROR] Faltan variables de entorno: {', '.join(missing)}")
-        print("[MercadoPago][INFO] Por favor, define las variables de entorno requeridas antes de continuar.")
-    # ...continúa inicialización solo si no faltan...
-    if not missing:
-        try:
-            MERCADOPAGO_CLIENT = mercadopago.SDK(access_token)
-            logger.info("Mercado Pago configurado correctamente")
-            return True
-        except Exception as e:
-            logger.error(f"Error configurando Mercado Pago: {e}")
-            MERCADOPAGO_CLIENT = None
-            return False
-    else:
-        # Log detallado para depuración
-        env_vars = dict(os.environ)
-        has_mp_access = 'MERCADO_PAGO_ACCESS_TOKEN' in env_vars
-        value_preview = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
-        if value_preview:
-            value_preview = value_preview[:4] + '...' + value_preview[-4:]
-        logger.error(
-            "MERCADO_PAGO_ACCESS_TOKEN no está configurada correctamente en las variables de entorno. "
-            f"Presente: {has_mp_access}. Valor actual: {value_preview if value_preview else '[VACÍO]'}"
-        )
+        logger.warning("MERCADO_PAGO_PUBLIC_KEY no está configurada. La integración del lado cliente puede fallar.")
+
+    try:
+        MERCADOPAGO_CLIENT = mercadopago.SDK(access_token)
+        logger.info("Mercado Pago configurado correctamente (cliente inicializado).")
+        return True
+    except Exception as e:
+        logger.error(f"Error configurando Mercado Pago: {e}")
         MERCADOPAGO_CLIENT = None
         return False
 
@@ -1217,10 +1212,11 @@ def gestion_pago_pendiente():
         restaurante = dict_from_row(cur.fetchone())
     
     dias_vencido = (date.today() - restaurante['fecha_vencimiento']).days if restaurante['fecha_vencimiento'] else 0
-    
+
     return render_template('gestion/pago_pendiente.html', 
                           restaurante=restaurante, 
-                          dias_vencido=dias_vencido)
+                          dias_vencido=dias_vencido,
+                          mercado_pago_public_key=os.environ.get('MERCADO_PAGO_PUBLIC_KEY', ''))
 
 
 @app.route('/api/pago/crear-preferencia', methods=['POST'])
@@ -1246,15 +1242,15 @@ def api_crear_preferencia_pago():
         # Definir parámetros del pago
         plan_type = data.get('plan_type', 'mensual')
         
-        # Configurar precio según plan
+        # Configurar precio según plan (CLP)
         if plan_type == 'mensual':
-            precio = 9.99
+            precio = 20000
             descripcion = 'Suscripción Mensual - Menú Digital'
         elif plan_type == 'anual':
-            precio = 99.99
+            precio = 200000
             descripcion = 'Suscripción Anual - Menú Digital'
         else:
-            precio = 9.99
+            precio = 20000
             descripcion = 'Suscripción - Menú Digital'
         
         # Crear preferencia de pago
