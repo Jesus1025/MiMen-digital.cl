@@ -5,21 +5,10 @@
 import sys
 import os
 
-# 1. ESTABLECER VARIABLES DE ENTORNO (¡CRÍTICO! Antes de cualquier import)
-os.environ['MYSQL_HOST'] = 'MiMenudigital.mysql.pythonanywhere-services.com'
-os.environ['MYSQL_USER'] = 'MiMenudigital'
-os.environ['MYSQL_PASSWORD'] = '19101810Aa'
-os.environ['MYSQL_DB'] = 'MiMenudigital$menu_digital'
-os.environ['MYSQL_PORT'] = '3306'
-os.environ['FLASK_ENV'] = 'production'
-os.environ['BASE_URL'] = 'https://mimenudigital.pythonanywhere.com'
-
-print("=" * 70)
-print("WSGI - Variables establecidas:")
-print(f"  MYSQL_HOST = {os.environ['MYSQL_HOST']}")
-print(f"  MYSQL_USER = {os.environ['MYSQL_USER']}")
-print(f"  MYSQL_DB = {os.environ['MYSQL_DB']}")
-print("=" * 70)
+# 1. ESTABLECER VARIABLES DE ENTORNO
+# Las variables de entorno (MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB, etc.)
+# deben configurarse en la pestaña "Web" de PythonAnywhere.
+# NO las dejes hardcodeadas en este fichero.
 
 # 2. AÑADIR RUTA DEL PROYECTO
 path = '/home/MiMenudigital/MiMen-digital.cl'
