@@ -5,6 +5,8 @@ from flask import (
 )
 from functools import wraps
 from datetime import date, timedelta
+
+# Cloudinary y PDFKit (opcional, no crítico para API de platos)
 try:
     from cloudinary.uploader import upload as cloudinary_upload
     CLOUDINARY_AVAILABLE = True
@@ -18,8 +20,8 @@ except ImportError:
     pdfkit = None
     PDFKIT_AVAILABLE = False
 
-
-from app_factory import get_db, limiter
+# Importar get_db y limiter directamente de app_menu para evitar problemas de rutas
+from app_menu import get_db, limiter
 
 # Blueprint setup for APIs
 api_gestion_bp = Blueprint('api_gestion', __name__, url_prefix='/api')
