@@ -1,42 +1,51 @@
-# ============================================================
-# WSGI CONFIGURATION FOR PYTHONANYWHERE
-# ============================================================
-
 import sys
 import os
 
-# 1. ESTABLECER VARIABLES DE ENTORNO
-# Las variables de entorno (MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB, etc.)
-# deben configurarse en la pestaña "Web" de PythonAnywhere.
-# NO las dejes hardcodeadas en este fichero.
+# ============================================================ 
+# CONFIGURACIÓN DE VARIABLES DE ENTORNO
+# ============================================================ 
+# CREDENCIALES DE MERCADO PAGO (LIMPIO Y FUNCIONAL)
+# ============================================================ 
+os.environ['MERCADO_PAGO_PUBLIC_KEY'] = 'APP_USR-56d00f49-c4e2-4b01-8670-d17bf4b841ad'
+os.environ['MERCADO_PAGO_ACCESS_TOKEN'] = 'APP_USR-130838446303286-122321-7a32fce25e8565b16490762a1b0f2254-3090066666'
+# Base de datos
+os.environ['MYSQL_HOST'] = 'MiMenudigital.mysql.pythonanywhere-services.com'
+os.environ['MYSQL_USER'] = 'MiMenudigital'
+os.environ['MYSQL_PASSWORD'] = '19101810Aa'
+os.environ['MYSQL_DB'] = 'MiMenudigital$menu_digital'
+os.environ['MYSQL_PORT'] = '3306'
 
-# 2. AÑADIR RUTA DEL PROYECTO
-path = '/home/MiMenudigital/MiMen-digital.cl'
+# Configuración de la App
+os.environ['FLASK_ENV'] = 'production'
+os.environ['BASE_URL'] = 'https://mimenudigital.pythonanywhere.com'
+
+# Credenciales de Cloudinary
+os.environ['CLOUDINARY_URL'] = 'cloudinary://211225241664362:CV4Q_UfQR9A1GqKUmK02SzE4YiQ@dtrjravmg'
+
+# ============================================================ 
+
+
+# ============================================================ 
+# CARGA DE LA APLICACIÓN
+# ============================================================ 
+path = '/home/MiMenudigital/mimenudigital'
+
 if path not in sys.path:
     sys.path.insert(0, path)
 
-# 3. CARGAR .env si existe (desarrollo)
-try:
-    from dotenv import load_dotenv
-    env_file = os.path.join(path, '.env')
-    if os.path.exists(env_file):
-        load_dotenv(env_file)
-except ImportError:
-    pass
-except Exception:
-    pass
+# Cambiamos al directorio del proyecto para que Flask encuentre las carpetas static/templates
+os.chdir(path)
 
-# 4. IMPORTAR LA APP
 try:
-    from app_menu import app as application
+    from app_factory import create_app
+    application = create_app()
 except ImportError as e:
     import traceback
     from flask import Flask
     application = Flask(__name__)
-    
-    error_msg = f"Error importando app_menu: {str(e)}\n{traceback.format_exc()}"
-    print(f"ERROR: {error_msg}")
-    
+
+    error_msg = f"Error de Importación: {str(e)}\n\n{traceback.format_exc()}"
+
     @application.route('/')
     def error():
-        return f"<pre>Import Error:\n{error_msg}</pre>", 500
+        return f"&lt;h1&gt;Error de Configuración&lt;/h1&gt;&lt;pre&gt;{error_msg}&lt;/pre&gt;", 500
