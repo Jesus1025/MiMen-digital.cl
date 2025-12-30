@@ -20,8 +20,8 @@ except ImportError:
     pdfkit = None
     PDFKIT_AVAILABLE = False
 
-# Importar get_db y limiter directamente de app_menu para evitar problemas de rutas
-from app_menu import get_db, limiter
+# Import original: get_db y limiter desde app_factory (como antes de la refactorización)
+from app_factory import get_db, limiter
 
 # Blueprint setup for APIs
 api_gestion_bp = Blueprint('api_gestion', __name__, url_prefix='/api')
