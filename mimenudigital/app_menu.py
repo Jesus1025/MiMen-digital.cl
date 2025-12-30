@@ -1,40 +1,12 @@
-# (Reubicadas) Las rutas de SuperAdmin se definen más abajo, tras la configuración y los
-# decoradores, para evitar name errors y referencias a objetos aún no inicializados.
-# ============================================================
-# MENU DIGITAL SAAS - DIVERGENT STUDIO
-# Sistema Multi-Tenant para Menús Digitales
-# Versión: 2.0 - MySQL Production Ready
-# ============================================================
-# ...existing code...
-# Ejemplo de uso en una vista (ajusta según tu lógica):
-#
-# @app.route('/superadmin/generar_qr/<int:restaurante_id>')
-# def generar_qr(restaurante_id):
-#     # Obtén el restaurante y su url_slug desde la base de datos
-#     restaurante = ... # tu lógica aquí
-#     url = f"{BASE_URL}/menu/{restaurante['url_slug']}"
-#     filename = f"{restaurante['id']}_qr.png"
-#     qr_path = generar_qr_restaurante(url, filename)
-#     return send_from_directory(QR_FOLDER, filename)
-
-
 import os
 import sys
+from dotenv import load_dotenv
 
-# Intentar cargar variables de entorno desde .env (solo si existe)
-# En PythonAnywhere, las variables se configuran en Web -> Environment variables
-try:
-    from dotenv import load_dotenv
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    env_local_path = os.path.join(base_dir, '.env.local')
-    env_path = os.path.join(base_dir, '.env')
-    if os.path.exists(env_local_path):
-        load_dotenv(env_local_path)
-    elif os.path.exists(env_path):
-        load_dotenv(env_path)
-except ImportError:
-    # dotenv no instalado, está bien - las vars vienen de PythonAnywhere
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+# Load environment variables
+base_dir = os.path.dirname(os.path.abspath(__file__))
+env_local_path = os.path.join(base_dir, '.env.local')
+if os.path.exists(env_local_path):
+    load_dotenv(env_local_path)
 
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for, 
@@ -42,701 +14,142 @@ from flask import (
 )
 import pymysql
 from pymysql.cursors import DictCursor
-import uuid
 from functools import wraps
 from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
-import cloudinary
-from cloudinary.uploader import upload as cloudinary_upload
 import traceback
 import logging
 from logging.handlers import RotatingFileHandler
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
-# Intentar importar pdfkit para generación de PDFs
-try:
-    import pdfkit
-    PDFKIT_AVAILABLE = True
-except ImportError:
-    pdfkit = None
-    PDFKIT_AVAILABLE = False
 
-# Intentar importar SDK de Mercado Pago
-MERCADOPAGO_IMPORT_ERROR = None
-try:
-    import mercadopago
-    MERCADOPAGO_AVAILABLE = True
-except ImportError as e:
-    mercadopago = None
-    MERCADOPAGO_AVAILABLE = False
-    MERCADOPAGO_IMPORT_ERROR = str(e)
-    # Friendly guidance to fix missing dependency (visible at startup)
-    print("[MercadoPago][IMPORT_ERROR] Mercado Pago SDK no encontrado. Instala con: pip install mercado-pago")
-except Exception as e:
-    mercadopago = None
-    MERCADOPAGO_AVAILABLE = False
-    MERCADOPAGO_IMPORT_ERROR = str(e)
-    print(f"[MercadoPago][IMPORT_ERROR] Error al importar Mercado Pago: {MERCADOPAGO_IMPORT_ERROR}")
+from config import get_config
+from flask_session import Session
 
 # ============================================================
-# CONFIGURACIÓN DE LOGGING
+# APP INITIALIZATION
 # ============================================================
-# Definir directorio de logs
-log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, 'app.log')
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Rotating file handler: 5MB por archivo, 3 backups
-file_handler = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
-file_formatter = logging.Formatter(
-    '%(asctime)s | %(levelname)-8s | %(name)s | %(funcName)s:%(lineno)d | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-file_handler.setFormatter(file_formatter)
-logger.addHandler(file_handler)
-
-# Console handler para desarrollo
-console_handler = logging.StreamHandler(sys.stdout)
-console_formatter = logging.Formatter('%(levelname)-8s: %(message)s')
-console_handler.setFormatter(console_formatter)
-logger.addHandler(console_handler)
-
-logger.info("=" * 60)
-logger.info("Iniciando aplicación Menu Digital")
-logger.info("=" * 60)
-
-# ============================================================
-# CONFIGURACIÓN DE LA APLICACIÓN
-# ============================================================
 
 app = Flask(__name__)
+app.config.from_object(get_config())
 
-# Cargar configuración desde variables de entorno
-secret_key = os.environ.get('SECRET_KEY')
-if not secret_key:
-    secret_key = 'please-set-a-secret-key'
-    if os.environ.get('FLASK_ENV') == 'production':
-        logger.warning('SECRET_KEY not set in environment. Set SECRET_KEY in production.')
+# Configuración de Flask-Session (servidor)
+app.config.setdefault('SESSION_TYPE', 'filesystem')  # Cambia a 'redis' en producción si tienes Redis
+app.config.setdefault('SESSION_PERMANENT', True)
+app.config.setdefault('SESSION_USE_SIGNER', True)
+app.config.setdefault('SESSION_FILE_DIR', os.path.join(base_dir, 'flask_session'))
+Session(app)
 
-app.secret_key = secret_key
-
-# Configuración de sesiones (mejorada)
-app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
-app.config['SESSION_REFRESH_EACH_REQUEST'] = True
-
-# Función now() para templates
-app.jinja_env.globals['now'] = lambda: datetime.utcnow()
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
 
 # ============================================================
-# FUNCIONES DE INICIALIZACIÓN
+# LOGGING
+# ============================================================
+if not app.debug:
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+    file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('Menu Digital startup')
+
+# ============================================================
+# DATABASE (moved to database.py)
+# ============================================================
+try:
+    from database import get_db, init_app as db_init_app
+    try:
+        db_init_app(app)
+    except Exception as e:
+        app.logger.debug("DB teardown registration skipped: %s", e)
+except Exception as e:
+    # If database module cannot be imported, keep a simple fallback
+    def get_db():
+        raise RuntimeError('Database helper not available')
+
+# ============================================================
+# HELPERS & DECORATORS (extracted to modules)
 # ============================================================
 
-# Variable global para almacenar si Cloudinary está configurado
-CLOUDINARY_CONFIGURED = False
-
-def init_cloudinary():
-    """
-    Inicializa la configuración de Cloudinary.
-    Se llama después de que Flask está completamente cargado.
-    Maneja elegantemente el caso donde CLOUDINARY_URL no esté configurada.
-    """
-    global CLOUDINARY_CONFIGURED
-    
-    cloudinary_url = os.environ.get('CLOUDINARY_URL')
-    
-    if cloudinary_url:
-        try:
-            cloudinary.config_from_url(cloudinary_url)
-            logger.info("Cloudinary configurado correctamente")
-            CLOUDINARY_CONFIGURED = True
-            return True
-        except Exception as e:
-            logger.error(f"Error configurando Cloudinary: {e}")
-            CLOUDINARY_CONFIGURED = False
+try:
+    from utils import dict_from_row, list_from_rows, allowed_file, generar_qr_restaurante, registrar_visita
+except Exception as e:
+    # Fallbacks if utils not available
+    def dict_from_row(row):
+        return dict(row) if row else None
+    def list_from_rows(rows):
+        return [dict(row) for row in rows] if rows else []
+    def allowed_file(filename):
+        if not filename or '.' not in filename:
             return False
-    else:
-        logger.warning("CLOUDINARY_URL no está configurada en las variables de entorno.")
-        CLOUDINARY_CONFIGURED = False
-        return False
-
-# Inicializar Cloudinary después de crear la app
-init_cloudinary()
-
-# Variable global para almacenar cliente de Mercado Pago
-MERCADOPAGO_CLIENT = None
-
-def init_mercadopago():
-    """
-    Inicializa el cliente de Mercado Pago.
-    Se llama después de que Flask está completamente cargado.
-    """
-    global MERCADOPAGO_CLIENT
-
-    if not MERCADOPAGO_AVAILABLE:
-        logger.warning("SDK de Mercado Pago no está instalado. Los pagos no funcionarán.")
-        if MERCADOPAGO_IMPORT_ERROR:
-            logger.error(f"Mercado Pago import error: {MERCADOPAGO_IMPORT_ERROR}")
-        return False
-
-    # Buscar explícitamente las variables esperadas (sin alias cortos)
-    access_token = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
-    public_key = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
-
-    # Requerir al menos el access token para inicializar el cliente en servidor.
-    if not access_token:
-        logger.error("MERCADO_PAGO_ACCESS_TOKEN no está configurada. Mercado Pago no podrá inicializarse.")
-        MERCADOPAGO_CLIENT = None
-        return False
-
-    # Mostrar vista previa segura (primeros 10 caracteres) para depuración en logs
-    try:
-        preview = access_token[:10]
-        logger.info(f"Mercado Pago access token preview: {preview}...")
-    except Exception:
-        logger.debug("No se pudo generar preview del access token.")
-
-    if not public_key:
-        logger.warning("MERCADO_PAGO_PUBLIC_KEY no está configurada. La integración del lado cliente puede fallar.")
-
-    try:
-        MERCADOPAGO_CLIENT = mercadopago.SDK(access_token)
-        logger.info("Mercado Pago configurado correctamente (cliente inicializado).")
-        return True
-    except Exception as e:
-        logger.error(f"Error configurando Mercado Pago: {e}")
-        MERCADOPAGO_CLIENT = None
-        return False
-
-# Inicializar Mercado Pago
-init_mercadopago()
-
-# ============================================================
-# CONFIGURACIÓN DE UPLOADS Y ARCHIVOS
-# ============================================================
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB máximo
-
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-
-# ============================================================
-# CONFIGURACIÓN DE BASE DE DATOS
-# ============================================================
-
-# Leer configuración de variables de entorno
-# Valores por defecto NUNCA deben ser 'localhost' en producción
-MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'MiMenudigital.mysql.pythonanywhere-services.com'
-MYSQL_USER = os.environ.get('MYSQL_USER') or 'MiMenudigital'
-MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or '19101810Aa'
-MYSQL_DB = os.environ.get('MYSQL_DB') or 'MiMenudigital$menu_digital'
-MYSQL_PORT = os.environ.get('MYSQL_PORT') or '3306'
-
-app.config['MYSQL_HOST'] = MYSQL_HOST
-app.config['MYSQL_USER'] = MYSQL_USER
-app.config['MYSQL_PASSWORD'] = MYSQL_PASSWORD
-app.config['MYSQL_DB'] = MYSQL_DB
-app.config['MYSQL_PORT'] = int(MYSQL_PORT)
-app.config['MYSQL_CHARSET'] = 'utf8mb4'
-
-logger.info(f"Database config: {app.config['MYSQL_HOST']}:{app.config['MYSQL_PORT']}/{app.config['MYSQL_DB']}")
-
-# URL base
-BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
-app.config['BASE_URL'] = BASE_URL
-logger.info(f"Base URL: {BASE_URL}")
-
-# ============================================================
-# FUNCIONES DE BASE DE DATOS
-# ============================================================
-
-def get_db():
-    """
-    Obtiene una conexión a MySQL con reconexión automática.
-    Reutiliza la conexión existente si está activa.
-    """
-    if 'db' not in g:
-        try:
-            db_config = {
-                'host': app.config.get('MYSQL_HOST'),
-                'user': app.config.get('MYSQL_USER'),
-                'password': app.config.get('MYSQL_PASSWORD'),
-                'database': app.config.get('MYSQL_DB'),
-                'port': int(app.config.get('MYSQL_PORT', 3306)),
-                'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
-                'cursorclass': DictCursor,
-                'autocommit': False
-            }
-            g.db = pymysql.connect(**db_config)
-            logger.debug(f"New database connection created")
-        except pymysql.Error as e:
-            logger.error(f"Failed to connect to MySQL: {e}")
-            raise
-    else:
-        # Verificar si la conexión sigue activa
-        try:
-            g.db.ping(reconnect=True)
-        except pymysql.Error as e:
-            logger.warning(f"Lost database connection, reconnecting: {e}")
-            try:
-                db_config = {
-                    'host': app.config.get('MYSQL_HOST'),
-                    'user': app.config.get('MYSQL_USER'),
-                    'password': app.config.get('MYSQL_PASSWORD'),
-                    'database': app.config.get('MYSQL_DB'),
-                    'port': int(app.config.get('MYSQL_PORT', 3306)),
-                    'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
-                    'cursorclass': DictCursor,
-                    'autocommit': False
-                }
-                g.db = pymysql.connect(**db_config)
-            except pymysql.Error as e:
-                logger.error(f"Failed to reconnect to MySQL: {e}")
-                raise
-    return g.db
+        ext = filename.rsplit('.', 1)[1].lower()
+        return ext in {'png','jpg','jpeg','gif','webp'}
+    def generar_qr_restaurante(url, filename):
+        raise RuntimeError('QR helper not available')
+    def registrar_visita(restaurante_id, req):
+        raise RuntimeError('registrar_visita not available')
 
 
-@app.teardown_appcontext
-def close_db(error=None):
-    """Cierra la conexión a la base de datos al terminar la request."""
-    db = g.pop('db', None)
-    if db is not None:
-        try:
-            db.close()
-            logger.debug("Database connection closed")
-        except Exception as e:
-            logger.warning(f"Error closing database: {e}")
-
-# ============================================================
-# FUNCIONES AUXILIARES DE SUSCRIPCIÓN
-# ============================================================
-
-def get_subscription_info(restaurante_id):
-    """
-    Obtiene información de la suscripción del restaurante.
-    
-    Calcula:
-    - Estado: 'active', 'expiring_soon' (< 5 días), 'expired'
-    - Días restantes
-    - Fecha de vencimiento
-    
-    Returns:
-        dict: Con keys: status, days_remaining, expiration_date, fecha_vencimiento (object)
-    """
-    try:
-        db = get_db()
-        with db.cursor() as cur:
-            cur.execute(
-                "SELECT fecha_vencimiento FROM restaurantes WHERE id = %s",
-                (restaurante_id,)
-            )
-            result = cur.fetchone()
-            
-            if not result:
-                logger.warning(f"Restaurant {restaurante_id} not found")
-                return None
-            
-            fecha_vencimiento = result.get('fecha_vencimiento')
-            
-            if not fecha_vencimiento:
-                logger.warning(f"No expiration date for restaurant {restaurante_id}")
-                return None
-            
-            # Convertir a datetime si es string
-            if isinstance(fecha_vencimiento, str):
-                from datetime import datetime as dt
-                fecha_vencimiento = dt.strptime(fecha_vencimiento, '%Y-%m-%d').date()
-            
-            hoy = date.today()
-            dias_restantes = (fecha_vencimiento - hoy).days
-            
-            # Determinar estado
-            if dias_restantes < 0:
-                estado = 'expired'
-            elif dias_restantes <= 5:
-                estado = 'expiring_soon'
-            else:
-                estado = 'active'
-            
-            # Formatear fecha para mostrar
-            fecha_formateada = fecha_vencimiento.strftime('%d/%m/%Y')
-            
-            return {
-                'status': estado,
-                'days_remaining': max(0, dias_restantes),
-                'expiration_date': fecha_formateada,
-                'fecha_vencimiento': fecha_vencimiento
-            }
-    except Exception as e:
-        logger.error(f"Error getting subscription info: {e}")
-        return None
-
-
-# ============================================================
-# CONTEXTO GLOBAL PARA TEMPLATES
-# ============================================================
-
-@app.before_request
-def inject_subscription_info():
-    """
-    Inyecta información de suscripción en el contexto global de templates.
-    Se ejecuta antes de cada request para que esté disponible en todos los templates.
-    """
-    try:
-        if 'restaurante_id' in session:
-            subscription_info = get_subscription_info(session['restaurante_id'])
-            g.subscription_info = subscription_info
-        else:
-            g.subscription_info = None
-    except Exception as e:
-        logger.error(f"Error injecting subscription info: {e}")
-        g.subscription_info = None
-
-
-# Hacer disponible en templates
-@app.context_processor
-def inject_globals():
-    """Inyecta variables globales en todos los templates."""
-    return {
-        'subscription_info': g.get('subscription_info', None),
-        'now': datetime.utcnow()
-    }
-
-
-# ============================================================
-# GENERACIÓN DE CÓDIGOS QR
-# ============================================================
-
-def generar_qr_restaurante(url, filename):
-    """
-    Genera un código QR en formato imagen.
-    
-    Args:
-        url (str): URL a codificar
-        filename (str): Nombre del archivo (e.g., "123_qr.png")
-    
-    Returns:
-        str: Ruta al archivo QR generado
-    """
-    qr_folder = os.path.join(base_dir, 'static', 'uploads', 'qrs')
-    os.makedirs(qr_folder, exist_ok=True)
-    
-    qr_path = os.path.join(qr_folder, filename)
-    
-    # No regenerar si ya existe
-    if os.path.exists(qr_path):
-        logger.debug(f"QR already exists: {qr_path}")
-        return qr_path
-    
-    try:
-        import qrcode
-    except ImportError as e:
-        logger.error('qrcode module not available')
-        raise RuntimeError('QR generation unavailable: install qrcode[pil]') from e
-
-    try:
-        logger.info(f"Generating QR code for: {url}")
-        img = qrcode.make(url)
-        img.save(qr_path)
-        logger.info(f"QR code saved: {qr_path}")
-        return qr_path
-    except Exception as e:
-        logger.error(f'Failed to generate QR for {url}: {e}')
-        raise
-
-# ============================================================
-# MANEJADORES DE ERRORES
-# ============================================================
-
-@app.errorhandler(403)
-def forbidden_error(error):
-    """Maneja errores 403 (acceso denegado)."""
-    logger.warning(f"403 Forbidden error: {request.path}")
-    if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
-    return render_template('error_publico.html', 
-                          error_code=403, 
-                          error_message='Acceso prohibido'), 403
-
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Maneja errores 500 (error interno del servidor)."""
-    logger.error(f"500 Internal Server Error: {traceback.format_exc()}")
-    if request.path.startswith('/api/'):
-        return jsonify({
-            'success': False, 
-            'error': 'Error interno del servidor'
-        }), 500
-    return render_template('error_publico.html', 
-                          error_code=500, 
-                          error_message='Error interno del servidor'), 500
-
-
-@app.errorhandler(404)
-def not_found_error(error):
-    """Maneja errores 404 (no encontrado)."""
-    logger.debug(f"404 Not Found: {request.path}")
-    if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'error': 'Recurso no encontrado'}), 404
-    return render_template('error_publico.html', 
-                          error_code=404, 
-                          error_message='Página no encontrada'), 404
-
-
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Maneja excepciones globales no controladas."""
-    logger.error(f"Unhandled exception: {type(e).__name__}: {e}\n{traceback.format_exc()}")
-    if request.path.startswith('/api/'):
-        return jsonify({
-            'success': False, 
-            'error': 'Error interno',
-            'type': type(e).__name__
-        }), 500
-    return render_template('error_publico.html', 
-                          error_code=500, 
-                          error_message=f'Error: {str(e)}'), 500
-
-
-# ============================================================
-# FUNCIONES UTILITARIAS
-# ============================================================
-
-def dict_from_row(row):
-    """Convierte una fila a diccionario (PyMySQL con DictCursor ya lo hace)."""
-    return dict(row) if row else None
-
-
-def list_from_rows(rows):
-    """Convierte lista de filas a lista de diccionarios."""
-    return [dict(row) for row in rows] if rows else []
-
-
-def allowed_file(filename):
-    """Verifica si la extensión del archivo está permitida."""
-    if not filename or '.' not in filename:
-        return False
-    ext = filename.rsplit('.', 1)[1].lower()
-    return ext in ALLOWED_EXTENSIONS
-
-
-# Context processor para inyectar menu_url en todos los templates
-@app.context_processor
-def inject_menu_url():
-    """Inyecta la URL del menú público en todos los templates."""
-    menu_url = None
-    if 'restaurante_id' in session and session['restaurante_id']:
-        try:
-            db = get_db()
-            with db.cursor() as cur:
-                cur.execute("SELECT url_slug FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
-                row = cur.fetchone()
-                if row and row['url_slug']:
-                    menu_url = f"/menu/{row['url_slug']}"
-        except:
-            pass
-    return {'menu_url_global': menu_url}
-
-
-# ============================================================
-# DECORADORES PERSONALIZADOS
-# ============================================================
-
-def login_required(f):
-    """Decorador que requiere login. Redirige a login si no está autenticado."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            if request.path.startswith('/api/'):
-                return jsonify({'error': 'No autorizado'}), 401
-            flash('Debes iniciar sesión para acceder a esta página', 'warning')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
-
-
-def restaurante_owner_required(f):
-    """
-    Decorador que permite solo acceso al administrador del restaurante 
-    actual o a un superadmin.
-    """
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        # Permitir solo si el rol es admin o superadmin (no consulta)
-        if session.get('rol') == 'consulta':
-            if request.path.startswith('/api/'):
-                return jsonify({'error': 'Acceso denegado. Rol de solo lectura.'}), 403
-            flash('No tienes permisos para modificar el menú', 'error')
-            logger.warning(f"Access denied for user {session.get('user_id')} with role 'consulta'")
-            return redirect(url_for('menu_gestion'))
-        return f(*args, **kwargs)
-    return decorated
-
-
-def superadmin_required(f):
-    """
-    Decorador que solo permite acceso a superadmins.
-    Rechaza acceso a administradores normales.
-    """
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if session.get('rol') != 'superadmin':
-            if request.path.startswith('/api/'):
-                return jsonify({'error': 'Acceso denegado. Solo superadmin.'}), 403
-            flash('No tienes permisos de superadministrador', 'error')
-            logger.warning(f"Superadmin access denied for user {session.get('user_id')} with role {session.get('rol')}")
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
-
-
-def verificar_suscripcion(f):
-    """
-    Decorador que verifica si la suscripción del restaurante está vigente.
-    Permite acceso libre a superadmin.
-    Para otros usuarios, redirige a pago-pendiente si la suscripción expiró.
-    """
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        # Superadmin siempre tiene acceso
-        if session.get('rol') == 'superadmin':
+# Decorators: build them from factory functions to avoid circular imports
+try:
+    from decorators import make_login_required, make_restaurante_owner_required, make_superadmin_required, make_verificar_suscripcion
+    login_required = make_login_required()
+    restaurante_owner_required = make_restaurante_owner_required()
+    superadmin_required = make_superadmin_required()
+    verificar_suscripcion = make_verificar_suscripcion(get_db)
+except Exception as e:
+    # Simple fallbacks
+    def login_required(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if 'user_id' not in session:
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': 'No autorizado'}), 401
+                flash('Debes iniciar sesión para acceder a esta página', 'warning')
+                return redirect(url_for('login'))
             return f(*args, **kwargs)
-        
-        # Usuarios normales: verificar suscripción
-        restaurante_id = session.get('restaurante_id')
-        if restaurante_id:
-            try:
-                db = get_db()
-                with db.cursor() as cur:
-                    # Proteger la consulta en caso de que la columna no exista todavía
-                    try:
-                        cur.execute('''
-                            SELECT fecha_vencimiento, estado_suscripcion 
-                            FROM restaurantes WHERE id = %s
-                        ''', (restaurante_id,))
-                    except pymysql.Error as e:
-                        logger.warning(f"No se pudo consultar fecha_vencimiento (BD posiblemente desactualizada): {e}")
-                        # No bloquear la ejecución; permitir acceso y reintentar en la próxima request
-                        return f(*args, **kwargs)
+        return decorated
 
-                    rest = cur.fetchone()
+    def restaurante_owner_required(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if session.get('rol') == 'consulta':
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': 'Acceso denegado. Rol de solo lectura.'}), 403
+                flash('No tienes permisos para modificar el menú', 'error')
+                return redirect(url_for('menu_gestion'))
+            return f(*args, **kwargs)
+        return decorated
 
-                    if rest:
-                        # Usar .get por seguridad
-                        fecha_vencimiento = rest.get('fecha_vencimiento') if isinstance(rest, dict) else rest['fecha_vencimiento']
+    def superadmin_required(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if session.get('rol') != 'superadmin':
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': 'Acceso denegado. Solo superadmin.'}), 403
+                flash('No tienes permisos de superadministrador', 'error')
+                return redirect(url_for('login'))
+            return f(*args, **kwargs)
+        return decorated
 
-                        # Si no tiene fecha de vencimiento, asignar 30 días (intento de corrección; fallbacks no críticos si falla la actualización)
-                        if not fecha_vencimiento:
-                            fecha_vencimiento = (date.today() + timedelta(days=30)).isoformat()
-                            try:
-                                cur.execute('''
-                                    UPDATE restaurantes 
-                                    SET fecha_vencimiento = %s, estado_suscripcion = 'prueba'
-                                    WHERE id = %s
-                                ''', (fecha_vencimiento, restaurante_id))
-                                db.commit()
-                            except pymysql.Error as e:
-                                logger.warning(f"No se pudo actualizar fecha_vencimiento (columna puede faltar): {e}")
-                            return f(*args, **kwargs)
-
-                        # Verificar si la suscripción expiró (manejar formatos de fecha inesperados)
-                        try:
-                            if isinstance(fecha_vencimiento, str):
-                                from datetime import datetime as _dt
-                                fecha_vencimiento = _dt.strptime(fecha_vencimiento, '%Y-%m-%d').date()
-
-                            if date.today() > fecha_vencimiento:
-                                logger.warning(f"Suscripción expirada para restaurante {restaurante_id}")
-                                flash('Tu período de prueba o suscripción ha terminado', 'warning')
-                                return redirect(url_for('gestion_pago_pendiente'))
-                        except Exception as e:
-                            logger.warning(f"Formato de fecha_vencimiento inesperado: {e}")
-                            return f(*args, **kwargs)
-
-                    return f(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"Error al verificar suscripción: {e}")
-                return f(*args, **kwargs)
-        
-        return f(*args, **kwargs)
-    return decorated
+    def verificar_suscripcion(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            return f(*args, **kwargs)
+        return decorated
 
 
 # ============================================================
-# TRACKING DE VISITAS Y ESCANEOS QR
-# ============================================================
-
-def registrar_visita(restaurante_id, req):
-    """
-    Registra una visita/escaneo QR para el restaurante.
-    
-    Args:
-        restaurante_id (int): ID del restaurante
-        req: Flask request object
-    """
-    try:
-        db = get_db()
-        with db.cursor() as cur:
-            # Obtener información del visitante
-            ip_address = req.headers.get('X-Forwarded-For', req.remote_addr)
-            if ip_address:
-                ip_address = ip_address.split(',')[0].strip()[:45]
-            
-            user_agent = req.headers.get('User-Agent', '')[:500]
-            referer = req.headers.get('Referer', '')[:500]
-            
-            # Detectar dispositivo y origen
-            es_movil = any(x in user_agent.lower() for x in ['mobile', 'android', 'iphone', 'ipad'])
-            es_qr = 'qr' in referer.lower() or req.args.get('qr') == '1'
-            
-            # Insertar registro de visita
-            cur.execute('''
-                INSERT INTO visitas 
-                (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, fecha)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW())
-            ''', (restaurante_id, ip_address, user_agent, referer, 1 if es_movil else 0, 1 if es_qr else 0))
-            
-            # Actualizar estadísticas diarias
-            hoy = date.today().isoformat()
-            cur.execute('''
-                INSERT INTO estadisticas_diarias 
-                (restaurante_id, fecha, visitas, escaneos_qr, visitas_movil, visitas_desktop)
-                VALUES (%s, %s, 1, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    visitas = visitas + 1,
-                    escaneos_qr = escaneos_qr + %s,
-                    visitas_movil = visitas_movil + %s,
-                    visitas_desktop = visitas_desktop + %s
-            ''', (
-                restaurante_id, hoy, 
-                1 if es_qr else 0, 
-                1 if es_movil else 0, 
-                0 if es_movil else 1,
-                1 if es_qr else 0,
-                1 if es_movil else 0,
-                0 if es_movil else 1
-            ))
-            
-            db.commit()
-            logger.debug(f"Visit registered for restaurant {restaurante_id} (mobile={es_movil}, qr={es_qr})")
-            
-    except Exception as e:
-        logger.error(f"Error registrando visita para restaurante {restaurante_id}: {e}")
-        try:
-            db.rollback()
-        except:
-            pass
-
-
-# ============================================================
-# RUTAS PÚBLICAS - MENÚ
+# ROUTES
 # ============================================================
 
 @app.route('/')
@@ -749,1659 +162,37 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/menu/<string:url_slug>')
-def ver_menu_publico(url_slug):
-    """Ruta pública para ver el menú. Accesible por QR."""
-    try:
-        db = get_db()
-        with db.cursor() as cur:
-            # 1. Obtener datos del restaurante
-            cur.execute("SELECT * FROM restaurantes WHERE url_slug = %s AND activo = 1", (url_slug,))
-            row = cur.fetchone()
-            
-            if not row:
-                return render_template('menu_404.html', slug=url_slug), 404
-            
-            restaurante = dict_from_row(row)
-            
-            # Preview de tema
-            preview_tema = request.args.get('preview_tema')
-            if preview_tema:
-                restaurante['tema'] = preview_tema
-            
-            # 2. Registrar visita (solo si no es preview)
-            if not preview_tema:
-                registrar_visita(restaurante['id'], request)
+# Registrar rutas de autenticación (módulo `auth_blueprint.py`)
+try:
+    from auth_blueprint import register_auth
+    register_auth(app, get_db, dict_from_row)
+    app.logger.info('Auth routes registered from auth_blueprint')
+except Exception as e:
+    app.logger.debug('Could not register auth routes: %s', e)
+    app.logger.debug(traceback.format_exc())
 
-            # 3. Obtener categorías y platos
-            cur.execute('''
-                SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.icono as categoria_icono,
-                       p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
-                       p.precio_oferta, p.imagen_url, p.etiquetas, p.es_nuevo, p.es_popular,
-                       p.es_vegetariano, p.es_vegano, p.es_sin_gluten, p.es_picante
-                FROM categorias c
-                LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1
-                WHERE c.restaurante_id = %s AND c.activo = 1
-                ORDER BY c.orden, p.orden, p.nombre
-            ''', (restaurante['id'],))
-            
-            platos_raw = cur.fetchall()
+# Registrar API de gestión si existe
+try:
+    from api_gestion_blueprint import register_api_gestion
+    register_api_gestion(app)
+except Exception as e:
+    app.logger.debug('Could not register api_gestion blueprint: %s', e)
+    app.logger.debug(traceback.format_exc())
 
-            # 4. Estructurar el menú
-            menu_estructurado = {}
-            for row in platos_raw:
-                cat_id = row['categoria_id']
-                if cat_id not in menu_estructurado:
-                    menu_estructurado[cat_id] = {
-                        'nombre': row['categoria_nombre'],
-                        'icono': row['categoria_icono'],
-                        'platos': []
-                    }
-                
-                if row['plato_id']:
-                    plato = {
-                        'id': row['plato_id'],
-                        'nombre': row['plato_nombre'],
-                        'descripcion': row['descripcion'],
-                        'precio': float(row['precio'] or 0),
-                        'precio_oferta': float(row['precio_oferta']) if row['precio_oferta'] else None,
-                        'imagen_url': row['imagen_url'],
-                        'etiquetas': row['etiquetas'].split(',') if row['etiquetas'] else [],
-                        'es_nuevo': row['es_nuevo'],
-                        'es_popular': row['es_popular'],
-                        'es_vegetariano': row['es_vegetariano'],
-                        'es_vegano': row['es_vegano'],
-                        'es_sin_gluten': row['es_sin_gluten'],
-                        'es_picante': row['es_picante']
-                    }
-                    menu_estructurado[cat_id]['platos'].append(plato)
 
-            return render_template('menu_publico.html', 
-                                   restaurante=restaurante, 
-                                   menu=list(menu_estructurado.values()))
+# Login route moved to `auth_blueprint.py` (registered below)
+# The auth module uses `register_auth(app, get_db, dict_from_row)` to attach routes.
 
-    except Exception as e:
-        print(f"Error al cargar menú para {url_slug}: {e}")
-        return render_template('error_publico.html'), 500
 
 
-# ============================================================
-# RUTAS DE AUTENTICACIÓN
-# ============================================================
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Página de inicio de sesión."""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        db = get_db()
-        with db.cursor() as cur:
-            cur.execute('''
-                SELECT u.*, r.nombre as restaurante_nombre 
-                FROM usuarios_admin u
-                LEFT JOIN restaurantes r ON u.restaurante_id = r.id
-                WHERE u.username = %s AND u.activo = 1
-            ''', (username,))
-            row = cur.fetchone()
-            
-            if row:
-                user = dict_from_row(row)
-                if check_password_hash(user['password_hash'], password):
-                    session['user_id'] = user['id']
-                    session['username'] = user['username']
-                    session['nombre'] = user['nombre']
-                    session['rol'] = user['rol']
-                    session['restaurante_id'] = user['restaurante_id']
-                    session['restaurante_nombre'] = user['restaurante_nombre'] or 'Panel Admin'
-                    
-                    # Actualizar último login
-                    cur.execute("UPDATE usuarios_admin SET ultimo_login = NOW() WHERE id = %s", (user['id'],))
-                    db.commit()
-                    
-                    flash('Bienvenido ' + user['nombre'], 'success')
-                    
-                    if user['rol'] == 'superadmin':
-                        return redirect(url_for('superadmin_restaurantes'))
-                    return redirect(url_for('menu_gestion'))
-            
-            flash('Usuario o contraseña incorrectos', 'error')
-    
-    return render_template('login.html')
+# Password reset route moved to `auth_blueprint.py` (registered below)
+# Logout route is registered by auth module as well; define here as fallback
 
-
-@app.route('/logout')
-def logout():
-    """Cierra la sesión del usuario."""
-    session.clear()
-    flash('Sesión cerrada correctamente', 'info')
-    return redirect(url_for('login'))
-
-
-@app.route('/recuperar-contraseña', methods=['GET', 'POST'])
-def recuperar_contraseña():
-    """Solicita recuperación de contraseña."""
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
-        
-        if not email:
-            flash('Por favor ingresa tu email', 'error')
-            return render_template('recuperar_contraseña.html')
-        
-        db = get_db()
-        try:
-            with db.cursor() as cur:
-                # Buscar usuario por email
-                cur.execute("SELECT id, nombre, email FROM usuarios_admin WHERE email = %s AND activo = 1", (email,))
-                user = cur.fetchone()
-                
-                if not user:
-                    # No revelar si el email existe
-                    flash('Si el email está registrado, recibirás instrucciones en breve', 'info')
-                    return render_template('recuperar_contraseña.html')
-                
-                # Generar token único (40 caracteres hexadecimales)
-                import secrets
-                token = secrets.token_hex(20)
-                fecha_expiracion = datetime.utcnow() + timedelta(hours=24)
-                
-                # Guardar token en BD (válido por 24 horas)
-                cur.execute('''
-                    INSERT INTO password_resets (usuario_id, token, email, fecha_expiracion)
-                    VALUES (%s, %s, %s, %s)
-                ''', (user['id'], token, email, fecha_expiracion))
-                db.commit()
-                
-                # Link de reset
-                reset_url = f"{BASE_URL}/resetear-contraseña/{token}"
-                
-                # En producción, enviar email. Por ahora mostramos el link en desarrollo
-                logger.info(f"Password reset requested for {email}. Token: {token}")
-                
-                if os.environ.get('FLASK_ENV') == 'production':
-                    # TODO: Implementar envío de email real
-                    flash('Se ha enviado un link de recuperación a tu email', 'success')
-                else:
-                    # En desarrollo, mostrar el link
-                    flash(f'Link de reset: <a href="{reset_url}">Haz clic aquí</a>', 'success')
-                
-                return render_template('recuperar_contraseña.html')
-        
-        except Exception as e:
-            logger.error(f"Error en recuperar_contraseña: {traceback.format_exc()}")
-            flash('Error al procesar la solicitud', 'error')
-    
-    return render_template('recuperar_contraseña.html')
-
-
-@app.route('/resetear-contraseña/<token>', methods=['GET', 'POST'])
-def resetear_contraseña(token):
-    """Permite resetear la contraseña con un token válido."""
-    db = get_db()
-    
-    try:
-        with db.cursor() as cur:
-            # Buscar token válido y no expirado
-            cur.execute('''
-                SELECT pr.id, pr.usuario_id, pr.email, u.nombre
-                FROM password_resets pr
-                JOIN usuarios_admin u ON pr.usuario_id = u.id
-                WHERE pr.token = %s AND pr.utilizado = 0 AND pr.fecha_expiracion > NOW()
-            ''', (token,))
-            reset = cur.fetchone()
-            
-            if not reset:
-                flash('Link de recuperación inválido o expirado', 'error')
-                return redirect(url_for('login'))
-            
-            if request.method == 'POST':
-                password = request.form.get('password', '').strip()
-                password_confirm = request.form.get('password_confirm', '').strip()
-                
-                if not password or len(password) < 6:
-                    flash('La contraseña debe tener al menos 6 caracteres', 'error')
-                    return render_template('resetear_contraseña.html', token=token, email=reset['email'])
-                
-                if password != password_confirm:
-                    flash('Las contraseñas no coinciden', 'error')
-                    return render_template('resetear_contraseña.html', token=token, email=reset['email'])
-                
-                # Hashear nueva contraseña
-                password_hash = generate_password_hash(password, method='pbkdf2:sha256')
-                
-                # Actualizar contraseña y marcar token como utilizado
-                cur.execute('''
-                    UPDATE usuarios_admin SET password_hash = %s WHERE id = %s
-                ''', (password_hash, reset['usuario_id']))
-                
-                cur.execute('''
-                    UPDATE password_resets SET utilizado = 1 WHERE id = %s
-                ''', (reset['id'],))
-                
-                db.commit()
-                
-                logger.info(f"Password reset successfully for user {reset['usuario_id']}")
-                flash('Contraseña actualizada correctamente. Ya puedes iniciar sesión', 'success')
-                return redirect(url_for('login'))
-            
-            return render_template('resetear_contraseña.html', token=token, email=reset['email'])
-    
-    except Exception as e:
-        logger.error(f"Error en resetear_contraseña: {traceback.format_exc()}")
-        flash('Error al procesar la solicitud', 'error')
-        return redirect(url_for('login'))
-
-
-# ============================================================
-# RUTAS DE GESTIÓN (PANEL ADMIN)
-# ============================================================
-
-@app.route('/gestion')
-@login_required
-@verificar_suscripcion
-def menu_gestion():
-    """Panel de gestión principal."""
-    return render_template('gestion/dashboard.html')
-
-
-@app.route('/gestion/platos')
-@login_required
-@verificar_suscripcion
-def gestion_platos():
-    """Página de gestión de platos."""
-    db = get_db()
-    categorias = []
-    restaurante_id = session.get('restaurante_id')
-    if restaurante_id:
-        try:
-            with db.cursor() as cur:
-                cur.execute("SELECT id, nombre, icono FROM categorias WHERE restaurante_id = %s AND activo = 1 ORDER BY orden, nombre", (restaurante_id,))
-                categorias = list_from_rows(cur.fetchall())
-        except Exception:
-            categorias = []
-    return render_template('gestion/platos.html', categorias=categorias)
-
-
-@app.route('/gestion/categorias')
-@login_required
-@verificar_suscripcion
-def gestion_categorias():
-    """Página de gestión de categorías."""
-    return render_template('gestion/categorias.html')
-
-
-@app.route('/gestion/mi-restaurante')
-@login_required
-@verificar_suscripcion
-def gestion_mi_restaurante():
-    """Página de configuración del restaurante."""
-    db = get_db()
-    with db.cursor() as cur:
-        cur.execute("SELECT * FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
-        restaurante = dict_from_row(cur.fetchone())
-    return render_template('gestion/mi_restaurante.html', restaurante=restaurante)
-
-
-@app.route('/gestion/codigo-qr')
-@login_required
-@verificar_suscripcion
-def gestion_codigo_qr():
-    """Página del código QR."""
-    db = get_db()
-    with db.cursor() as cur:
-        cur.execute("SELECT * FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
-        restaurante = dict_from_row(cur.fetchone())
-    
-    base_url = request.host_url.rstrip('/')
-    menu_url = f"{base_url}/menu/{restaurante['url_slug']}"
-    
-    # Generar QR
-    qr_filename = f"{restaurante['id']}_qr.png"
-    try:
-        generar_qr_restaurante(menu_url, qr_filename)
-    except Exception as e:
-        logger.error(f"Error generando QR: {e}")
-        qr_filename = None
-    
-    return render_template('gestion/codigo_qr.html', restaurante=restaurante, menu_url=menu_url, qr_filename=qr_filename)
-
-
-@app.route('/gestion/apariencia')
-@login_required
-@verificar_suscripcion
-def gestion_apariencia():
-    """Página de personalización de apariencia."""
-    db = get_db()
-    with db.cursor() as cur:
-        cur.execute("SELECT * FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
-        restaurante = dict_from_row(cur.fetchone())
-    return render_template('gestion/apariencia.html', restaurante=restaurante)
-
-
-@app.route('/gestion/descargas')
-@login_required
-@verificar_suscripcion
-def gestion_descargas():
-    """Página de descargas - PDF del menú."""
-    db = get_db()
-    restaurante_id = session['restaurante_id']
-    
-    try:
-        with db.cursor() as cur:
-            # Obtener restaurante
-            cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
-            restaurante = dict_from_row(cur.fetchone())
-            
-            # Obtener categorías y platos
-            cur.execute("""
-                SELECT c.id, c.nombre, c.orden 
-                FROM categorias c 
-                WHERE c.restaurante_id = %s AND c.activo = 1 
-                ORDER BY c.orden, c.nombre
-            """, (restaurante_id,))
-            categorias = list_from_rows(cur.fetchall())
-            
-            # Obtener platos para cada categoría
-            menu = []
-            for cat in categorias:
-                cur.execute("""
-                    SELECT * FROM platos 
-                    WHERE categoria_id = %s AND restaurante_id = %s AND activo = 1 
-                    ORDER BY orden, nombre
-                """, (cat['id'], restaurante_id))
-                platos = list_from_rows(cur.fetchall())
-                
-                # Procesar etiquetas (split por coma)
-                for plato in platos:
-                    if plato.get('etiquetas'):
-                        plato['etiquetas'] = [tag.strip() for tag in plato['etiquetas'].split(',')]
-                    else:
-                        plato['etiquetas'] = []
-                
-                menu.append({
-                    'id': cat['id'],
-                    'nombre': cat['nombre'],
-                    'platos': platos
-                })
-        
-        return render_template('gestion/descargas.html', restaurante=restaurante, menu=menu)
-    
-    except Exception as e:
-        logger.error(f"Error en gestion_descargas: {traceback.format_exc()}")
-        flash('Error al cargar la página de descargas', 'error')
-        return redirect(url_for('gestion_platos'))
-
-
-@app.route('/api/menu/pdf')
-@login_required
-@verificar_suscripcion
-def api_menu_pdf():
-    """API para descargar el menú en PDF."""
-    db = get_db()
-    restaurante_id = session['restaurante_id']
-    
-    try:
-        with db.cursor() as cur:
-            # Obtener restaurante
-            cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
-            restaurante = dict_from_row(cur.fetchone())
-            
-            # Obtener categorías y platos
-            cur.execute("""
-                SELECT c.id, c.nombre, c.orden 
-                FROM categorias c 
-                WHERE c.restaurante_id = %s AND c.activo = 1 
-                ORDER BY c.orden, c.nombre
-            """, (restaurante_id,))
-            categorias = list_from_rows(cur.fetchall())
-            
-            # Obtener platos para cada categoría
-            menu = []
-            for cat in categorias:
-                cur.execute("""
-                    SELECT * FROM platos 
-                    WHERE categoria_id = %s AND restaurante_id = %s AND activo = 1 
-                    ORDER BY orden, nombre
-                """, (cat['id'], restaurante_id))
-                platos = list_from_rows(cur.fetchall())
-                
-                # Procesar etiquetas
-                for plato in platos:
-                    if plato.get('etiquetas'):
-                        plato['etiquetas'] = [tag.strip() for tag in plato['etiquetas'].split(',')]
-                    else:
-                        plato['etiquetas'] = []
-                
-                menu.append({
-                    'id': cat['id'],
-                    'nombre': cat['nombre'],
-                    'platos': platos
-                })
-            
-            # Renderizar HTML
-            base_url = request.host_url.rstrip('/')
-            html_content = render_template(
-                'menu_pdf.html',
-                restaurante=restaurante,
-                menu=menu,
-                base_url=base_url
-            )
-            
-            # Generar PDF usando pdfkit
-            if PDFKIT_AVAILABLE:
-                try:
-                    pdf_content = pdfkit.from_string(
-                        html_content,
-                        False,
-                        options={
-                            'page-size': 'A4',
-                            'margin-top': '0.5in',
-                            'margin-right': '0.5in',
-                            'margin-bottom': '0.5in',
-                            'margin-left': '0.5in',
-                            'encoding': "UTF-8",
-                            'no-outline': None,
-                            'enable-local-file-access': None,
-                        }
-                    )
-                    
-                    # Crear respuesta con el PDF
-                    response = make_response(pdf_content)
-                    response.headers['Content-Type'] = 'application/pdf'
-                    response.headers['Content-Disposition'] = f'attachment; filename="menu_{restaurante["nombre"].replace(" ", "_")}.pdf"'
-                    return response
-                
-                except Exception as e:
-                    logger.error(f"Error generando PDF con pdfkit: {traceback.format_exc()}")
-                    return jsonify({'success': False, 'error': f'Error al generar PDF: {str(e)}'}), 500
-            else:
-                # Fallback: devolver HTML para que el navegador lo convierta a PDF
-                logger.warning("pdfkit no disponible, devolviendo HTML para imprimir")
-                response = make_response(html_content)
-                response.headers['Content-Type'] = 'text/html; charset=utf-8'
-                return response
-    
-    except Exception as e:
-        logger.error(f"Error en api_menu_pdf: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/gestion/pago-pendiente')
-@login_required
-def gestion_pago_pendiente():
-    """Página que se muestra cuando la suscripción ha expirado."""
-    db = get_db()
-    restaurante_id = session.get('restaurante_id')
-    
-    with db.cursor() as cur:
-        cur.execute('''
-            SELECT nombre, fecha_vencimiento, estado_suscripcion, email, whatsapp
-            FROM restaurantes WHERE id = %s
-        ''', (restaurante_id,))
-        restaurante = dict_from_row(cur.fetchone())
-    
-    dias_vencido = (date.today() - restaurante['fecha_vencimiento']).days if restaurante['fecha_vencimiento'] else 0
-
-    return render_template('gestion/pago_pendiente.html', 
-                          restaurante=restaurante, 
-                          dias_vencido=dias_vencido,
-                          mercado_pago_public_key=os.environ.get('MERCADO_PAGO_PUBLIC_KEY', ''))
-
-
-@app.route('/api/pago/crear-preferencia', methods=['POST'])
-@login_required
-def api_crear_preferencia_pago():
-    """API para crear una preferencia de pago en Mercado Pago."""
-    # Si el cliente no está inicializado en el arranque, reintentar inicialización bajo demanda
-    if not MERCADOPAGO_CLIENT:
-        logger.warning("MERCADOPAGO_CLIENT is None. Attempting on-demand initialization.")
-        try:
-            init_ok = init_mercadopago()
-            if not init_ok or not MERCADOPAGO_CLIENT:
-                # Log detallado de las variables de entorno que ve Python para depuración
-                logger.error(f"Falla de config. MP_PUBLIC_KEY: {os.environ.get('MERCADO_PAGO_PUBLIC_KEY')}")
-                logger.error(f"MERCADOPAGO_AVAILABLE={MERCADOPAGO_AVAILABLE}, MERCADOPAGO_CLIENT={MERCADOPAGO_CLIENT}, MERCADOPAGO_IMPORT_ERROR={MERCADOPAGO_IMPORT_ERROR}")
-                return jsonify({'success': False, 'error': 'Mercado Pago no está configurado', 'mp_public_key': os.environ.get('MERCADO_PAGO_PUBLIC_KEY')}), 500
-        except Exception as e:
-            logger.error(f"Error re-inicializando Mercado Pago: {e}\n{traceback.format_exc()}")
-            return jsonify({'success': False, 'error': 'Error al inicializar Mercado Pago'}), 500
-    
-    try:
-        db = get_db()
-        restaurante_id = session.get('restaurante_id')
-        data = request.get_json()
-        
-        # Obtener datos del restaurante
-        with db.cursor() as cur:
-            cur.execute(
-                "SELECT nombre, email FROM restaurantes WHERE id = %s",
-                (restaurante_id,)
-            )
-            restaurante = dict_from_row(cur.fetchone())
-        
-        # Definir parámetros del pago
-        plan_type = data.get('plan_type', 'mensual')
-        
-        # Configurar precio según plan (CLP)
-        if plan_type == 'mensual':
-            precio = 20000
-            descripcion = 'Suscripción Mensual - Menú Digital'
-        elif plan_type == 'anual':
-            precio = 200000
-            descripcion = 'Suscripción Anual - Menú Digital'
-        else:
-            precio = 20000
-            descripcion = 'Suscripción - Menú Digital'
-        
-        # Crear preferencia de pago
-        preference_data = {
-            "items": [
-                {
-                    "title": descripcion,
-                    "quantity": 1,
-                    "currency_id": "CLP",  # Cambiar según país
-                    "unit_price": precio
-                }
-            ],
-            "payer": {
-                "email": restaurante.get('email', 'no-email@example.com')
-            },
-            "back_urls": {
-                "success": f"{request.host_url.rstrip('/')}/pago/exito",
-                "failure": f"{request.host_url.rstrip('/')}/pago/fallo",
-                "pending": f"{request.host_url.rstrip('/')}/pago/pendiente"
-            },
-            "notification_url": f"{request.host_url.rstrip('/')}/webhook/mercado-pago",
-            "external_reference": f"rest_{restaurante_id}_{int(datetime.utcnow().timestamp())}",
-            "auto_return": "approved"
-        }
-        
-        # Crear preferencia
-        response = MERCADOPAGO_CLIENT.preference().create(preference_data)
-        
-        if response.get("status") == 201:
-            preference = response.get("response", {})
-            
-            # Guardar referencia en BD
-            with db.cursor() as cur:
-                cur.execute("""
-                    UPDATE restaurantes 
-                    SET ultima_preferencia_pago = %s,
-                        fecha_ultimo_intento_pago = NOW()
-                    WHERE id = %s
-                """, (preference.get('id'), restaurante_id))
-                db.commit()
-            
-            logger.info(f"Preferencia de pago creada para restaurante {restaurante_id}: {preference.get('id')}")
-            
-            return jsonify({
-                'success': True,
-                'preferencia_id': preference.get('id'),
-                'init_point': preference.get('init_point')
-            })
-        else:
-            error_msg = response.get('response', {}).get('message', 'Error desconocido')
-            logger.error(f"Error creando preferencia: {error_msg}")
-            return jsonify({'success': False, 'error': error_msg}), 500
-    
-    except Exception as e:
-        logger.error(f"Error en api_crear_preferencia_pago: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/webhook/mercado-pago', methods=['POST'])
-def webhook_mercado_pago():
-    """Webhook para recibir notificaciones de Mercado Pago."""
-    try:
-        data = request.get_json() or request.form.to_dict()
-        
-        # Validar que sea una notificación de pago
-        if not data or 'data' not in data:
-            logger.warning(f"Webhook recibido sin datos de pago: {data}")
-            return jsonify({'status': 'ignored'}), 200
-        
-        payment_id = data['data'].get('id')
-        
-        if not payment_id:
-            logger.warning(f"Webhook sin payment_id: {data}")
-            return jsonify({'status': 'ignored'}), 200
-        
-        # Obtener detalles del pago desde Mercado Pago
-        payment_info = MERCADOPAGO_CLIENT.payment().get(payment_id)
-        
-        if payment_info.get('status') != 200:
-            logger.error(f"Error obteniendo pago {payment_id}: {payment_info}")
-            return jsonify({'status': 'error'}), 500
-        
-        payment = payment_info.get('response', {})
-        external_reference = payment.get('external_reference', '')
-        payment_status = payment.get('status')
-        
-        # Extraer restaurante_id de external_reference (formato: rest_RESTAURANTE_ID_TIMESTAMP)
-        if not external_reference.startswith('rest_'):
-            logger.warning(f"External reference inválido: {external_reference}")
-            return jsonify({'status': 'ignored'}), 200
-        
-        try:
-            restaurante_id = int(external_reference.split('_')[1])
-        except (IndexError, ValueError):
-            logger.error(f"No se pudo extraer restaurante_id de: {external_reference}")
-            return jsonify({'status': 'error'}), 500
-        
-        # Procesar según estado del pago
-        db = get_db()
-        
-        if payment_status == 'approved':
-            # Pago aprobado - Extender suscripción
-            plan_type = 'mensual'  # Podría obtenerse del pago
-            dias_extension = 30  # Por defecto mensual
-            
-            with db.cursor() as cur:
-                # Obtener fecha de vencimiento actual
-                cur.execute(
-                    "SELECT fecha_vencimiento FROM restaurantes WHERE id = %s",
-                    (restaurante_id,)
-                )
-                result = dict_from_row(cur.fetchone())
-                
-                fecha_vencimiento_actual = result.get('fecha_vencimiento') if result else date.today()
-                
-                # Si está vencido, comenzar desde hoy
-                if fecha_vencimiento_actual < date.today():
-                    fecha_vencimiento_actual = date.today()
-                
-                # Calcular nueva fecha
-                nueva_fecha = fecha_vencimiento_actual + timedelta(days=dias_extension)
-                
-                # Actualizar BD
-                cur.execute("""
-                    UPDATE restaurantes 
-                    SET estado_suscripcion = 'activa',
-                        fecha_vencimiento = %s,
-                        ultimo_pago_mercadopago = %s,
-                        fecha_ultimo_pago = NOW()
-                    WHERE id = %s
-                """, (nueva_fecha, payment_id, restaurante_id))
-                db.commit()
-            
-            logger.info(f"Pago aprobado para restaurante {restaurante_id}. Suscripción extendida hasta {nueva_fecha}")
-        
-        elif payment_status == 'pending':
-            logger.info(f"Pago pendiente para restaurante {restaurante_id}: {payment_id}")
-        
-        elif payment_status == 'rejected':
-            logger.warning(f"Pago rechazado para restaurante {restaurante_id}: {payment_id}")
-        
-        return jsonify({'status': 'success'}), 200
-    
-    except Exception as e:
-        logger.error(f"Error en webhook_mercado_pago: {traceback.format_exc()}")
-        return jsonify({'status': 'error', 'error': str(e)}), 500
-
-
-@app.route('/pago/exito')
-@login_required
-def pago_exito():
-    """Página de confirmación de pago exitoso."""
-    return render_template('pago_exito.html')
-
-
-@app.route('/pago/fallo')
-@login_required
-def pago_fallo():
-    """Página de error de pago."""
-    return render_template('pago_fallo.html')
-
-
-@app.route('/pago/pendiente')
-@login_required
-def pago_pendiente_status():
-    """Página de pago pendiente."""
-    return render_template('pago_pendiente_status.html')
-
-
-# ============================================================
-# API - PLATOS
-# ============================================================
-
-@app.route('/api/platos', methods=['GET', 'POST'])
-@login_required
-def api_platos():
-    """API para listar y crear platos."""
-    db = get_db()
-    restaurante_id = session['restaurante_id']
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute('''
-                    SELECT p.*, c.nombre as categoria_nombre 
-                    FROM platos p 
-                    LEFT JOIN categorias c ON p.categoria_id = c.id
-                    WHERE p.restaurante_id = %s 
-                    ORDER BY p.orden, p.nombre
-                ''', (restaurante_id,))
-                return jsonify(list_from_rows(cur.fetchall()))
-                
-            if request.method == 'POST':
-                data = request.get_json()
-                
-                # Procesar imagen si se envía como archivo
-                imagen_url = data.get('imagen_url', '')
-                
-                if 'imagen' in request.files and request.files['imagen']:
-                    file = request.files['imagen']
-                    if file and allowed_file(file.filename):
-                        try:
-                            if not CLOUDINARY_CONFIGURED:
-                                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
-                            
-                            # Subir a Cloudinary con transformaciones
-                            result = cloudinary_upload(
-                                file,
-                                folder=f"mimenudigital/platos/{restaurante_id}",
-                                quality="auto",
-                                fetch_format="auto",
-                                resource_type="auto"
-                            )
-                            imagen_url = result['secure_url']
-                        except Exception as e:
-                            logger.error(f"Error subiendo imagen a Cloudinary: {traceback.format_exc()}")
-                            return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
-                
-                cur.execute('''
-                    INSERT INTO platos (restaurante_id, categoria_id, nombre, descripcion, precio, 
-                                        precio_oferta, imagen_url, etiquetas, es_vegetariano, es_vegano,
-                                        es_sin_gluten, es_picante, es_nuevo, es_popular, orden, activo)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
-                ''', (
-                    restaurante_id,
-                    data.get('categoria_id'),
-                    data.get('nombre'),
-                    data.get('descripcion', ''),
-                    data.get('precio', 0),
-                    data.get('precio_oferta'),
-                    imagen_url,
-                    data.get('etiquetas', ''),
-                    data.get('es_vegetariano', 0),
-                    data.get('es_vegano', 0),
-                    data.get('es_sin_gluten', 0),
-                    data.get('es_picante', 0),
-                    data.get('es_nuevo', 0),
-                    data.get('es_popular', 0),
-                    data.get('orden', 0)
-                ))
-                db.commit()
-                return jsonify({'success': True, 'id': cur.lastrowid})
-                
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_platos: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/platos/<int:plato_id>', methods=['GET', 'PUT', 'DELETE'])
-@login_required
-@restaurante_owner_required
-def api_plato(plato_id):
-    """API para obtener, editar o eliminar un plato."""
-    db = get_db()
-    restaurante_id = session['restaurante_id']
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute("SELECT * FROM platos WHERE id = %s AND restaurante_id = %s", 
-                           (plato_id, restaurante_id))
-                plato = cur.fetchone()
-                if not plato:
-                    return jsonify({'error': 'Plato no encontrado'}), 404
-                return jsonify(dict_from_row(plato))
-                
-            if request.method == 'PUT':
-                data = request.get_json()
-                
-                # Procesar imagen si se envía como archivo
-                imagen_url = data.get('imagen_url', '')
-                
-                if 'imagen' in request.files and request.files['imagen']:
-                    file = request.files['imagen']
-                    if file and allowed_file(file.filename):
-                        try:
-                            if not CLOUDINARY_CONFIGURED:
-                                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
-                            
-                            # Subir a Cloudinary con transformaciones
-                            result = cloudinary_upload(
-                                file,
-                                folder=f"mimenudigital/platos/{restaurante_id}",
-                                public_id=f"plato_{plato_id}",
-                                overwrite=True,
-                                quality="auto",
-                                fetch_format="auto",
-                                resource_type="auto"
-                            )
-                            imagen_url = result['secure_url']
-                        except Exception as e:
-                            logger.error(f"Error subiendo imagen a Cloudinary: {traceback.format_exc()}")
-                            return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
-                
-                cur.execute('''
-                    UPDATE platos SET 
-                        categoria_id = %s, nombre = %s, descripcion = %s, precio = %s,
-                        precio_oferta = %s, imagen_url = %s, etiquetas = %s, 
-                        es_vegetariano = %s, es_vegano = %s, es_sin_gluten = %s,
-                        es_picante = %s, es_nuevo = %s, es_popular = %s,
-                        orden = %s, activo = %s
-                    WHERE id = %s AND restaurante_id = %s
-                ''', (
-                    data.get('categoria_id'),
-                    data.get('nombre'),
-                    data.get('descripcion', ''),
-                    data.get('precio', 0),
-                    data.get('precio_oferta'),
-                    imagen_url,
-                    data.get('etiquetas', ''),
-                    data.get('es_vegetariano', 0),
-                    data.get('es_vegano', 0),
-                    data.get('es_sin_gluten', 0),
-                    data.get('es_picante', 0),
-                    data.get('es_nuevo', 0),
-                    data.get('es_popular', 0),
-                    data.get('orden', 0),
-                    data.get('activo', 1),
-                    plato_id, restaurante_id
-                ))
-                db.commit()
-                return jsonify({'success': True})
-                
-            if request.method == 'DELETE':
-                cur.execute("DELETE FROM platos WHERE id = %s AND restaurante_id = %s", 
-                           (plato_id, restaurante_id))
-                db.commit()
-                return jsonify({'success': True})
-                
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_plato: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ============================================================
-# API - CATEGORÍAS
-# ============================================================
-
-@app.route('/api/categorias', methods=['GET', 'POST'])
-@login_required
-def api_categorias():
-    """API para listar y crear categorías."""
-    db = get_db()
-    restaurante_id = session['restaurante_id']
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute('''
-                    SELECT c.*, 
-                           (SELECT COUNT(*) FROM platos WHERE categoria_id = c.id AND activo = 1) as total_platos
-                    FROM categorias c 
-                    WHERE c.restaurante_id = %s 
-                    ORDER BY c.orden, c.nombre
-                ''', (restaurante_id,))
-                return jsonify(list_from_rows(cur.fetchall()))
-                
-            if request.method == 'POST':
-                data = request.get_json()
-                
-                cur.execute('''
-                    INSERT INTO categorias (restaurante_id, nombre, descripcion, icono, orden, activo)
-                    VALUES (%s, %s, %s, %s, %s, 1)
-                ''', (
-                    restaurante_id,
-                    data.get('nombre'),
-                    data.get('descripcion', ''),
-                    data.get('icono', ''),
-                    data.get('orden', 0)
-                ))
-                db.commit()
-                return jsonify({'success': True, 'id': cur.lastrowid})
-                
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_categorias: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/categorias/<int:categoria_id>', methods=['GET', 'PUT', 'DELETE'])
-@login_required
-@restaurante_owner_required
-def api_categoria(categoria_id):
-    """API para obtener, editar o eliminar una categoría."""
-    db = get_db()
-    restaurante_id = session['restaurante_id']
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute("SELECT * FROM categorias WHERE id = %s AND restaurante_id = %s", 
-                           (categoria_id, restaurante_id))
-                cat = cur.fetchone()
-                if not cat:
-                    return jsonify({'error': 'Categoría no encontrada'}), 404
-                return jsonify(dict_from_row(cat))
-                
-            if request.method == 'PUT':
-                data = request.get_json()
-                cur.execute('''
-                    UPDATE categorias SET 
-                        nombre = %s, descripcion = %s, icono = %s, orden = %s, activo = %s
-                    WHERE id = %s AND restaurante_id = %s
-                ''', (
-                    data.get('nombre'),
-                    data.get('descripcion', ''),
-                    data.get('icono', ''),
-                    data.get('orden', 0),
-                    data.get('activo', 1),
-                    categoria_id, restaurante_id
-                ))
-                db.commit()
-                return jsonify({'success': True})
-                
-            if request.method == 'DELETE':
-                # Primero eliminar platos de la categoría
-                cur.execute("DELETE FROM platos WHERE categoria_id = %s AND restaurante_id = %s", 
-                           (categoria_id, restaurante_id))
-                cur.execute("DELETE FROM categorias WHERE id = %s AND restaurante_id = %s", 
-                           (categoria_id, restaurante_id))
-                db.commit()
-                return jsonify({'success': True})
-                
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_categoria: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ============================================================
-# API - RESTAURANTE
-# ============================================================
-
-@app.route('/api/mi-restaurante', methods=['GET', 'PUT'])
-@login_required
-def api_mi_restaurante():
-    """API para obtener y actualizar datos del restaurante actual."""
-    db = get_db()
-    restaurante_id = session['restaurante_id']
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
-                return jsonify(dict_from_row(cur.fetchone()))
-                
-            if request.method == 'PUT':
-                data = request.get_json()
-                cur.execute('''
-                    UPDATE restaurantes SET 
-                        nombre = %s, descripcion = %s, slogan = %s, telefono = %s, 
-                        email = %s, direccion = %s, horario = %s, instagram = %s, 
-                        facebook = %s, whatsapp = %s, mostrar_precios = %s, 
-                        mostrar_descripciones = %s, mostrar_imagenes = %s, moneda = %s
-                    WHERE id = %s
-                ''', (
-                    data.get('nombre'),
-                    data.get('descripcion', ''),
-                    data.get('slogan', ''),
-                    data.get('telefono', ''),
-                    data.get('email', ''),
-                    data.get('direccion', ''),
-                    data.get('horario', ''),
-                    data.get('instagram', ''),
-                    data.get('facebook', ''),
-                    data.get('whatsapp', ''),
-                    data.get('mostrar_precios', 1),
-                    data.get('mostrar_descripciones', 1),
-                    data.get('mostrar_imagenes', 1),
-                    data.get('moneda', '$'),
-                    restaurante_id
-                ))
-                db.commit()
-                
-                # Actualizar nombre en sesión
-                session['restaurante_nombre'] = data.get('nombre')
-                
-                return jsonify({'success': True})
-                
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_mi_restaurante: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/mi-restaurante/tema', methods=['PUT'])
-@login_required
-@restaurante_owner_required
-def api_actualizar_tema():
-    """Actualiza el tema del restaurante."""
-    db = get_db()
-    restaurante_id = session['restaurante_id']
-    
-    try:
-        data = request.get_json()
-        with db.cursor() as cur:
-            cur.execute('''
-                UPDATE restaurantes SET 
-                    tema = %s, color_primario = %s, color_secundario = %s
-                WHERE id = %s
-            ''', (
-                data.get('tema', 'elegante'),
-                data.get('color_primario', '#c0392b'),
-                data.get('color_secundario', '#2c3e50'),
-                restaurante_id
-            ))
-            db.commit()
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_actualizar_tema: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/mi-restaurante/logo', methods=['POST'])
-@login_required
-@restaurante_owner_required
-def api_subir_logo():
-    """Sube el logo del restaurante a Cloudinary."""
-    if 'logo' not in request.files:
-        return jsonify({'success': False, 'error': 'No se envió ningún archivo'}), 400
-    
-    file = request.files['logo']
-    if file.filename == '':
-        return jsonify({'success': False, 'error': 'Archivo vacío'}), 400
-    
-    if file and allowed_file(file.filename):
-        try:
-            if not CLOUDINARY_CONFIGURED:
-                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
-            
-            # Subir a Cloudinary
-            result = cloudinary_upload(
-                file,
-                folder=f"mimenudigital/logos",
-                public_id=f"logo_{session['restaurante_id']}",
-                overwrite=True,
-                resource_type="auto"
-            )
-            
-            logo_url = result['secure_url']
-            
-            # Actualizar en BD
-            db = get_db()
-            with db.cursor() as cur:
-                cur.execute("UPDATE restaurantes SET logo_url = %s WHERE id = %s", 
-                           (logo_url, session['restaurante_id']))
-                db.commit()
-            
-            logger.info(f"Logo subido a Cloudinary para restaurante {session['restaurante_id']}")
-            return jsonify({'success': True, 'logo_url': logo_url})
-        
-        except Exception as e:
-            logger.error(f"Error subiendo logo a Cloudinary: {traceback.format_exc()}")
-            return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
-    
-    return jsonify({'success': False, 'error': 'Tipo de archivo no permitido'}), 400
-
-
-# ============================================================
-# API - DASHBOARD STATS
-# ============================================================
-
-@app.route('/api/dashboard/stats')
-@login_required
-def api_dashboard_stats():
-    """Obtiene estadísticas del restaurante para el dashboard."""
-    db = get_db()
-    restaurante_id = session.get('restaurante_id')
-    
-    if not restaurante_id:
-        return jsonify({
-            'total_platos': 0,
-            'total_categorias': 0,
-            'total_vistas': 0,
-            'total_scans': 0,
-            'visitas_hoy': 0,
-            'scans_hoy': 0,
-            'ultimos_7_dias': [],
-            'url_slug': '',
-            'base_url': request.host_url.rstrip('/')
-        })
-    
-    try:
-        with db.cursor() as cur:
-            # Contar platos activos
-            cur.execute("SELECT COUNT(*) as total FROM platos WHERE restaurante_id = %s AND activo = 1", 
-                       (restaurante_id,))
-            total_platos = cur.fetchone()['total']
-            
-            # Contar categorías
-            cur.execute("SELECT COUNT(*) as total FROM categorias WHERE restaurante_id = %s AND activo = 1", 
-                       (restaurante_id,))
-            total_categorias = cur.fetchone()['total']
-            
-            # Obtener url_slug
-            cur.execute("SELECT url_slug FROM restaurantes WHERE id = %s", (restaurante_id,))
-            row = cur.fetchone()
-            url_slug = row['url_slug'] if row else ''
-            
-            # Estadísticas del mes
-            primer_dia_mes = date.today().replace(day=1).isoformat()
-            cur.execute('''
-                SELECT COALESCE(SUM(visitas), 0) as visitas, COALESCE(SUM(escaneos_qr), 0) as scans
-                FROM estadisticas_diarias 
-                WHERE restaurante_id = %s AND fecha >= %s
-            ''', (restaurante_id, primer_dia_mes))
-            stats = cur.fetchone()
-            total_vistas = stats['visitas'] if stats else 0
-            total_scans = stats['scans'] if stats else 0
-            
-            # Estadísticas de hoy
-            hoy = date.today().isoformat()
-            cur.execute('''
-                SELECT COALESCE(visitas, 0) as visitas, COALESCE(escaneos_qr, 0) as scans
-                FROM estadisticas_diarias 
-                WHERE restaurante_id = %s AND fecha = %s
-            ''', (restaurante_id, hoy))
-            hoy_row = cur.fetchone()
-            visitas_hoy = hoy_row['visitas'] if hoy_row else 0
-            scans_hoy = hoy_row['scans'] if hoy_row else 0
-            
-            # Últimos 7 días
-            cur.execute('''
-                SELECT fecha, visitas, escaneos_qr as scans
-                FROM estadisticas_diarias 
-                WHERE restaurante_id = %s AND fecha >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-                ORDER BY fecha
-            ''', (restaurante_id,))
-            ultimos_7_dias = list_from_rows(cur.fetchall())
-            
-            return jsonify({
-                'total_platos': total_platos,
-                'total_categorias': total_categorias,
-                'total_vistas': total_vistas,
-                'total_scans': total_scans,
-                'visitas_hoy': visitas_hoy,
-                'scans_hoy': scans_hoy,
-                'ultimos_7_dias': ultimos_7_dias,
-                'url_slug': url_slug,
-                'base_url': request.host_url.rstrip('/')
-            })
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-# ============================================================
-# RUTAS DE SUPERADMIN
-# ============================================================
-
-@app.route('/superadmin/restaurantes')
-@login_required
-@superadmin_required
-def superadmin_restaurantes():
-    """Panel de gestión de restaurantes (SuperAdmin)."""
-    db = get_db()
-    with db.cursor() as cur:
-        # Obtener restaurantes con estadísticas
-        cur.execute("""
-            SELECT r.*, 
-                   (SELECT COUNT(*) FROM categorias WHERE restaurante_id = r.id) as total_categorias,
-                   (SELECT COUNT(*) FROM platos WHERE restaurante_id = r.id) as total_platos,
-                   (SELECT COUNT(*) FROM usuarios_admin WHERE restaurante_id = r.id) as total_usuarios,
-                   (SELECT COALESCE(SUM(visitas), 0) FROM estadisticas_diarias WHERE restaurante_id = r.id) as total_visitas
-            FROM restaurantes r 
-            ORDER BY r.nombre
-        """)
-        restaurantes = list_from_rows(cur.fetchall())
-        
-        # Nuevos este mes
-        primer_dia_mes = date.today().replace(day=1).isoformat()
-        cur.execute("SELECT COUNT(*) as total FROM restaurantes WHERE fecha_creacion >= %s", (primer_dia_mes,))
-        nuevos_este_mes = cur.fetchone()['total']
-        
-        # Total usuarios
-        cur.execute("SELECT COUNT(*) as total FROM usuarios_admin WHERE rol != 'superadmin'")
-        total_usuarios = cur.fetchone()['total']
-    
-    return render_template('superadmin/restaurantes.html', 
-                           restaurantes=restaurantes,
-                           nuevos_este_mes=nuevos_este_mes,
-                           total_usuarios=total_usuarios)
-
-
-@app.route('/superadmin/usuarios')
-@login_required
-@superadmin_required
-def superadmin_usuarios():
-    db = get_db()
-    with db.cursor() as cur:
-        cur.execute("SELECT id, nombre, email, rol, fecha_creacion FROM usuarios_admin WHERE rol != 'superadmin' ORDER BY fecha_creacion DESC")
-        usuarios = list_from_rows(cur.fetchall())
-    return render_template('superadmin/usuarios.html', usuarios=usuarios)
-
-
-@app.route('/superadmin/suscripciones')
-@login_required
-@superadmin_required
-def superadmin_suscripciones():
-    # Placeholder por ahora
-    return render_template('superadmin/suscripciones.html')
-
-
-@app.route('/superadmin/estadisticas')
-@login_required
-@superadmin_required
-def superadmin_estadisticas():
-    return render_template('superadmin/estadisticas.html')
-
-
-@app.route('/api/superadmin/stats')
-@login_required
-@superadmin_required
-def api_superadmin_stats():
-    db = get_db()
-    with db.cursor() as cur:
-        # Total restaurantes
-        cur.execute("SELECT COUNT(*) as total FROM restaurantes")
-        total_restaurantes = cur.fetchone()['total']
-        # Total usuarios (sin superadmin)
-        cur.execute("SELECT COUNT(*) as total FROM usuarios_admin WHERE rol != 'superadmin'")
-        total_usuarios = cur.fetchone()['total']
-        # Total visitas y escaneos
-        cur.execute("SELECT COALESCE(SUM(visitas),0) as visitas, COALESCE(SUM(escaneos_qr),0) as escaneos FROM estadisticas_diarias")
-        row = cur.fetchone()
-        total_visitas = row['visitas']
-        total_escaneos = row['escaneos']
-        # Visitas últimos 30 días
-        cur.execute("""
-            SELECT fecha, COALESCE(SUM(visitas),0) as visitas
-            FROM estadisticas_diarias
-            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-            GROUP BY fecha
-            ORDER BY fecha
-        """)
-        visitas_30dias = list_from_rows(cur.fetchall())
-    return jsonify({
-        'total_restaurantes': total_restaurantes,
-        'total_usuarios': total_usuarios,
-        'total_visitas': total_visitas,
-        'total_escaneos': total_escaneos,
-        'visitas_30dias': visitas_30dias
-    })
-
-
-@app.route('/api/restaurantes', methods=['GET', 'POST'])
-@login_required
-@superadmin_required
-def api_restaurantes():
-    """API para listar y crear restaurantes."""
-    db = get_db()
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute("SELECT * FROM restaurantes ORDER BY nombre")
-                return jsonify(list_from_rows(cur.fetchall()))
-                
-            if request.method == 'POST':
-                data = request.get_json()
-                
-                if not data:
-                    return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
-                
-                if not data.get('nombre') or not data.get('url_slug'):
-                    return jsonify({'success': False, 'error': 'Nombre y URL slug son obligatorios'}), 400
-                
-                # Verificar que el url_slug no exista
-                cur.execute("SELECT id FROM restaurantes WHERE url_slug = %s", (data['url_slug'],))
-                if cur.fetchone():
-                    return jsonify({'success': False, 'error': 'El URL slug ya existe'}), 400
-                
-                # Calcular fecha de vencimiento (30 días desde hoy)
-                fecha_vencimiento = (date.today() + timedelta(days=30)).isoformat()
-                
-                cur.execute('''
-                    INSERT INTO restaurantes 
-                    (nombre, rut, url_slug, logo_url, tema, plan_id, activo, estado_suscripcion, fecha_vencimiento)
-                    VALUES (%s, %s, %s, %s, %s, %s, 1, 'prueba', %s)
-                ''', (
-                    data['nombre'],
-                    data.get('rut', ''),
-                    data['url_slug'],
-                    data.get('logo_url', ''),
-                    data.get('tema', 'elegante'),
-                    data.get('plan_id', 1),  # Plan gratis por defecto
-                    fecha_vencimiento
-                ))
-                db.commit()
-                logger.info(f"Nuevo restaurante creado: {data['nombre']} con vencimiento {fecha_vencimiento}")
-                return jsonify({'success': True, 'id': cur.lastrowid})
-
-    except pymysql.IntegrityError as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        error_msg = str(e)
-        if 'Duplicate' in error_msg or 'duplicate' in error_msg.lower():
-            return jsonify({'success': False, 'error': 'El URL slug ya existe'}), 400
-        if 'foreign key' in error_msg.lower():
-            return jsonify({'success': False, 'error': 'Error de referencia en la base de datos'}), 400
-        return jsonify({'success': False, 'error': f'Error de integridad: {error_msg}'}), 500
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_restaurantes: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/restaurantes/<int:rest_id>', methods=['GET', 'PUT', 'DELETE'])
-@login_required
-@superadmin_required
-def api_restaurante(rest_id):
-    """API para obtener, editar o eliminar un restaurante."""
-    db = get_db()
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute("SELECT * FROM restaurantes WHERE id = %s", (rest_id,))
-                rest = cur.fetchone()
-                if not rest:
-                    return jsonify({'error': 'Restaurante no encontrado'}), 404
-                return jsonify(dict_from_row(rest))
-                
-            if request.method == 'PUT':
-                data = request.get_json()
-                cur.execute('''
-                    UPDATE restaurantes SET 
-                        nombre = %s, rut = %s, url_slug = %s, logo_url = %s, tema = %s, activo = %s
-                    WHERE id = %s
-                ''', (
-                    data.get('nombre'),
-                    data.get('rut', ''),
-                    data.get('url_slug'),
-                    data.get('logo_url', ''),
-                    data.get('tema', 'elegante'),
-                    data.get('activo', 1),
-                    rest_id
-                ))
-                db.commit()
-                return jsonify({'success': True})
-                
-            if request.method == 'DELETE':
-                # Eliminar en cascada (las FK con ON DELETE CASCADE lo manejan)
-                cur.execute("DELETE FROM restaurantes WHERE id = %s", (rest_id,))
-                db.commit()
-                return jsonify({'success': True})
-
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_restaurante: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/usuarios', methods=['GET', 'POST'])
-@login_required
-@superadmin_required
-def api_usuarios():
-    """API para listar y crear usuarios."""
-    db = get_db()
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute('''
-                    SELECT u.id, u.restaurante_id, u.username, u.nombre, u.email, u.rol, 
-                           u.activo, u.ultimo_login, u.fecha_creacion, r.nombre as restaurante_nombre 
-                    FROM usuarios_admin u 
-                    LEFT JOIN restaurantes r ON u.restaurante_id = r.id
-                    ORDER BY u.nombre
-                ''')
-                return jsonify(list_from_rows(cur.fetchall()))
-                
-            if request.method == 'POST':
-                data = request.get_json()
-                
-                if not data:
-                    return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
-                
-                if not data.get('username') or not data.get('password') or not data.get('nombre'):
-                    return jsonify({'success': False, 'error': 'Username, password y nombre son obligatorios'}), 400
-                
-                # Verificar si username existe
-                cur.execute("SELECT id FROM usuarios_admin WHERE username = %s", (data['username'],))
-                if cur.fetchone():
-                    return jsonify({'success': False, 'error': 'El nombre de usuario ya existe'}), 400
-                
-                # Verificar que el restaurante existe si se proporciona
-                restaurante_id = data.get('restaurante_id')
-                if restaurante_id:
-                    cur.execute("SELECT id FROM restaurantes WHERE id = %s", (restaurante_id,))
-                    if not cur.fetchone():
-                        return jsonify({'success': False, 'error': 'El restaurante seleccionado no existe'}), 400
-                else:
-                    restaurante_id = None
-                
-                pwd_hash = generate_password_hash(data['password'], method='pbkdf2:sha256')
-                
-                cur.execute('''
-                    INSERT INTO usuarios_admin (restaurante_id, username, password_hash, nombre, email, rol, activo)
-                    VALUES (%s, %s, %s, %s, %s, %s, 1)
-                ''', (
-                    restaurante_id,
-                    data['username'],
-                    pwd_hash,
-                    data['nombre'],
-                    data.get('email', ''),
-                    data.get('rol', 'admin')
-                ))
-                db.commit()
-                return jsonify({'success': True, 'id': cur.lastrowid})
-
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_usuarios: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/usuarios/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
-@login_required
-@superadmin_required
-def api_usuario(user_id):
-    """API para obtener, editar o eliminar un usuario."""
-    db = get_db()
-    
-    try:
-        with db.cursor() as cur:
-            if request.method == 'GET':
-                cur.execute('''
-                    SELECT id, restaurante_id, username, nombre, email, rol, activo 
-                    FROM usuarios_admin WHERE id = %s
-                ''', (user_id,))
-                user = cur.fetchone()
-                if not user:
-                    return jsonify({'error': 'Usuario no encontrado'}), 404
-                return jsonify(dict_from_row(user))
-                
-            if request.method == 'PUT':
-                data = request.get_json()
-                
-                if data.get('password'):
-                    pwd_hash = generate_password_hash(data['password'], method='pbkdf2:sha256')
-                    cur.execute('''
-                        UPDATE usuarios_admin SET 
-                            restaurante_id = %s, username = %s, password_hash = %s, 
-                            nombre = %s, email = %s, rol = %s, activo = %s
-                        WHERE id = %s
-                    ''', (
-                        data.get('restaurante_id'),
-                        data.get('username'),
-                        pwd_hash,
-                        data.get('nombre'),
-                        data.get('email', ''),
-                        data.get('rol', 'admin'),
-                        data.get('activo', 1),
-                        user_id
-                    ))
-                else:
-                    cur.execute('''
-                        UPDATE usuarios_admin SET 
-                            restaurante_id = %s, username = %s, nombre = %s, 
-                            email = %s, rol = %s, activo = %s
-                        WHERE id = %s
-                    ''', (
-                        data.get('restaurante_id'),
-                        data.get('username'),
-                        data.get('nombre'),
-                        data.get('email', ''),
-                        data.get('rol', 'admin'),
-                        data.get('activo', 1),
-                        user_id
-                    ))
-                db.commit()
-                return jsonify({'success': True})
-                
-            if request.method == 'DELETE':
-                # No permitir eliminar superadmin
-                cur.execute("SELECT username FROM usuarios_admin WHERE id = %s", (user_id,))
-                user = cur.fetchone()
-                if user and user['username'] == 'superadmin':
-                    return jsonify({'success': False, 'error': 'No se puede eliminar el superadmin'}), 400
-                
-                cur.execute("DELETE FROM usuarios_admin WHERE id = %s", (user_id,))
-                db.commit()
-                return jsonify({'success': True})
-
-    except Exception as e:
-        try:
-            db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_usuario: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ============================================================
-# INICIALIZACIÓN DE BASE DE DATOS
-# ============================================================
-
-@app.route('/api/init-db')
-def init_db_route():
-    """Inicializa la base de datos creando las tablas si no existen."""
-    try:
-        db = get_db()
-        messages = []
-        
-        with db.cursor() as cur:
-            # Verificar si las tablas ya existen
-            cur.execute("SHOW TABLES")
-            existing_tables = [row[list(row.keys())[0]] for row in cur.fetchall()]
-            messages.append(f"Tablas existentes: {existing_tables}")
-            
-            # Crear tabla planes si no existe
-            if 'planes' not in existing_tables:
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS planes (
-                        id INT PRIMARY KEY AUTO_INCREMENT,
-                        nombre VARCHAR(50) NOT NULL,
-                        precio_mensual DECIMAL(10,2) DEFAULT 0,
-                        max_platos INT DEFAULT 50,
-                        max_categorias INT DEFAULT 10,
-                        tiene_pdf TINYINT(1) DEFAULT 1,
-                        tiene_qr_personalizado TINYINT(1) DEFAULT 0,
-                        tiene_estadisticas TINYINT(1) DEFAULT 1,
-                        activo TINYINT(1) DEFAULT 1,
-                        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                ''')
-                db.commit()
-                messages.append("✓ Tabla planes creada")
-            
-            # Insertar planes por defecto si no existen
-            cur.execute("SELECT COUNT(*) as total FROM planes")
-            if cur.fetchone()['total'] == 0:
-                cur.execute('''
-                    INSERT INTO planes (nombre, precio_mensual, max_platos, max_categorias, tiene_pdf, tiene_qr_personalizado, tiene_estadisticas) VALUES
-                    ('Gratis', 0, 20, 5, 1, 0, 0),
-                    ('Básico', 9990, 50, 10, 1, 0, 1),
-                    ('Premium', 19990, 200, 50, 1, 1, 1)
-                ''')
-                db.commit()
-                messages.append("✓ Planes por defecto insertados")
-            
-            # Crear superadmin si no existe
-            cur.execute("SELECT id FROM usuarios_admin WHERE username = 'superadmin'")
-            if not cur.fetchone():
-                pwd = generate_password_hash('superadmin123', method='pbkdf2:sha256')
-                cur.execute('''
-                    INSERT INTO usuarios_admin (restaurante_id, username, password_hash, nombre, rol, activo)
-                    VALUES (NULL, 'superadmin', %s, 'Super Admin Divergent Studio', 'superadmin', 1)
-                ''', (pwd,))
-                db.commit()
-                messages.append("✓ Usuario superadmin creado")
-            else:
-                messages.append("✓ Usuario superadmin ya existe")
-        
-        return jsonify({
-            'success': True,
-            'message': '✓ Base de datos MySQL inicializada correctamente',
-            'details': messages,
-            'superadmin_user': 'superadmin',
-            'superadmin_pass': 'superadmin123 (¡cambiar en producción!)'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error en init-db: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e), 'traceback': traceback.format_exc()}), 500
-
-
-# ============================================================
-# ENDPOINT DE DIAGNÓSTICO
-# ============================================================
 
 @app.route('/api/health')
 def health_check():
     """Endpoint para verificar que la app está funcionando."""
-    import sys
-    
     status = {
         'app': 'ok',
         'python_version': sys.version,
@@ -2412,49 +203,98 @@ def health_check():
         'working_dir': os.getcwd(),
         'script_dir': os.path.dirname(os.path.abspath(__file__)),
     }
-    
-    # Intentar conexión a MySQL
+
     try:
         db = get_db()
         with db.cursor() as cur:
             cur.execute("SELECT 1")
             status['mysql_connection'] = 'ok'
-            
-            # Verificar tablas
             cur.execute("SHOW TABLES")
             tables = [row[list(row.keys())[0]] for row in cur.fetchall()]
             status['tables'] = tables
-            
     except Exception as e:
         status['mysql_connection'] = f'error: {str(e)}'
         status['mysql_traceback'] = traceback.format_exc()
-    
+
     return jsonify(status)
 
 
-# ============================================================
-# ARCHIVOS ESTÁTICOS
-# ============================================================
-
-@app.route('/static/uploads/<path:filename>')
-def uploaded_file(filename):
-    """Sirve archivos subidos (QR y temporales)."""
-    upload_folder = os.path.join(base_dir, 'static', 'uploads')
-    return send_from_directory(upload_folder, filename)
+# ERROR HANDLERS
+@app.errorhandler(404)
+def not_found_error(error):
+    app.logger.debug("404 Not Found: %s", request.path)
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Recurso no encontrado'}), 404
+    return render_template('error_publico.html', error_code=404, error_message='Página no encontrada'), 404
 
 
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error("500 Internal Server Error: %s", traceback.format_exc())
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+    return render_template('error_publico.html', error_code=500, error_message='Error interno del servidor'), 500
+
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    app.logger.warning("403 Forbidden error: %s", request.path)
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
+    return render_template('error_publico.html', error_code=403, error_message='Acceso prohibido'), 403
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error("Unhandled exception: %s: %s\n%s", type(e).__name__, e, traceback.format_exc())
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Error interno', 'type': type(e).__name__}), 500
+    return render_template('error_publico.html', error_code=500, error_message=f'Error: {str(e)}'), 500
+
 # ============================================================
-# EJECUTAR APLICACIÓN
+# CLI COMMANDS
 # ============================================================
+
+@app.cli.command("init-db")
+def init_db_command():
+    """Initializes the database from `schema.sql` and creates defaults.
+
+    This command should be run from the server or locally by the administrator.
+    """
+    db = get_db()
+    messages = []
+    with db.cursor() as cur:
+        # Basic example: create tables if missing
+        try:
+            with open('schema.sql') as f:
+                cur.execute(f.read())
+            db.commit()
+            messages.append('Schema applied')
+        except Exception as e:
+            db.rollback()
+            messages.append(f'Error applying schema: {e}')
+
+        # Create superadmin if not exists (example)
+        try:
+            cur.execute("SELECT id FROM usuarios_admin WHERE username = 'superadmin'")
+            if not cur.fetchone():
+                pwd = generate_password_hash('superadmin123')
+                cur.execute('''
+                    INSERT INTO usuarios_admin (restaurante_id, username, password_hash, nombre, rol, activo)
+                    VALUES (NULL, %s, %s, %s, %s, 1)
+                ''', ('superadmin', pwd, 'Super Admin', 'superadmin'))
+                db.commit()
+                messages.append('Superadmin created')
+            else:
+                messages.append('Superadmin already exists')
+        except Exception as e:
+            db.rollback()
+            messages.append(f'Error ensuring superadmin: {e}')
+
+    for m in messages:
+        print(m)
+    print('Database initialization complete.')
+
 
 if __name__ == '__main__':
-    print("=" * 50)
-    print("🍽️  MENÚ DIGITAL SAAS - Divergent Studio")
-    print("=" * 50)
-    print(f"📦 MySQL: {app.config.get('MYSQL_HOST')}:{app.config.get('MYSQL_PORT')}/{app.config.get('MYSQL_DB')}")
-    print(f"🌐 Servidor: http://127.0.0.1:5000")
-    print("=" * 50)
-    print("⚠️  Antes de usar, ejecuta: GET /api/init-db")
-    print("=" * 50)
-    
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)
