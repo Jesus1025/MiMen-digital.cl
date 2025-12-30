@@ -8,6 +8,10 @@ class Config:
     """Configuración base para todos los entornos."""
     SECRET_KEY = os.environ.get('SECRET_KEY')
     
+    # Mercado Pago y Cloudinary
+    MERCADO_PAGO_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
+    CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
+    
 
     # Configuración de sesiones - Seguridad mejorada y server-side
     SESSION_TYPE = os.environ.get('SESSION_TYPE', 'filesystem')  # filesystem, redis, etc.
