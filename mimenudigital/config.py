@@ -2,23 +2,13 @@
 # CONFIGURACIÓN - MENU DIGITAL SAAS
 # ============================================================
 import os
-import sys
 
 class Config:
     """Configuración base para todos los entornos."""
-    SECRET_KEY = os.environ.get('SECRET_KEY')
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'menu_digital_divergent_secret_key_2025_prod')
     
-    # Mercado Pago y Cloudinary
-    MERCADO_PAGO_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
-    CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
-    
-
-    # Configuración de sesiones - Seguridad mejorada y server-side
-    SESSION_TYPE = os.environ.get('SESSION_TYPE', 'filesystem')  # filesystem, redis, etc.
-    SESSION_FILE_DIR = os.environ.get('SESSION_FILE_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session'))
-    SESSION_PERMANENT = True
-    SESSION_USE_SIGNER = True
-    SESSION_COOKIE_SECURE = False
+    # Configuración de sesiones - Seguridad mejorada
+    SESSION_COOKIE_SECURE = False  # Se sobreescribe en ProductionConfig
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hora de sesión
@@ -28,12 +18,12 @@ class Config:
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     
-    # Base URL
+    # Base URL (se sobreescribe en producción)
     BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:5000')
     
-    # Database
+    # Database defaults (se sobreescriben en subclases)
     MYSQL_CHARSET = 'utf8mb4'
-    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
+    MYSQL_PORT = 3306
 
 
 class DevelopmentConfig(Config):
@@ -41,11 +31,12 @@ class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
     
-    # MySQL local (XAMPP, WAMP, Docker, etc.)
-    MYSQL_HOST = os.environ.get('MYSQL_HOST', '127.0.0.1')
+    # MySQL local (XAMPP, WAMP, etc.)
+    MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
     MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
     MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
     MYSQL_DB = os.environ.get('MYSQL_DB', 'menu_digital')
+    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
 
 
 class TestingConfig(Config):
@@ -54,26 +45,29 @@ class TestingConfig(Config):
     TESTING = True
     
     # Base de datos de prueba
-    MYSQL_HOST = os.environ.get('MYSQL_HOST', '127.0.0.1')
+    MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
     MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
     MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
-    MYSQL_DB = os.environ.get('MYSQL_DB_TEST', 'menu_digital_test')
+    MYSQL_DB = os.environ.get('MYSQL_DB', 'menu_digital_test')
+    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
 
 
 class ProductionConfig(Config):
-    """Configuración para producción (ej. PythonAnywhere)."""
+    """Configuración para PythonAnywhere (producción)."""
     DEBUG = False
     TESTING = False
     SESSION_COOKIE_SECURE = True
     
-    # MySQL en producción - DEBEN ser configuradas como variables de entorno
-    MYSQL_HOST = os.environ.get('MYSQL_HOST')
-    MYSQL_USER = os.environ.get('MYSQL_USER')
-    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD')
-    MYSQL_DB = os.environ.get('MYSQL_DB')
+    # MySQL en PythonAnywhere
+    # Formato: tuusuario.mysql.pythonanywhere-services.com
+    MYSQL_HOST = os.environ.get('MYSQL_HOST', 'tuusuario.mysql.pythonanywhere-services.com')
+    MYSQL_USER = os.environ.get('MYSQL_USER', 'tuusuario')
+    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'tu_password_mysql')
+    MYSQL_DB = os.environ.get('MYSQL_DB', 'tuusuario$menu_digital')
+    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
     
     # Base URL en producción - DEBE ser HTTPS
-    BASE_URL = os.environ.get('BASE_URL')
+    BASE_URL = os.environ.get('BASE_URL', 'https://tuusuario.pythonanywhere.com')
 
 
 # Selector de configuración
@@ -85,28 +79,19 @@ config = {
 }
 
 def get_config(env=None):
-    """Obtiene la configuración según el entorno y la valida."""
+    """Obtiene la configuración según el entorno."""
     if env is None:
         env = os.environ.get('FLASK_ENV', 'development')
     
     config_class = config.get(env, config['default'])
     
-    # --- Validación de variables críticas ---
-    # En producción, ciertas variables son obligatorias.
+    # Validación básica en producción
     if env == 'production':
-        required_vars = [
-            'SECRET_KEY', 'MYSQL_HOST', 'MYSQL_USER', 'MYSQL_PASSWORD', 
-            'MYSQL_DB', 'BASE_URL', 'CLOUDINARY_URL', 'MERCADO_PAGO_ACCESS_TOKEN'
-        ]
-        missing_vars = [var for var in required_vars if not getattr(config_class, var, None)]
-        
-        if missing_vars:
-            print("="*80, file=sys.stderr)
-            print("FATAL ERROR: Faltan las siguientes variables de entorno en producción:", file=sys.stderr)
-            for var in missing_vars:
-                print(f" - {var}", file=sys.stderr)
-            print("="*80, file=sys.stderr)
-            sys.exit(1) # Detiene la aplicación si faltan variables clave
-            
+        if config_class.SECRET_KEY == 'menu_digital_divergent_secret_key_2025_prod':
+            import warnings
+            warnings.warn(
+                "Using default SECRET_KEY in production! Set SECRET_KEY environment variable.",
+                RuntimeWarning
+            )
+    
     return config_class
-

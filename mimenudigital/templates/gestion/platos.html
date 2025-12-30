@@ -186,35 +186,22 @@
 
 {% block extra_js %}
 <script>
-
     let platos = [];
     let categorias = {{ categorias | default([]) | tojson }};
-    let paginaActual = 1;
-    let totalPaginas = 1;
-    let totalPlatos = 0;
-    let platosPorPagina = 20;
 
     document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('buscarPlato').addEventListener('input', () => cargarPlatos(1));
-        document.getElementById('filtroCategoria').addEventListener('change', () => cargarPlatos(1));
-        cargarPlatos(1);
+        cargarPlatos();
+        
+        // Búsqueda en tiempo real
+        document.getElementById('buscarPlato').addEventListener('input', filtrarPlatos);
+        document.getElementById('filtroCategoria').addEventListener('change', filtrarPlatos);
     });
 
-    async function cargarPlatos(page = 1) {
-        const busqueda = document.getElementById('buscarPlato').value.trim();
-        const categoriaId = document.getElementById('filtroCategoria').value;
-        let url = `/api/platos?page=${page}&per_page=${platosPorPagina}`;
-        if (busqueda) url += `&search=${encodeURIComponent(busqueda)}`;
-        if (categoriaId) url += `&categoria_id=${encodeURIComponent(categoriaId)}`;
+    async function cargarPlatos() {
         try {
-            const res = await fetch(url);
-            const data = await res.json();
-            platos = data.results || [];
-            paginaActual = data.page || 1;
-            totalPaginas = data.total_pages || 1;
-            totalPlatos = data.total || 0;
+            const res = await fetch('/api/platos');
+            platos = await res.json();
             renderizarPlatos(platos);
-            renderizarPaginacion();
         } catch (error) {
             console.error('Error:', error);
             mostrarError('Error al cargar los platos');
@@ -223,7 +210,8 @@
 
     function renderizarPlatos(lista) {
         const tbody = document.getElementById('platosBody');
-        if (!lista || lista.length === 0) {
+        
+        if (lista.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="6" style="text-align: center; padding: 3rem;">
@@ -237,6 +225,7 @@
             `;
             return;
         }
+
         tbody.innerHTML = lista.map(plato => {
             const categoria = categorias.find(c => c.id === plato.categoria_id);
             return `
@@ -271,29 +260,24 @@
         }).join('');
     }
 
-    function renderizarPaginacion() {
-        let paginacionDiv = document.getElementById('paginacionPlatos');
-        if (!paginacionDiv) {
-            paginacionDiv = document.createElement('div');
-            paginacionDiv.id = 'paginacionPlatos';
-            paginacionDiv.style = 'margin: 1.5rem 0; display: flex; justify-content: center; gap: 0.5rem;';
-            document.querySelector('.table-container').appendChild(paginacionDiv);
+    function filtrarPlatos() {
+        const busqueda = document.getElementById('buscarPlato').value.toLowerCase();
+        const categoriaId = document.getElementById('filtroCategoria').value;
+        
+        let filtrados = platos;
+        
+        if (busqueda) {
+            filtrados = filtrados.filter(p => 
+                p.nombre.toLowerCase().includes(busqueda) ||
+                (p.descripcion && p.descripcion.toLowerCase().includes(busqueda))
+            );
         }
-        if (totalPaginas <= 1) {
-            paginacionDiv.innerHTML = '';
-            return;
+        
+        if (categoriaId) {
+            filtrados = filtrados.filter(p => p.categoria_id == categoriaId);
         }
-        let html = '';
-        html += `<button class="btn-secondary" ${paginaActual === 1 ? 'disabled' : ''} onclick="cargarPlatos(${paginaActual - 1})">&laquo; Anterior</button>`;
-        for (let i = 1; i <= totalPaginas; i++) {
-            if (i === 1 || i === totalPaginas || Math.abs(i - paginaActual) <= 2) {
-                html += `<button class="btn-secondary${i === paginaActual ? ' active' : ''}" onclick="cargarPlatos(${i})">${i}</button>`;
-            } else if (i === paginaActual - 3 || i === paginaActual + 3) {
-                html += '<span style="padding:0 0.5rem;">...</span>';
-            }
-        }
-        html += `<button class="btn-secondary" ${paginaActual === totalPaginas ? 'disabled' : ''} onclick="cargarPlatos(${paginaActual + 1})">Siguiente &raquo;</button>`;
-        paginacionDiv.innerHTML = html;
+        
+        renderizarPlatos(filtrados);
     }
 
     // Modal Plato
