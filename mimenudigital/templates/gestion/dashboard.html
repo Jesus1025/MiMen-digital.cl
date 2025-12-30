@@ -31,18 +31,6 @@
     </div>
     
     <div class="column is-6-tablet is-3-desktop">
-        <div class="stat-card">
-            <div class="stat-icon bg-dark">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="totalVisitasTotales">--</h3>
-                <p>Total de visitas</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="column is-6-tablet is-3-desktop">
         <div class="stat-card" style="cursor: pointer;" onclick="mostrarDetalleVisitas()">
             <div class="stat-icon bg-info">
                 <i class="fas fa-eye"></i>
@@ -179,7 +167,6 @@
             
             document.getElementById('totalPlatos').textContent = stats.total_platos || 0;
             document.getElementById('totalCategorias').textContent = stats.total_categorias || 0;
-            document.getElementById('totalVisitasTotales').textContent = stats.visitas_totales || 0;
             document.getElementById('totalVistas').textContent = stats.total_vistas || 0;
             document.getElementById('totalScans').textContent = stats.total_scans || 0;
             
