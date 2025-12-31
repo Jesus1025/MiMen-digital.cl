@@ -6,20 +6,19 @@ import sys
 import os
 
 # 1. ESTABLECER VARIABLES DE ENTORNO (¡CRÍTICO! Antes de cualquier import)
-os.environ['MYSQL_HOST'] = 'MiMenudigital.mysql.pythonanywhere-services.com'
-os.environ['MYSQL_USER'] = 'MiMenudigital'
-os.environ['MYSQL_PASSWORD'] = '19101810Aa'
-os.environ['MYSQL_DB'] = 'MiMenudigital$menu_digital'
-os.environ['MYSQL_PORT'] = '3306'
-os.environ['FLASK_ENV'] = 'production'
-os.environ['BASE_URL'] = 'https://mimenudigital.pythonanywhere.com'
+# Valores por defecto se dejan como respaldo, pero NUNCA incluir contraseñas en el código.
+os.environ.setdefault('MYSQL_HOST', 'MiMenudigital.mysql.pythonanywhere-services.com')
+os.environ.setdefault('MYSQL_USER', 'MiMenudigital')
+# NO establecer MYSQL_PASSWORD en el repositorio; configúralo en el entorno seguro del hosting.
+# os.environ.setdefault('MYSQL_PASSWORD', '')
+os.environ.setdefault('MYSQL_DB', 'MiMenudigital$menu_digital')
+os.environ.setdefault('MYSQL_PORT', '3306')
+os.environ.setdefault('FLASK_ENV', 'production')
+os.environ.setdefault('BASE_URL', 'https://mimenudigital.pythonanywhere.com')
 
-print("=" * 70)
-print("WSGI - Variables establecidas:")
-print(f"  MYSQL_HOST = {os.environ['MYSQL_HOST']}")
-print(f"  MYSQL_USER = {os.environ['MYSQL_USER']}")
-print(f"  MYSQL_DB = {os.environ['MYSQL_DB']}")
-print("=" * 70)
+import logging
+logger = logging.getLogger(__name__)
+logger.info("WSGI variables (password hidden): %s@%s/%s", os.environ.get('MYSQL_USER'), os.environ.get('MYSQL_HOST'), os.environ.get('MYSQL_DB'))
 
 # 2. AÑADIR RUTA DEL PROYECTO
 path = '/home/MiMenudigital/MiMen-digital.cl'
@@ -46,7 +45,7 @@ except ImportError as e:
     application = Flask(__name__)
     
     error_msg = f"Error importando app_menu: {str(e)}\n{traceback.format_exc()}"
-    print(f"ERROR: {error_msg}")
+    logger.error("ERROR: %s", error_msg)
     
     @application.route('/')
     def error():

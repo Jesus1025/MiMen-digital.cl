@@ -7,6 +7,8 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 import os
 import sqlite3
 import uuid
+import logging
+logger = logging.getLogger(__name__) 
 from functools import wraps
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -82,8 +84,13 @@ def inject_menu_url():
             row = cur.fetchone()
             if row and row[0]:
                 menu_url = f"/menu/{row[0]}"
-        except:
-            pass
+        except Exception as e:
+            try:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug("Failed to inject menu_url (sqlite): %s", e, exc_info=True)
+            except Exception:
+                pass
     return {'menu_url_global': menu_url}
 
 # ============================================================
@@ -164,7 +171,7 @@ def registrar_visita(restaurante_id, req):
         db.commit()
     except Exception as e:
         # No fallar si hay error en tracking (no afectar experiencia del usuario)
-        print(f"Error registrando visita: {e}")
+        logger.exception("Error registrando visita: %s", e)
 
 # ============================================================
 # RUTAS PÚBLICAS (EL MENÚ QUE VE EL CLIENTE)
@@ -242,7 +249,7 @@ def ver_menu_publico(url_slug):
                                menu=list(menu_estructurado.values()))
 
     except Exception as e:
-        print(f"Error al cargar menú para {url_slug}: {e}")
+        logger.exception("Error al cargar menú para %s: %s", url_slug, e)
         return render_template('error_publico.html'), 500
 
 # ============================================================
@@ -1217,7 +1224,7 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("✓ Base de datos inicializada correctamente")
+    logger.info("✓ Base de datos inicializada correctamente")
 
 def crear_datos_demo():
     """Crea datos de demostración para probar el sistema."""
@@ -1300,10 +1307,10 @@ def crear_datos_demo():
     
     conn.commit()
     conn.close()
-    print("✓ Datos de demostración creados")
-    print("  → Restaurante: Pizzería Don Luigi")
-    print("  → Usuario: demo | Contraseña: demo123")
-    print("  → Menú público: http://localhost:5001/menu/pizzeria-don-luigi")
+    logger.info("✓ Datos de demostración creados")
+    logger.info("  → Restaurante: Pizzería Don Luigi")
+    logger.info("  → Usuario: demo | Contraseña: demo123")
+    logger.info("  → Menú público: http://localhost:5001/menu/pizzeria-don-luigi")
 
 # ============================================================
 # MAIN
@@ -1313,7 +1320,7 @@ if __name__ == '__main__':
     # Inicializar la base de datos automáticamente al iniciar
     init_db()
     crear_datos_demo()
-    print("✓ Servidor iniciando en http://localhost:5001")
-    print("✓ Acceso desde red local: http://192.168.100.19:5001")
-    print("✓ SuperAdmin: superadmin | Contraseña: superadmin123")
+    logger.info("✓ Servidor iniciando en http://localhost:5001")
+    logger.info("✓ Acceso desde red local: http://192.168.100.19:5001")
+    logger.info("✓ SuperAdmin: superadmin | Contraseña: superadmin123")
     app.run(debug=True, port=5001, host='0.0.0.0')

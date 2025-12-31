@@ -47,10 +47,18 @@ from functools import wraps
 from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import cloudinary
-from cloudinary.uploader import upload as cloudinary_upload
-import traceback
 import logging
+# Cloudinary is optional; handle missing dependency gracefully
+try:
+    import cloudinary
+    from cloudinary.uploader import upload as cloudinary_upload
+    CLOUDINARY_AVAILABLE = True
+except ImportError:
+    cloudinary = None
+    cloudinary_upload = None
+    CLOUDINARY_AVAILABLE = False
+    logging.getLogger(__name__).warning("Cloudinary SDK not installed. Image uploads will be disabled.")
+import traceback
 from logging.handlers import RotatingFileHandler
 
 # Intentar importar pdfkit para generación de PDFs
@@ -71,12 +79,12 @@ except ImportError as e:
     MERCADOPAGO_AVAILABLE = False
     MERCADOPAGO_IMPORT_ERROR = str(e)
     # Friendly guidance to fix missing dependency (visible at startup)
-    print("[MercadoPago][IMPORT_ERROR] Mercado Pago SDK no encontrado. Instala con: pip install mercado-pago")
+    logging.getLogger(__name__).warning("[MercadoPago] Mercado Pago SDK no encontrado. Instala con: pip install mercado-pago")
 except Exception as e:
     mercadopago = None
     MERCADOPAGO_AVAILABLE = False
     MERCADOPAGO_IMPORT_ERROR = str(e)
-    print(f"[MercadoPago][IMPORT_ERROR] Error al importar Mercado Pago: {MERCADOPAGO_IMPORT_ERROR}")
+    logging.getLogger(__name__).error("[MercadoPago] Error al importar Mercado Pago: %s", MERCADOPAGO_IMPORT_ERROR)
 
 # ============================================================
 # CONFIGURACIÓN DE LOGGING
@@ -156,8 +164,8 @@ def init_cloudinary():
             logger.info("Cloudinary configurado correctamente")
             CLOUDINARY_CONFIGURED = True
             return True
-        except Exception as e:
-            logger.error(f"Error configurando Cloudinary: {e}")
+        except Exception:
+            logger.exception("Error configurando Cloudinary")
             CLOUDINARY_CONFIGURED = False
             return False
     else:
@@ -181,7 +189,7 @@ def init_mercadopago():
     if not MERCADOPAGO_AVAILABLE:
         logger.warning("SDK de Mercado Pago no está instalado. Los pagos no funcionarán.")
         if MERCADOPAGO_IMPORT_ERROR:
-            logger.error(f"Mercado Pago import error: {MERCADOPAGO_IMPORT_ERROR}")
+            logger.error("Mercado Pago import error: %s", MERCADOPAGO_IMPORT_ERROR)
         return False
 
     # Buscar explícitamente las variables esperadas (sin alias cortos)
@@ -197,7 +205,7 @@ def init_mercadopago():
     # Mostrar vista previa segura (primeros 10 caracteres) para depuración en logs
     try:
         preview = access_token[:10]
-        logger.info(f"Mercado Pago access token preview: {preview}...")
+        logger.info("Mercado Pago access token preview: %s...", preview)
     except Exception:
         logger.debug("No se pudo generar preview del access token.")
 
@@ -208,8 +216,8 @@ def init_mercadopago():
         MERCADOPAGO_CLIENT = mercadopago.SDK(access_token)
         logger.info("Mercado Pago configurado correctamente (cliente inicializado).")
         return True
-    except Exception as e:
-        logger.error(f"Error configurando Mercado Pago: {e}")
+    except Exception:
+        logger.exception("Error configurando Mercado Pago")
         MERCADOPAGO_CLIENT = None
         return False
 
@@ -233,9 +241,12 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # Valores por defecto NUNCA deben ser 'localhost' en producción
 MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'MiMenudigital.mysql.pythonanywhere-services.com'
 MYSQL_USER = os.environ.get('MYSQL_USER') or 'MiMenudigital'
-MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or '19101810Aa'
+# Do not provide a default password in code. Require the hosting provider to set this securely.
+MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD')
+if not MYSQL_PASSWORD:
+    logger.warning('MYSQL_PASSWORD not set in environment; verify your deployment configuration')
 MYSQL_DB = os.environ.get('MYSQL_DB') or 'MiMenudigital$menu_digital'
-MYSQL_PORT = os.environ.get('MYSQL_PORT') or '3306'
+MYSQL_PORT = os.environ.get('MYSQL_PORT') or '3306' 
 
 app.config['MYSQL_HOST'] = MYSQL_HOST
 app.config['MYSQL_USER'] = MYSQL_USER
@@ -244,73 +255,27 @@ app.config['MYSQL_DB'] = MYSQL_DB
 app.config['MYSQL_PORT'] = int(MYSQL_PORT)
 app.config['MYSQL_CHARSET'] = 'utf8mb4'
 
-logger.info(f"Database config: {app.config['MYSQL_HOST']}:{app.config['MYSQL_PORT']}/{app.config['MYSQL_DB']}")
+logger.info("Database config: %s:%s/%s", app.config['MYSQL_HOST'], app.config['MYSQL_PORT'], app.config['MYSQL_DB'])
 
 # URL base
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 app.config['BASE_URL'] = BASE_URL
-logger.info(f"Base URL: {BASE_URL}")
+logger.info("Base URL: %s", BASE_URL)
 
 # ============================================================
-# FUNCIONES DE BASE DE DATOS
+# DATABASE - usar `database.py` centralizado
 # ============================================================
+# Importar las utilidades desde el módulo `database.py` y registrar teardown
+from database import init_app as db_init_app, get_db as db_get_db, get_cursor as db_get_cursor, execute_query as db_execute_query
 
-def get_db():
-    """
-    Obtiene una conexión a MySQL con reconexión automática.
-    Reutiliza la conexión existente si está activa.
-    """
-    if 'db' not in g:
-        try:
-            db_config = {
-                'host': app.config.get('MYSQL_HOST'),
-                'user': app.config.get('MYSQL_USER'),
-                'password': app.config.get('MYSQL_PASSWORD'),
-                'database': app.config.get('MYSQL_DB'),
-                'port': int(app.config.get('MYSQL_PORT', 3306)),
-                'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
-                'cursorclass': DictCursor,
-                'autocommit': False
-            }
-            g.db = pymysql.connect(**db_config)
-            logger.debug(f"New database connection created")
-        except pymysql.Error as e:
-            logger.error(f"Failed to connect to MySQL: {e}")
-            raise
-    else:
-        # Verificar si la conexión sigue activa
-        try:
-            g.db.ping(reconnect=True)
-        except pymysql.Error as e:
-            logger.warning(f"Lost database connection, reconnecting: {e}")
-            try:
-                db_config = {
-                    'host': app.config.get('MYSQL_HOST'),
-                    'user': app.config.get('MYSQL_USER'),
-                    'password': app.config.get('MYSQL_PASSWORD'),
-                    'database': app.config.get('MYSQL_DB'),
-                    'port': int(app.config.get('MYSQL_PORT', 3306)),
-                    'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
-                    'cursorclass': DictCursor,
-                    'autocommit': False
-                }
-                g.db = pymysql.connect(**db_config)
-            except pymysql.Error as e:
-                logger.error(f"Failed to reconnect to MySQL: {e}")
-                raise
-    return g.db
+# Registrar el teardown handler para cerrar conexiones (se delega a database.init_app)
+db_init_app(app)
+logger.info("Database module initialized via database.init_app")
 
-
-@app.teardown_appcontext
-def close_db(error=None):
-    """Cierra la conexión a la base de datos al terminar la request."""
-    db = g.pop('db', None)
-    if db is not None:
-        try:
-            db.close()
-            logger.debug("Database connection closed")
-        except Exception as e:
-            logger.warning(f"Error closing database: {e}")
+# Backwards compatibility: expose expected names used across the codebase
+get_db = db_get_db
+get_cursor = db_get_cursor
+execute_query = db_execute_query
 
 # ============================================================
 # FUNCIONES AUXILIARES DE SUSCRIPCIÓN
@@ -338,14 +303,13 @@ def get_subscription_info(restaurante_id):
             result = cur.fetchone()
             
             if not result:
-                logger.warning(f"Restaurant {restaurante_id} not found")
+                logger.warning("Restaurant %s not found", restaurante_id)
                 return None
             
             fecha_vencimiento = result.get('fecha_vencimiento')
             
             if not fecha_vencimiento:
-                logger.warning(f"No expiration date for restaurant {restaurante_id}")
-                return None
+                logger.warning("No expiration date for restaurant %s", restaurante_id)
             
             # Convertir a datetime si es string
             if isinstance(fecha_vencimiento, str):
@@ -373,7 +337,7 @@ def get_subscription_info(restaurante_id):
                 'fecha_vencimiento': fecha_vencimiento
             }
     except Exception as e:
-        logger.error(f"Error getting subscription info: {e}")
+        logger.exception("Error getting subscription info")
         return None
 
 
@@ -394,7 +358,7 @@ def inject_subscription_info():
         else:
             g.subscription_info = None
     except Exception as e:
-        logger.error(f"Error injecting subscription info: {e}")
+        logger.exception("Error injecting subscription info")
         g.subscription_info = None
 
 
@@ -430,7 +394,7 @@ def generar_qr_restaurante(url, filename):
     
     # No regenerar si ya existe
     if os.path.exists(qr_path):
-        logger.debug(f"QR already exists: {qr_path}")
+        logger.debug("QR already exists: %s", qr_path)
         return qr_path
     
     try:
@@ -440,13 +404,13 @@ def generar_qr_restaurante(url, filename):
         raise RuntimeError('QR generation unavailable: install qrcode[pil]') from e
 
     try:
-        logger.info(f"Generating QR code for: {url}")
+        logger.info("Generating QR code for: %s", url)
         img = qrcode.make(url)
         img.save(qr_path)
-        logger.info(f"QR code saved: {qr_path}")
+        logger.info("QR code saved: %s", qr_path)
         return qr_path
     except Exception as e:
-        logger.error(f'Failed to generate QR for {url}: {e}')
+        logger.error('Failed to generate QR for %s: %s', url, e)
         raise
 
 # ============================================================
@@ -456,7 +420,7 @@ def generar_qr_restaurante(url, filename):
 @app.errorhandler(403)
 def forbidden_error(error):
     """Maneja errores 403 (acceso denegado)."""
-    logger.warning(f"403 Forbidden error: {request.path}")
+    logger.warning("403 Forbidden error: %s", request.path)
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
     return render_template('error_publico.html', 
@@ -468,7 +432,7 @@ def forbidden_error(error):
 @app.errorhandler(500)
 def internal_error(error):
     """Maneja errores 500 (error interno del servidor)."""
-    logger.error(f"500 Internal Server Error: {traceback.format_exc()}")
+    logger.exception("500 Internal Server Error")
     if request.path.startswith('/api/'):
         return jsonify({
             'success': False, 
@@ -482,7 +446,7 @@ def internal_error(error):
 @app.errorhandler(404)
 def not_found_error(error):
     """Maneja errores 404 (no encontrado)."""
-    logger.debug(f"404 Not Found: {request.path}")
+    logger.debug("404 Not Found: %s", request.path)
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': 'Recurso no encontrado'}), 404
     return render_template('error_publico.html', 
@@ -493,7 +457,7 @@ def not_found_error(error):
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Maneja excepciones globales no controladas."""
-    logger.error(f"Unhandled exception: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+    logger.exception("Unhandled exception: %s", type(e).__name__) 
     if request.path.startswith('/api/'):
         return jsonify({
             'success': False, 
@@ -540,8 +504,8 @@ def inject_menu_url():
                 row = cur.fetchone()
                 if row and row['url_slug']:
                     menu_url = f"/menu/{row['url_slug']}"
-        except:
-            pass
+        except Exception as e:
+            logger.debug("Failed to inject menu_url: %s", e, exc_info=True)
     return {'menu_url_global': menu_url}
 
 
@@ -574,7 +538,7 @@ def restaurante_owner_required(f):
             if request.path.startswith('/api/'):
                 return jsonify({'error': 'Acceso denegado. Rol de solo lectura.'}), 403
             flash('No tienes permisos para modificar el menú', 'error')
-            logger.warning(f"Access denied for user {session.get('user_id')} with role 'consulta'")
+            logger.warning("Access denied for user %s with role 'consulta'", session.get('user_id'))
             return redirect(url_for('menu_gestion'))
         return f(*args, **kwargs)
     return decorated
@@ -591,7 +555,7 @@ def superadmin_required(f):
             if request.path.startswith('/api/'):
                 return jsonify({'error': 'Acceso denegado. Solo superadmin.'}), 403
             flash('No tienes permisos de superadministrador', 'error')
-            logger.warning(f"Superadmin access denied for user {session.get('user_id')} with role {session.get('rol')}")
+            logger.warning("Superadmin access denied for user %s with role %s", session.get('user_id'), session.get('rol'))
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
@@ -622,7 +586,7 @@ def verificar_suscripcion(f):
                             FROM restaurantes WHERE id = %s
                         ''', (restaurante_id,))
                     except pymysql.Error as e:
-                        logger.warning(f"No se pudo consultar fecha_vencimiento (BD posiblemente desactualizada): {e}")
+                        logger.warning("No se pudo consultar fecha_vencimiento (BD posiblemente desactualizada): %s", e)
                         # No bloquear la ejecución; permitir acceso y reintentar en la próxima request
                         return f(*args, **kwargs)
 
@@ -643,7 +607,7 @@ def verificar_suscripcion(f):
                                 ''', (fecha_vencimiento, restaurante_id))
                                 db.commit()
                             except pymysql.Error as e:
-                                logger.warning(f"No se pudo actualizar fecha_vencimiento (columna puede faltar): {e}")
+                                logger.warning("No se pudo actualizar fecha_vencimiento (columna puede faltar): %s", e)
                             return f(*args, **kwargs)
 
                         # Verificar si la suscripción expiró (manejar formatos de fecha inesperados)
@@ -653,16 +617,16 @@ def verificar_suscripcion(f):
                                 fecha_vencimiento = _dt.strptime(fecha_vencimiento, '%Y-%m-%d').date()
 
                             if date.today() > fecha_vencimiento:
-                                logger.warning(f"Suscripción expirada para restaurante {restaurante_id}")
+                                logger.warning("Suscripción expirada para restaurante %s", restaurante_id)
                                 flash('Tu período de prueba o suscripción ha terminado', 'warning')
                                 return redirect(url_for('gestion_pago_pendiente'))
                         except Exception as e:
-                            logger.warning(f"Formato de fecha_vencimiento inesperado: {e}")
+                            logger.warning("Formato de fecha_vencimiento inesperado: %s", e)
                             return f(*args, **kwargs)
 
                     return f(*args, **kwargs)
             except Exception as e:
-                logger.error(f"Error al verificar suscripción: {e}")
+                logger.error("Error al verificar suscripción: %s", e)
                 return f(*args, **kwargs)
         
         return f(*args, **kwargs)
@@ -725,14 +689,14 @@ def registrar_visita(restaurante_id, req):
             ))
             
             db.commit()
-            logger.debug(f"Visit registered for restaurant {restaurante_id} (mobile={es_movil}, qr={es_qr})")
+            logger.debug("Visit registered for restaurant %s (mobile=%s, qr=%s)", restaurante_id, es_movil, es_qr)
             
-    except Exception as e:
-        logger.error(f"Error registrando visita para restaurante {restaurante_id}: {e}")
+    except Exception:
+        logger.exception("Error registrando visita para restaurante %s", restaurante_id)
         try:
             db.rollback()
-        except:
-            pass
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed while registering visit for %s: %s", restaurante_id, rollback_err, exc_info=True)
 
 
 # ============================================================
@@ -821,7 +785,7 @@ def ver_menu_publico(url_slug):
                                    menu=list(menu_estructurado.values()))
 
     except Exception as e:
-        print(f"Error al cargar menú para {url_slug}: {e}")
+        logger.exception("Error al cargar menú para %s", url_slug)
         return render_template('error_publico.html'), 500
 
 
@@ -849,6 +813,8 @@ def login():
             if row:
                 user = dict_from_row(row)
                 if check_password_hash(user['password_hash'], password):
+                    # Prevent session fixation: clear existing session and set fresh values
+                    session.clear()
                     session['user_id'] = user['id']
                     session['username'] = user['username']
                     session['nombre'] = user['nombre']
@@ -917,7 +883,9 @@ def recuperar_contraseña():
                 reset_url = f"{BASE_URL}/resetear-contraseña/{token}"
                 
                 # En producción, enviar email. Por ahora mostramos el link en desarrollo
-                logger.info(f"Password reset requested for {email}. Token: {token}")
+                # Log email, but do not print full token
+                token_mask = (token[:6] + '...') if token else None
+                logger.info("Password reset requested for %s. Token masked: %s", email, token_mask)
                 
                 if os.environ.get('FLASK_ENV') == 'production':
                     # TODO: Implementar envío de email real
@@ -929,7 +897,7 @@ def recuperar_contraseña():
                 return render_template('recuperar_contraseña.html')
         
         except Exception as e:
-            logger.error(f"Error en recuperar_contraseña: {traceback.format_exc()}")
+            logger.exception("Error en recuperar_contraseña")
             flash('Error al procesar la solicitud', 'error')
     
     return render_template('recuperar_contraseña.html')
@@ -981,14 +949,14 @@ def resetear_contraseña(token):
                 
                 db.commit()
                 
-                logger.info(f"Password reset successfully for user {reset['usuario_id']}")
+                logger.info("Password reset successfully for user %s", reset['usuario_id'])
                 flash('Contraseña actualizada correctamente. Ya puedes iniciar sesión', 'success')
                 return redirect(url_for('login'))
             
             return render_template('resetear_contraseña.html', token=token, email=reset['email'])
     
     except Exception as e:
-        logger.error(f"Error en resetear_contraseña: {traceback.format_exc()}")
+        logger.error("Error en resetear_contraseña: %s", traceback.format_exc())
         flash('Error al procesar la solicitud', 'error')
         return redirect(url_for('login'))
 
@@ -1061,7 +1029,7 @@ def gestion_codigo_qr():
     try:
         generar_qr_restaurante(menu_url, qr_filename)
     except Exception as e:
-        logger.error(f"Error generando QR: {e}")
+        logger.error("Error generando QR: %s", e)
         qr_filename = None
     
     return render_template('gestion/codigo_qr.html', restaurante=restaurante, menu_url=menu_url, qr_filename=qr_filename)
@@ -1128,7 +1096,7 @@ def gestion_descargas():
         return render_template('gestion/descargas.html', restaurante=restaurante, menu=menu)
     
     except Exception as e:
-        logger.error(f"Error en gestion_descargas: {traceback.format_exc()}")
+        logger.exception("Error en gestion_descargas")
         flash('Error al cargar la página de descargas', 'error')
         return redirect(url_for('gestion_platos'))
 
@@ -1213,7 +1181,7 @@ def api_menu_pdf():
                     return response
                 
                 except Exception as e:
-                    logger.error(f"Error generando PDF con pdfkit: {traceback.format_exc()}")
+                    logger.exception("Error generando PDF con pdfkit")
                     return jsonify({'success': False, 'error': f'Error al generar PDF: {str(e)}'}), 500
             else:
                 # Fallback: devolver HTML para que el navegador lo convierta a PDF
@@ -1223,7 +1191,7 @@ def api_menu_pdf():
                 return response
     
     except Exception as e:
-        logger.error(f"Error en api_menu_pdf: {traceback.format_exc()}")
+        logger.error("Error en api_menu_pdf: %s", traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1260,11 +1228,13 @@ def api_crear_preferencia_pago():
             init_ok = init_mercadopago()
             if not init_ok or not MERCADOPAGO_CLIENT:
                 # Log detallado de las variables de entorno que ve Python para depuración
-                logger.error(f"Falla de config. MP_PUBLIC_KEY: {os.environ.get('MERCADO_PAGO_PUBLIC_KEY')}")
-                logger.error(f"MERCADOPAGO_AVAILABLE={MERCADOPAGO_AVAILABLE}, MERCADOPAGO_CLIENT={MERCADOPAGO_CLIENT}, MERCADOPAGO_IMPORT_ERROR={MERCADOPAGO_IMPORT_ERROR}")
+                mp_pub = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
+                mp_pub_preview = (mp_pub[:6] + '...') if mp_pub else None
+                logger.error("Falla de config. MP_PUBLIC_KEY preview: %s", mp_pub_preview)
+                logger.error("MercadoPago config: available=%s, client_present=%s, import_error=%s", MERCADOPAGO_AVAILABLE, bool(MERCADOPAGO_CLIENT), MERCADOPAGO_IMPORT_ERROR)
                 return jsonify({'success': False, 'error': 'Mercado Pago no está configurado', 'mp_public_key': os.environ.get('MERCADO_PAGO_PUBLIC_KEY')}), 500
         except Exception as e:
-            logger.error(f"Error re-inicializando Mercado Pago: {e}\n{traceback.format_exc()}")
+            logger.exception("Error re-inicializando Mercado Pago: %s", e)
             return jsonify({'success': False, 'error': 'Error al inicializar Mercado Pago'}), 500
     
     try:
@@ -1333,7 +1303,7 @@ def api_crear_preferencia_pago():
                 """, (preference.get('id'), restaurante_id))
                 db.commit()
             
-            logger.info(f"Preferencia de pago creada para restaurante {restaurante_id}: {preference.get('id')}")
+            logger.info("Preferencia de pago creada para restaurante %s: %s", restaurante_id, preference.get('id'))
             
             return jsonify({
                 'success': True,
@@ -1342,11 +1312,11 @@ def api_crear_preferencia_pago():
             })
         else:
             error_msg = response.get('response', {}).get('message', 'Error desconocido')
-            logger.error(f"Error creando preferencia: {error_msg}")
+            logger.error("Error creando preferencia: %s", error_msg)
             return jsonify({'success': False, 'error': error_msg}), 500
     
     except Exception as e:
-        logger.error(f"Error en api_crear_preferencia_pago: {traceback.format_exc()}")
+        logger.error("Error en api_crear_preferencia_pago: %s", traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1358,20 +1328,20 @@ def webhook_mercado_pago():
         
         # Validar que sea una notificación de pago
         if not data or 'data' not in data:
-            logger.warning(f"Webhook recibido sin datos de pago: {data}")
+            logger.warning("Webhook recibido sin datos de pago: %s", data)
             return jsonify({'status': 'ignored'}), 200
         
         payment_id = data['data'].get('id')
         
         if not payment_id:
-            logger.warning(f"Webhook sin payment_id: {data}")
+            logger.warning("Webhook sin payment_id: %s", data)
             return jsonify({'status': 'ignored'}), 200
         
         # Obtener detalles del pago desde Mercado Pago
         payment_info = MERCADOPAGO_CLIENT.payment().get(payment_id)
         
         if payment_info.get('status') != 200:
-            logger.error(f"Error obteniendo pago {payment_id}: {payment_info}")
+            logger.error("Error obteniendo pago %s: %s", payment_id, payment_info)
             return jsonify({'status': 'error'}), 500
         
         payment = payment_info.get('response', {})
@@ -1380,13 +1350,13 @@ def webhook_mercado_pago():
         
         # Extraer restaurante_id de external_reference (formato: rest_RESTAURANTE_ID_TIMESTAMP)
         if not external_reference.startswith('rest_'):
-            logger.warning(f"External reference inválido: {external_reference}")
+            logger.warning("External reference inválido: %s", external_reference)
             return jsonify({'status': 'ignored'}), 200
         
         try:
             restaurante_id = int(external_reference.split('_')[1])
         except (IndexError, ValueError):
-            logger.error(f"No se pudo extraer restaurante_id de: {external_reference}")
+            logger.error("No se pudo extraer restaurante_id de: %s", external_reference)
             return jsonify({'status': 'error'}), 500
         
         # Procesar según estado del pago
@@ -1425,18 +1395,18 @@ def webhook_mercado_pago():
                 """, (nueva_fecha, payment_id, restaurante_id))
                 db.commit()
             
-            logger.info(f"Pago aprobado para restaurante {restaurante_id}. Suscripción extendida hasta {nueva_fecha}")
+            logger.info("Pago aprobado para restaurante %s. Suscripción extendida hasta %s", restaurante_id, nueva_fecha)
         
         elif payment_status == 'pending':
-            logger.info(f"Pago pendiente para restaurante {restaurante_id}: {payment_id}")
+            logger.info("Pago pendiente para restaurante %s: %s", restaurante_id, payment_id)
         
         elif payment_status == 'rejected':
-            logger.warning(f"Pago rechazado para restaurante {restaurante_id}: {payment_id}")
+            logger.warning("Pago rechazado para restaurante %s: %s", restaurante_id, payment_id)
         
         return jsonify({'status': 'success'}), 200
     
     except Exception as e:
-        logger.error(f"Error en webhook_mercado_pago: {traceback.format_exc()}")
+        logger.error("Error en webhook_mercado_pago: %s", traceback.format_exc())
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 
@@ -1507,7 +1477,7 @@ def api_platos():
                             )
                             imagen_url = result['secure_url']
                         except Exception as e:
-                            logger.error(f"Error subiendo imagen a Cloudinary: {traceback.format_exc()}")
+                            logger.error("Error subiendo imagen a Cloudinary: %s", traceback.format_exc())
                             return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
                 
                 cur.execute('''
@@ -1538,9 +1508,9 @@ def api_platos():
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_platos: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_platos: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_platos")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1587,7 +1557,7 @@ def api_plato(plato_id):
                             )
                             imagen_url = result['secure_url']
                         except Exception as e:
-                            logger.error(f"Error subiendo imagen a Cloudinary: {traceback.format_exc()}")
+                            logger.error("Error subiendo imagen a Cloudinary: %s", traceback.format_exc())
                             return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
                 
                 cur.execute('''
@@ -1628,9 +1598,9 @@ def api_plato(plato_id):
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_plato: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_plato: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_plato")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1676,9 +1646,9 @@ def api_categorias():
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_categorias: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_categorias: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_categorias")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1729,9 +1699,9 @@ def api_categoria(categoria_id):
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_categoria: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_categoria: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_categoria")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1788,9 +1758,9 @@ def api_mi_restaurante():
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_mi_restaurante: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_mi_restaurante: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_mi_restaurante")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1821,9 +1791,9 @@ def api_actualizar_tema():
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_actualizar_tema: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_actualizar_tema: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_actualizar_tema")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1862,11 +1832,11 @@ def api_subir_logo():
                            (logo_url, session['restaurante_id']))
                 db.commit()
             
-            logger.info(f"Logo subido a Cloudinary para restaurante {session['restaurante_id']}")
+            logger.info("Logo subido a Cloudinary para restaurante %s", session['restaurante_id'])
             return jsonify({'success': True, 'logo_url': logo_url})
         
         except Exception as e:
-            logger.error(f"Error subiendo logo a Cloudinary: {traceback.format_exc()}")
+            logger.exception("Error subiendo logo a Cloudinary")
             return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
     
     return jsonify({'success': False, 'error': 'Tipo de archivo no permitido'}), 400
@@ -2103,14 +2073,14 @@ def api_restaurantes():
                     fecha_vencimiento
                 ))
                 db.commit()
-                logger.info(f"Nuevo restaurante creado: {data['nombre']} con vencimiento {fecha_vencimiento}")
+                logger.info("Nuevo restaurante creado: %s con vencimiento %s", data['nombre'], fecha_vencimiento)
                 return jsonify({'success': True, 'id': cur.lastrowid})
 
     except pymysql.IntegrityError as e:
         try:
             db.rollback()
-        except:
-            pass
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_restaurantes (IntegrityError): %s", rollback_err, exc_info=True)
         error_msg = str(e)
         if 'Duplicate' in error_msg or 'duplicate' in error_msg.lower():
             return jsonify({'success': False, 'error': 'El URL slug ya existe'}), 400
@@ -2120,9 +2090,9 @@ def api_restaurantes():
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_restaurantes: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_restaurantes: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_restaurantes")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -2169,9 +2139,9 @@ def api_restaurante(rest_id):
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_restaurante: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_restaurante: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_restaurante")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -2236,9 +2206,9 @@ def api_usuarios():
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_usuarios: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_usuarios: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_usuarios")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -2313,9 +2283,9 @@ def api_usuario(user_id):
     except Exception as e:
         try:
             db.rollback()
-        except:
-            pass
-        logger.error(f"Error en api_usuario: {traceback.format_exc()}")
+        except Exception as rollback_err:
+            logger.warning("DB rollback failed in api_usuario: %s", rollback_err, exc_info=True)
+        logger.exception("Error en api_usuario")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -2389,8 +2359,8 @@ def init_db_route():
         })
         
     except Exception as e:
-        logger.error(f"Error en init-db: {traceback.format_exc()}")
-        return jsonify({'success': False, 'error': str(e), 'traceback': traceback.format_exc()}), 500
+        logger.exception("Error en init-db")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ============================================================
@@ -2448,13 +2418,13 @@ def uploaded_file(filename):
 # ============================================================
 
 if __name__ == '__main__':
-    print("=" * 50)
-    print("🍽️  MENÚ DIGITAL SAAS - Divergent Studio")
-    print("=" * 50)
-    print(f"📦 MySQL: {app.config.get('MYSQL_HOST')}:{app.config.get('MYSQL_PORT')}/{app.config.get('MYSQL_DB')}")
-    print(f"🌐 Servidor: http://127.0.0.1:5000")
-    print("=" * 50)
-    print("⚠️  Antes de usar, ejecuta: GET /api/init-db")
-    print("=" * 50)
+    logger.info("%s", "=" * 50)
+    logger.info("🍽️  MENÚ DIGITAL SAAS - Divergent Studio")
+    logger.info("%s", "=" * 50)
+    logger.info("MySQL: %s:%s/%s", app.config.get('MYSQL_HOST'), app.config.get('MYSQL_PORT'), app.config.get('MYSQL_DB'))
+    logger.info("Servidor: http://127.0.0.1:5000")
+    logger.info("%s", "=" * 50)
+    logger.info("⚠️  Antes de usar, ejecuta: GET /api/init-db")
+    logger.info("%s", "=" * 50)
     
     app.run(host='0.0.0.0', port=5000, debug=True)

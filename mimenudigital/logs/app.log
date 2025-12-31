@@ -1,0 +1,10 @@
+2025-12-31 18:37:33 | INFO     | app_menu | <module>:115 | ============================================================
+2025-12-31 18:37:33 | INFO     | app_menu | <module>:116 | Iniciando aplicación Menu Digital
+2025-12-31 18:37:33 | INFO     | app_menu | <module>:117 | ============================================================
+2025-12-31 18:37:33 | WARNING  | app_menu | init_cloudinary:172 | CLOUDINARY_URL no está configurada en las variables de entorno.
+2025-12-31 18:37:33 | WARNING  | app_menu | init_mercadopago:190 | SDK de Mercado Pago no está instalado. Los pagos no funcionarán.
+2025-12-31 18:37:33 | ERROR    | app_menu | init_mercadopago:192 | Mercado Pago import error: No module named 'mercadopago'
+2025-12-31 18:37:33 | WARNING  | app_menu | <module>:247 | MYSQL_PASSWORD not set in environment; verify your deployment configuration
+2025-12-31 18:37:33 | INFO     | app_menu | <module>:258 | Database config: MiMenudigital.mysql.pythonanywhere-services.com:3306/MiMenudigital$menu_digital
+2025-12-31 18:37:33 | INFO     | app_menu | <module>:263 | Base URL: http://localhost:5000
+2025-12-31 18:37:33 | INFO     | app_menu | <module>:273 | Database module initialized via database.init_app

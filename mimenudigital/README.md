@@ -128,6 +128,9 @@ pip install -r requirements.txt
 3. Selecciona Python 3.10
 
 4. **Configurar WSGI** (editar `/var/www/tuusuario_pythonanywhere_com_wsgi.py`):
+
+> Nota: **NO** pongas secrets (contraseñas, tokens) directamente en el archivo WSGI. En PythonAnywhere usa *Web -> Environment variables* para configurar `SECRET_KEY`, `MYSQL_PASSWORD`, etc.
+
 ```python
 import sys
 import os
@@ -137,19 +140,13 @@ project_home = '/home/tuusuario/menu-digital'
 if project_home not in sys.path:
     sys.path.insert(0, project_home)
 
-# Variables de entorno
-os.environ['FLASK_ENV'] = 'production'
-os.environ['SECRET_KEY'] = 'tu_clave_secreta_muy_segura_y_larga_2025'
-os.environ['MYSQL_HOST'] = 'tuusuario.mysql.pythonanywhere-services.com'
-os.environ['MYSQL_USER'] = 'tuusuario'
-os.environ['MYSQL_PASSWORD'] = 'tu_password_mysql'
-os.environ['MYSQL_DB'] = 'tuusuario$menu_digital'
-os.environ['BASE_URL'] = 'https://tuusuario.pythonanywhere.com'
+# Asegúrate de configurar variables sensibles en Web -> Environment variables
+os.environ.setdefault('FLASK_ENV', 'production')
+# NO establecer SECRET_KEY o MYSQL_PASSWORD aquí en el repo
 
 # Importar la app
 from app_menu_mysql import app as application
 ```
-
 5. **Configurar Virtual Environment**:
    - En la sección "Virtualenv", poner: `/home/tuusuario/menu-digital/venv`
 
