@@ -152,12 +152,18 @@ def init_cloudinary():
     """
     Inicializa la configuración de Cloudinary.
     Se llama después de que Flask está completamente cargado.
-    Maneja elegantemente el caso donde CLOUDINARY_URL no esté configurada.
+    Requiere la librería `cloudinary` y la variable de entorno `CLOUDINARY_URL`.
     """
     global CLOUDINARY_CONFIGURED
-    
+
+    # Verificar primero que el SDK esté disponible
+    if not CLOUDINARY_AVAILABLE:
+        logger.warning("Cloudinary SDK no está instalado. Instala con: pip install cloudinary")
+        CLOUDINARY_CONFIGURED = False
+        return False
+
     cloudinary_url = os.environ.get('CLOUDINARY_URL')
-    
+
     if cloudinary_url:
         try:
             cloudinary.config_from_url(cloudinary_url)
@@ -169,7 +175,7 @@ def init_cloudinary():
             CLOUDINARY_CONFIGURED = False
             return False
     else:
-        logger.warning("CLOUDINARY_URL no está configurada en las variables de entorno.")
+        logger.warning("CLOUDINARY_URL no está configurada en las variables de entorno. Establece CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>")
         CLOUDINARY_CONFIGURED = False
         return False
 
@@ -232,6 +238,11 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB máximo
 
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+# Upload folder (local fallback when Cloudinary is not configured)
+UPLOAD_FOLDER = os.path.join(base_dir, 'static', 'uploads')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # ============================================================
 # CONFIGURACIÓN DE BASE DE DATOS
@@ -1630,6 +1641,57 @@ def api_platos():
         except Exception as rollback_err:
             logger.warning("DB rollback failed in api_platos: %s", rollback_err, exc_info=True)
         logger.exception("Error en api_platos")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/upload-image', methods=['POST'])
+@login_required
+@restaurante_owner_required
+def api_upload_image():
+    """API para subir imágenes de platos (sube a Cloudinary). Requiere Cloudinary configurado."""
+    try:
+        # Requisitos previos: SDK presente y CLOUDINARY_URL configurada
+        if not CLOUDINARY_AVAILABLE:
+            logger.error('Cloudinary SDK no instalado. Instalalo con: pip install cloudinary')
+            return jsonify({'success': False, 'error': 'Cloudinary SDK no está instalado. Ejecuta: pip install cloudinary'}), 500
+        if not CLOUDINARY_CONFIGURED:
+            logger.error('Cloudinary no configurado (CLOUDINARY_URL no encontrado).')
+            return jsonify({'success': False, 'error': 'Cloudinary no está configurado. Añade la variable de entorno CLOUDINARY_URL'}), 500
+
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No se envió ninguna imagen'}), 400
+
+        file = request.files['image']
+
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No se seleccionó ningún archivo'}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': 'Tipo de archivo no permitido. Usa: PNG, JPG, JPEG, GIF o WEBP'}), 400
+
+        if request.content_length and request.content_length > app.config.get('MAX_CONTENT_LENGTH', MAX_CONTENT_LENGTH):
+            return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 400
+
+        # Subir a Cloudinary
+        try:
+            restaurante_id = session.get('restaurante_id') or 'anon'
+            result = cloudinary_upload(
+                file,
+                folder=f"mimenudigital/platos/{restaurante_id}",
+                quality="auto",
+                fetch_format="auto",
+                resource_type="auto"
+            )
+            url = result.get('secure_url') or result.get('url')
+            if not url:
+                raise Exception('Cloudinary no retornó URL')
+            return jsonify({'success': True, 'message': 'Imagen subida correctamente', 'url': url})
+        except Exception as e:
+            logger.exception("Error subiendo imagen a Cloudinary")
+            return jsonify({'success': False, 'error': f'Error al subir imagen a Cloudinary: {str(e)}'}), 500
+
+    except Exception as e:
+        logger.exception("Error en api_upload_image")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
