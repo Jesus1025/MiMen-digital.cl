@@ -8,3 +8,42 @@
 2025-12-31 18:37:33 | INFO     | app_menu | <module>:258 | Database config: MiMenudigital.mysql.pythonanywhere-services.com:3306/MiMenudigital$menu_digital
 2025-12-31 18:37:33 | INFO     | app_menu | <module>:263 | Base URL: http://localhost:5000
 2025-12-31 18:37:33 | INFO     | app_menu | <module>:273 | Database module initialized via database.init_app
+2025-12-31 18:55:24 | INFO     | app_menu | <module>:115 | ============================================================
+2025-12-31 18:55:24 | INFO     | app_menu | <module>:116 | Iniciando aplicación Menu Digital
+2025-12-31 18:55:24 | INFO     | app_menu | <module>:117 | ============================================================
+2025-12-31 18:55:24 | WARNING  | app_menu | init_cloudinary:172 | CLOUDINARY_URL no está configurada en las variables de entorno.
+2025-12-31 18:55:24 | WARNING  | app_menu | init_mercadopago:190 | SDK de Mercado Pago no está instalado. Los pagos no funcionarán.
+2025-12-31 18:55:24 | ERROR    | app_menu | init_mercadopago:192 | Mercado Pago import error: No module named 'mercadopago'
+2025-12-31 18:55:24 | WARNING  | app_menu | <module>:247 | MYSQL_PASSWORD not set in environment; verify your deployment configuration
+2025-12-31 18:55:24 | INFO     | app_menu | <module>:258 | Database config: MiMenudigital.mysql.pythonanywhere-services.com:3306/MiMenudigital$menu_digital
+2025-12-31 18:55:24 | INFO     | app_menu | <module>:263 | Base URL: http://localhost:5000
+2025-12-31 18:55:24 | WARNING  | app_menu | enforce_required_envs:286 | SECRET_KEY not set; use a strong secret in production
+2025-12-31 18:55:24 | WARNING  | app_menu | enforce_required_envs:288 | MYSQL_PASSWORD not set; ensure DB credentials are configured
+2025-12-31 18:55:24 | INFO     | app_menu | <module>:303 | CSRF protection enabled via Flask-WTF
+2025-12-31 18:55:24 | INFO     | app_menu | <module>:345 | Database module initialized via database.init_app
+2025-12-31 19:21:33 | INFO     | app_menu | <module>:115 | ============================================================
+2025-12-31 19:21:33 | INFO     | app_menu | <module>:116 | Iniciando aplicación Menu Digital
+2025-12-31 19:21:33 | INFO     | app_menu | <module>:117 | ============================================================
+2025-12-31 19:21:33 | WARNING  | app_menu | init_cloudinary:172 | CLOUDINARY_URL no está configurada en las variables de entorno.
+2025-12-31 19:21:33 | WARNING  | app_menu | init_mercadopago:190 | SDK de Mercado Pago no está instalado. Los pagos no funcionarán.
+2025-12-31 19:21:33 | ERROR    | app_menu | init_mercadopago:192 | Mercado Pago import error: No module named 'mercadopago'
+2025-12-31 19:21:33 | WARNING  | app_menu | <module>:247 | MYSQL_PASSWORD not set in environment; verify your deployment configuration
+2025-12-31 19:21:33 | INFO     | app_menu | <module>:258 | Database config: MiMenudigital.mysql.pythonanywhere-services.com:3306/MiMenudigital$menu_digital
+2025-12-31 19:21:33 | INFO     | app_menu | <module>:263 | Base URL: http://localhost:5000
+2025-12-31 19:21:33 | WARNING  | app_menu | enforce_required_envs:286 | SECRET_KEY not set; use a strong secret in production
+2025-12-31 19:21:33 | WARNING  | app_menu | enforce_required_envs:288 | MYSQL_PASSWORD not set; ensure DB credentials are configured
+2025-12-31 19:21:33 | INFO     | app_menu | <module>:303 | CSRF protection enabled via Flask-WTF
+2025-12-31 19:21:33 | INFO     | app_menu | <module>:345 | Database module initialized via database.init_app
+2025-12-31 19:27:16 | INFO     | app_menu | <module>:115 | ============================================================
+2025-12-31 19:27:16 | INFO     | app_menu | <module>:116 | Iniciando aplicación Menu Digital
+2025-12-31 19:27:16 | INFO     | app_menu | <module>:117 | ============================================================
+2025-12-31 19:27:16 | WARNING  | app_menu | init_cloudinary:172 | CLOUDINARY_URL no está configurada en las variables de entorno.
+2025-12-31 19:27:16 | WARNING  | app_menu | init_mercadopago:190 | SDK de Mercado Pago no está instalado. Los pagos no funcionarán.
+2025-12-31 19:27:16 | ERROR    | app_menu | init_mercadopago:192 | Mercado Pago import error: No module named 'mercadopago'
+2025-12-31 19:27:16 | WARNING  | app_menu | <module>:247 | MYSQL_PASSWORD not set in environment; verify your deployment configuration
+2025-12-31 19:27:16 | INFO     | app_menu | <module>:258 | Database config: MiMenudigital.mysql.pythonanywhere-services.com:3306/MiMenudigital$menu_digital
+2025-12-31 19:27:16 | INFO     | app_menu | <module>:263 | Base URL: http://localhost:5000
+2025-12-31 19:27:16 | WARNING  | app_menu | enforce_required_envs:286 | SECRET_KEY not set; use a strong secret in production
+2025-12-31 19:27:16 | WARNING  | app_menu | enforce_required_envs:288 | MYSQL_PASSWORD not set; ensure DB credentials are configured
+2025-12-31 19:27:16 | INFO     | app_menu | <module>:303 | CSRF protection enabled via Flask-WTF
+2025-12-31 19:27:16 | INFO     | app_menu | <module>:345 | Database module initialized via database.init_app
