@@ -118,6 +118,18 @@ pip install -r requirements.txt
    - Password: (el que elijas)
    - Database: `tuusuario$menu_digital`
 
+### Paso 5: Checklist de producción rápida (P0)
+Antes de poner la aplicación en producción, asegúrate de:
+- Establecer variables de entorno en Web -> Environment variables:
+  - `SECRET_KEY`, `MYSQL_PASSWORD`, `BASE_URL`
+  - Opcional: `SENTRY_DSN` (Sentry), `MERCADO_WEBHOOK_KEY` (webhook signature), `CLOUDINARY_URL`
+- Instalar paquetes recomendados para producción (en tu virtualenv):
+  - `pip install Flask-WTF sentry-sdk`
+- Asegurar que `wkhtmltopdf` está disponible si usas PDFs (pdfkit)
+- Configurar backups: usa `scripts/backup_mysql.sh` en un cron o tarea programada y, opcionalmente, sube a S3
+- Recargar la aplicación desde el panel Web después de cambiar env vars
+
+
 4. Inicializa el schema:
    - Abre la consola MySQL desde el dashboard
    - Copia y pega el contenido de `schema.sql`

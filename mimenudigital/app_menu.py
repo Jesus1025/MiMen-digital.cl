@@ -263,6 +263,78 @@ app.config['BASE_URL'] = BASE_URL
 logger.info("Base URL: %s", BASE_URL)
 
 # ============================================================
+# SECURITY & PRODUCTION CHECKS
+# ============================================================
+
+def enforce_required_envs():
+    """Enforce presence of critical environment variables in production.
+    This raises only when FLASK_ENV == 'production' to avoid breaking local/dev.
+    """
+    missing = []
+    if os.environ.get('FLASK_ENV') == 'production':
+        if not os.environ.get('SECRET_KEY'):
+            missing.append('SECRET_KEY')
+        if not os.environ.get('MYSQL_PASSWORD'):
+            missing.append('MYSQL_PASSWORD')
+    if missing:
+        msg = f"Missing required env vars in production: {', '.join(missing)}"
+        logger.error(msg)
+        raise RuntimeError(msg)
+    else:
+        # Warn in non-production environments so devs notice
+        if not os.environ.get('SECRET_KEY'):
+            logger.warning('SECRET_KEY not set; use a strong secret in production')
+        if not os.environ.get('MYSQL_PASSWORD'):
+            logger.warning('MYSQL_PASSWORD not set; ensure DB credentials are configured')
+
+# Run checks early (will raise only in production)
+enforce_required_envs()
+
+# Secure session cookie settings (only enforce secure cookies in production)
+app.config['SESSION_COOKIE_SECURE'] = True if os.environ.get('FLASK_ENV') == 'production' else False
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Optional: enable CSRF via Flask-WTF if available
+try:
+    from flask_wtf.csrf import CSRFProtect
+    csrf = CSRFProtect()
+    csrf.init_app(app)
+    logger.info('CSRF protection enabled via Flask-WTF')
+except Exception as e:
+    logger.warning('Flask-WTF not available; CSRF protection not enabled: %s', e)
+
+# Optional: integrate Sentry if SENTRY_DSN present
+if os.environ.get('SENTRY_DSN'):
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        sentry_sdk.init(
+            dsn=os.environ.get('SENTRY_DSN'),
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLERATE', 0.0))
+        )
+        logger.info('Sentry initialized')
+    except Exception as e:
+        logger.warning('Sentry SDK not available or failed to init: %s', e)
+
+# Enforce HTTPS in production (respecting proxy headers)
+@app.before_request
+def enforce_https_in_production():
+    if os.environ.get('FLASK_ENV') == 'production':
+        proto = request.headers.get('X-Forwarded-Proto', request.scheme)
+        if proto != 'https':
+            # Only redirect GET requests to avoid breaking POSTs
+            if request.method == 'GET':
+                url = request.url.replace('http://', 'https://', 1)
+                return redirect(url, code=301)
+
+# Mercado Pago webhook verification hint (verify if key present)
+MERCADO_WEBHOOK_KEY = os.environ.get('MERCADO_WEBHOOK_KEY') or os.environ.get('MERCADO_CLIENT_SECRET')
+if MERCADO_WEBHOOK_KEY:
+    logger.info('Mercado Pago webhook verification is enabled (signature header will be verified if provided)')
+
+# ============================================================
 # DATABASE - usar `database.py` centralizado
 # ============================================================
 # Importar las utilidades desde el módulo `database.py` y registrar teardown
@@ -1159,29 +1231,60 @@ def api_menu_pdf():
             # Generar PDF usando pdfkit
             if PDFKIT_AVAILABLE:
                 try:
-                    pdf_content = pdfkit.from_string(
-                        html_content,
-                        False,
-                        options={
-                            'page-size': 'A4',
-                            'margin-top': '0.5in',
-                            'margin-right': '0.5in',
-                            'margin-bottom': '0.5in',
-                            'margin-left': '0.5in',
-                            'encoding': "UTF-8",
-                            'no-outline': None,
-                            'enable-local-file-access': None,
-                        }
-                    )
-                    
+                    # Opciones mejoradas para formato de impresión
+                    options = {
+                        'page-size': 'A4',
+                        'margin-top': '0.7in',
+                        'margin-right': '0.5in',
+                        'margin-bottom': '0.9in',
+                        'margin-left': '0.5in',
+                        'encoding': 'UTF-8',
+                        'no-outline': None,
+                        'enable-local-file-access': None,
+                        'print-media-type': None,
+                        'disable-smart-shrinking': None,
+                        'zoom': '1.0',
+
+                        # Header / Footer
+                        'header-left': restaurante.get('nombre', '')[:60],
+                        'header-font-size': '11',
+                        'header-spacing': '5',
+                        'footer-center': 'Página [page] de [toPage]',
+                        'footer-font-size': '9',
+                        'footer-right': 'Divergent Studio'
+                    }
+
+                    # Detectar wkhtmltopdf binario sugerido via env var (opcional)
+                    wk_cmd = os.environ.get('WKHTMLTOPDF_CMD')
+                    pdf_config = None
+                    if wk_cmd:
+                        try:
+                            pdf_config = pdfkit.configuration(wkhtmltopdf=wk_cmd)
+                        except Exception as e:
+                            logger.warning('WKHTMLTOPDF_CMD set but pdfkit.configuration failed: %s', e)
+
+                    # Intentar cargar CSS desde static si existe (mejor control de impresión)
+                    css_path = os.path.join(base_dir, 'static', 'css', 'menu_pdf.css')
+                    css_to_use = css_path if os.path.exists(css_path) else None
+
+                    if pdf_config:
+                        pdf_content = pdfkit.from_string(html_content, False, options=options, configuration=pdf_config, css=css_to_use)
+                    else:
+                        pdf_content = pdfkit.from_string(html_content, False, options=options, css=css_to_use)
+
+                    # Crear nombre seguro para el archivo
+                    import re
+                    safe_name = re.sub(r'[^A-Za-z0-9_-]+', '_', restaurante.get('nombre', 'menu')).strip('_')
+                    filename = f'menu_{safe_name}.pdf'
+
                     # Crear respuesta con el PDF
                     response = make_response(pdf_content)
                     response.headers['Content-Type'] = 'application/pdf'
-                    response.headers['Content-Disposition'] = f'attachment; filename="menu_{restaurante["nombre"].replace(" ", "_")}.pdf"'
+                    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
                     return response
-                
+
                 except Exception as e:
-                    logger.exception("Error generando PDF con pdfkit")
+                    logger.exception('Error generando PDF con pdfkit')
                     return jsonify({'success': False, 'error': f'Error al generar PDF: {str(e)}'}), 500
             else:
                 # Fallback: devolver HTML para que el navegador lo convierta a PDF
@@ -1324,6 +1427,22 @@ def api_crear_preferencia_pago():
 def webhook_mercado_pago():
     """Webhook para recibir notificaciones de Mercado Pago."""
     try:
+        # Si está configurado, verificar firma HMAC-SHA256 (cabecera: X-Hub-Signature-256 o X-Mercadopago-Signature)
+        webhook_key = os.environ.get('MERCADO_WEBHOOK_KEY') or os.environ.get('MERCADO_CLIENT_SECRET')
+        signature_header = request.headers.get('X-Hub-Signature-256') or request.headers.get('X-Hub-Signature') or request.headers.get('X-Mercadopago-Signature')
+        if webhook_key and signature_header:
+            try:
+                import hmac, hashlib
+                payload = request.get_data()
+                expected = hmac.new(webhook_key.encode(), payload, hashlib.sha256).hexdigest()
+                sig = signature_header.split('=', 1)[1] if '=' in signature_header else signature_header
+                if not hmac.compare_digest(expected, sig):
+                    logger.warning('Invalid Mercado Pago webhook signature')
+                    return jsonify({'status': 'invalid_signature'}), 401
+            except Exception as e:
+                logger.warning('Error verificando firma de webhook: %s', e)
+                return jsonify({'status': 'error', 'error': 'signature_verification_failed'}), 400
+
         data = request.get_json() or request.form.to_dict()
         
         # Validar que sea una notificación de pago
