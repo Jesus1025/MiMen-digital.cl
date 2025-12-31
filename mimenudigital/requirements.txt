@@ -19,6 +19,9 @@ qrcode[pil]>=7.4.0,<8.0.0
 # PDF generation (HTML to PDF conversion)
 pdfkit>=1.0.0,<2.0.0
 
+# Image hosting (Cloudinary)
+cloudinary>=1.32.0
+
 # Payment Gateway (Mercado Pago)
 mercado-pago>=2.0.0,<3.0.0
 
