@@ -292,21 +292,21 @@
             
             <div class="form-group">
                 <label class="form-label">
-                    <input type="checkbox" id="mostrarPrecios" checked>
+                    <input type="checkbox" id="mostrarPrecios" {% if restaurante.mostrar_precios in (1, '1', True) %}checked{% endif %}>
                     Mostrar precios
                 </label>
             </div>
             
             <div class="form-group">
                 <label class="form-label">
-                    <input type="checkbox" id="mostrarDescripciones" checked>
+                    <input type="checkbox" id="mostrarDescripciones" {% if restaurante.mostrar_descripciones in (1, '1', True) %}checked{% endif %}>
                     Mostrar descripciones
                 </label>
             </div>
             
             <div class="form-group">
                 <label class="form-label">
-                    <input type="checkbox" id="mostrarImagenes" checked>
+                    <input type="checkbox" id="mostrarImagenes" {% if restaurante.mostrar_imagenes in (1, '1', True) %}checked{% endif %}>
                     Mostrar imágenes de platos
                 </label>
             </div>

@@ -1724,6 +1724,59 @@ def api_plato(plato_id):
 
 
 # ============================================================
+# API - APARIENCIA DEL RESTAURANTE
+# ============================================================
+
+@app.route('/api/mi-restaurante/apariencia', methods=['PUT'])
+@login_required
+@restaurante_owner_required
+def api_apariencia():
+    """API para actualizar la apariencia/tema del menú."""
+    db = get_db()
+    restaurante_id = session.get('restaurante_id')
+    if not restaurante_id:
+        return jsonify({'success': False, 'error': 'Restaurante no seleccionado'}), 400
+
+    try:
+        data = request.get_json() or {}
+        tema = data.get('tema', 'calido')
+        mostrar_precios = 1 if data.get('mostrar_precios', True) else 0
+        mostrar_descripciones = 1 if data.get('mostrar_descripciones', True) else 0
+        mostrar_imagenes = 1 if data.get('mostrar_imagenes', True) else 0
+
+        with db.cursor() as cur:
+            # Confirmar que el restaurante existe y pertenece al session
+            cur.execute("SELECT id FROM restaurantes WHERE id = %s", (restaurante_id,))
+            if not cur.fetchone():
+                logger.warning('Attempt to update appearance for missing restaurant id: %s', restaurante_id)
+                return jsonify({'success': False, 'error': 'Restaurante no encontrado'}), 404
+
+            cur.execute('''
+                UPDATE restaurantes SET 
+                    tema = %s,
+                    mostrar_precios = %s,
+                    mostrar_descripciones = %s,
+                    mostrar_imagenes = %s
+                WHERE id = %s
+            ''', (
+                tema,
+                mostrar_precios,
+                mostrar_descripciones,
+                mostrar_imagenes,
+                restaurante_id
+            ))
+            db.commit()
+        return jsonify({'success': True, 'message': 'Apariencia actualizada'})
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.exception('Error actualizando apariencia')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
 # API - CATEGORÍAS
 # ============================================================
 
