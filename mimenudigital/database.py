@@ -33,21 +33,21 @@ def get_db():
         try:
             config = get_db_config()
             g.db = pymysql.connect(**config)
-            logger.info(f"Connected to MySQL at {config['host']}:{config['port']}")
+            logger.info("Connected to MySQL at %s:%s", config['host'], config['port'])
         except pymysql.Error as e:
-            logger.error(f"Failed to connect to MySQL: {e}")
+            logger.error("Failed to connect to MySQL: %s", e)
             raise
     else:
         # Verificar si la conexión sigue activa
         try:
             g.db.ping(reconnect=True)
         except pymysql.Error as e:
-            logger.warning(f"Lost MySQL connection, reconnecting: {e}")
+            logger.warning("Lost MySQL connection, reconnecting: %s", e)
             try:
                 config = get_db_config()
                 g.db = pymysql.connect(**config)
             except pymysql.Error as e:
-                logger.error(f"Failed to reconnect to MySQL: {e}")
+                logger.error("Failed to reconnect to MySQL: %s", e)
                 raise
     
     return g.db
@@ -61,7 +61,7 @@ def close_db(error=None):
             db.close()
             logger.debug("MySQL connection closed")
         except Exception as e:
-            logger.warning(f"Error closing MySQL connection: {e}")
+            logger.warning("Error closing MySQL connection: %s", e)
 
 
 def init_app(app):
@@ -86,7 +86,7 @@ def get_cursor(commit=True):
             db.commit()
     except Exception as e:
         db.rollback()
-        logger.error(f"Database error in cursor context: {e}")
+        logger.error("Database error in cursor context: %s", e)
         raise
     finally:
         cursor.close()
@@ -116,7 +116,7 @@ def execute_query(query, params=None, commit=True):
             # Para INSERT/UPDATE/DELETE, retornar número de filas afectadas
             return cursor.rowcount
         except Exception as e:
-            logger.error(f"Error executing query: {e}\nQuery: {query}\nParams: {params}")
+            logger.error("Error executing query: %s | Query: %s | Params: %s", e, query, params)
             raise
 
 
