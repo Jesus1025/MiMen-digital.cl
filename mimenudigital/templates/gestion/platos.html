@@ -231,8 +231,8 @@
             return `
                 <tr>
                     <td>
-                        ${plato.imagen_url 
-                            ? `<img src="${plato.imagen_url}" alt="${plato.nombre}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">`
+                        ${plato.imagen_src 
+                            ? `<img src="${plato.imagen_src}" srcset="${plato.imagen_srcset || ''}" alt="${plato.nombre}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">`
                             : `<div style="width: 50px; height: 50px; background: #ecf0f1; border-radius: 8px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-image" style="color: #bdc3c7;"></i></div>`
                         }
                     </td>

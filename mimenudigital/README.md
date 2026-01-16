@@ -123,6 +123,59 @@ Antes de poner la aplicación en producción, asegúrate de:
 - Establecer variables de entorno en Web -> Environment variables:
   - `SECRET_KEY`, `MYSQL_PASSWORD`, `BASE_URL`
   - Opcional: `SENTRY_DSN` (Sentry), `MERCADO_WEBHOOK_KEY` (webhook signature), `CLOUDINARY_URL`
+  - Añadir health check (`/healthz` o `/api/health`) para balanceadores y uptime checks
+  - Habilitar CI/Tests (incluí un ejemplo en `.github/workflows/ci.yml`) para ejecutar tests y auditoría de seguridad
+
+  > Nota: para que las subidas funcionen en producción, configura `CLOUDINARY_URL` con el formato:
+  > `cloudinary://<api_key>:<api_secret>@<cloud_name>`
+
+  Para verificar localmente que Cloudinary está funcionando, ejecuta:
+
+  ```bash
+  pip install -r requirements.txt
+  export CLOUDINARY_URL='cloudinary://<api_key>:<api_secret>@<cloud_name>'  # Windows: setx CLOUDINARY_URL "..."
+  python scripts/cloudinary_check.py --url https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png
+  ```
+
+  La salida será JSON con `ok: true` y la `url` devuelta por Cloudinary.
+
+  Para procesar subidas que quedaron pendientes (cuando Cloudinary falla o hay errores de red), hay un worker disponible:
+
+  ```bash
+  # Ejecutar manualmente (no en modo debug) para procesar hasta 100 registros pendientes
+  python scripts/process_pending_images.py --limit 100
+
+  # Ejemplo de cron (ejecutar cada 5 minutos)
+  */5 * * * * /home/tuusuario/.virtualenvs/myenv/bin/python /home/tuusuario/menu-digital/scripts/process_pending_images.py --limit 50 >> /home/tuusuario/menu-digital/logs/pending_processor.log 2>&1
+  ```
+
+  El worker intentará subir cada `pending` al bucket de Cloudinary, actualizará `platos.imagen_public_id` y marcará el registro como `uploaded` o `failed` tras varios intentos.
+
+
+### Variables y pruebas para Mercado Pago
+
+Configura las variables de entorno en tu entorno (o en PythonAnywhere → Web → Environment variables):
+
+```
+MERCADO_PAGO_ACCESS_TOKEN = (tu_access_token_de_prueba)
+MERCADO_PAGO_PUBLIC_KEY = (tu_public_key_de_prueba)
+# Opcional (para validar firmas de webhook por HMAC)
+MERCADO_WEBHOOK_KEY = (tu_clave_para_verificar_firmas)
+```
+
+Pasos rápidos para probar en servidor (autenticado como admin / propietario del restaurante):
+
+1. Reinicia la app (Web → Reload) tras configurar variables.
+2. Verifica estado del cliente:
+   - GET `/admin/mercadopago/status` → muestra si SDK está instalado e initialized.
+   - POST `/admin/mercadopago/status` → fuerza re-inicialización.
+3. Crea una preferencia de prueba desde el servidor:
+   - POST `/admin/mercadopago/test-preference` con JSON `{ "price": 1500, "description": "Prueba" }`.
+   - Respuesta: `{ "success": true, "response": { ... } }` con `init_point` para abrir checkout en sandbox.
+4. Para pruebas de fin a fin, usa las credenciales de prueba de Mercado Pago y verifica que el webhook (`/webhook/mercado-pago`) procese correctamente las notificaciones.
+
+Revisa `logs/app.log` si algo falla y pásame la salida si necesitas ayuda."
+
 - Instalar paquetes recomendados para producción (en tu virtualenv):
   - `pip install Flask-WTF sentry-sdk`
 - Asegurar que `wkhtmltopdf` está disponible si usas PDFs (pdfkit)

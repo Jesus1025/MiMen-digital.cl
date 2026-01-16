@@ -764,9 +764,10 @@
                             {% for plato in categoria.platos %}
                                 <article class="dish-card" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}">
                                     <div class="dish-image-wrapper">
-                                        {% if plato.imagen_url %}
+                                        {% if plato.imagen_src %}
                                             <img 
-                                                src="{{ plato.imagen_url }}" 
+                                                src="{{ plato.imagen_src }}"
+                                                {% if plato.imagen_srcset %} srcset="{{ plato.imagen_srcset }}" sizes="(max-width: 600px) 100vw, 33vw" {% endif %}
                                                 alt="{{ plato.nombre }}" 
                                                 class="dish-image"
                                                 loading="lazy"
