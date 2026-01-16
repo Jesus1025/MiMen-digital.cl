@@ -17,6 +17,10 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+    # Cloudinary image defaults: widths (used to build srcset) and quality
+    CLOUDINARY_IMAGE_WIDTHS = [320, 640, 1024]
+    CLOUDINARY_IMAGE_QUALITY = 'auto'
     
     # Base URL (se sobreescribe en producción)
     BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:5000')
