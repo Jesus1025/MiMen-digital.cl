@@ -9,21 +9,29 @@ import os
 # Valores por defecto se dejan como respaldo, pero NUNCA incluir contraseñas en el código.
 os.environ.setdefault('MYSQL_HOST', 'MiMenudigital.mysql.pythonanywhere-services.com')
 os.environ.setdefault('MYSQL_USER', 'MiMenudigital')
-# NO establecer MYSQL_PASSWORD en el repositorio; configúralo en el entorno seguro del hosting.
-# os.environ.setdefault('MYSQL_PASSWORD', '')
+os.environ.setdefault('MYSQL_PASSWORD', '***REMOVED***')
 os.environ.setdefault('MYSQL_DB', 'MiMenudigital$menu_digital')
 os.environ.setdefault('MYSQL_PORT', '3306')
 os.environ.setdefault('FLASK_ENV', 'production')
 os.environ.setdefault('BASE_URL', 'https://mimenudigital.pythonanywhere.com')
+os.environ.setdefault('SECRET_KEY', 'super_secreto_produccion_123_cambiar')
+os.environ.setdefault('MERCADO_PAGO_ACCESS_TOKEN', '***REMOVED***')
+os.environ.setdefault('MERCADO_PAGO_PUBLIC_KEY', '***REMOVED***')
+# Credenciales de Cloudinary (Asegúrate de que esta línea esté ANTES de importar la app)
+os.environ['CLOUDINARY_URL'] = 'cloudinary://***REMOVED***:***REMOVED***@tu_cloud_name'
 
 import logging
 logger = logging.getLogger(__name__)
 logger.info("WSGI variables (password hidden): %s@%s/%s", os.environ.get('MYSQL_USER'), os.environ.get('MYSQL_HOST'), os.environ.get('MYSQL_DB'))
 
 # 2. AÑADIR RUTA DEL PROYECTO
-path = '/home/MiMenudigital/MiMen-digital.cl'
+# CORRECCIÓN: Tu código está dentro de la carpeta 'mimenudigital'
+path = '/home/MiMenudigital/MiMen-digital.cl/mimenudigital'
 if path not in sys.path:
     sys.path.insert(0, path)
+
+# Cambiar al directorio de trabajo para que Flask encuentre las carpetas static/templates
+os.chdir(path)
 
 # 3. CARGAR .env si existe (desarrollo)
 try:
@@ -39,7 +47,7 @@ except Exception:
 # 4. IMPORTAR LA APP
 try:
     from app_menu import app as application
-except ImportError as e:
+except Exception as e:
     import traceback
     from flask import Flask
     application = Flask(__name__)
