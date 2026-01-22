@@ -2716,8 +2716,84 @@ def superadmin_usuarios():
 @login_required
 @superadmin_required
 def superadmin_suscripciones():
-    # Placeholder por ahora
     return render_template('superadmin/suscripciones.html')
+
+
+@app.route('/api/superadmin/suscripciones', methods=['GET'])
+@login_required
+@superadmin_required
+def api_superadmin_suscripciones():
+    """API para obtener todas las suscripciones de restaurantes."""
+    db = get_db()
+    with db.cursor() as cur:
+        # Obtener restaurantes con info de suscripción
+        cur.execute('''
+            SELECT r.id, r.nombre, r.email, r.plan_id, r.estado_suscripcion, 
+                   r.fecha_vencimiento, r.activo, r.fecha_creacion
+            FROM restaurantes r
+            ORDER BY r.fecha_vencimiento ASC
+        ''')
+        suscripciones = list_from_rows(cur.fetchall())
+        
+        # Obtener planes
+        cur.execute("SELECT id, nombre FROM planes")
+        planes_rows = cur.fetchall()
+        planes = {p['id']: p['nombre'] for p in planes_rows}
+        
+    return jsonify({
+        'suscripciones': suscripciones,
+        'planes': planes
+    })
+
+
+@app.route('/api/superadmin/suscripciones/<int:restaurante_id>', methods=['PUT'])
+@login_required
+@superadmin_required
+def api_superadmin_actualizar_suscripcion(restaurante_id):
+    """API para actualizar/extender suscripción de un restaurante."""
+    db = get_db()
+    data = request.get_json()
+    
+    try:
+        with db.cursor() as cur:
+            # Obtener fecha actual de vencimiento
+            cur.execute("SELECT fecha_vencimiento FROM restaurantes WHERE id = %s", (restaurante_id,))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({'success': False, 'error': 'Restaurante no encontrado'}), 404
+            
+            fecha_actual = row['fecha_vencimiento']
+            
+            # Calcular nueva fecha
+            if data.get('fecha_especifica'):
+                nueva_fecha = data['fecha_especifica']
+            elif data.get('dias_extension'):
+                # Si ya tiene fecha y no está vencida, extender desde ahí
+                if fecha_actual and fecha_actual >= date.today():
+                    base = fecha_actual
+                else:
+                    base = date.today()
+                nueva_fecha = base + timedelta(days=int(data['dias_extension']))
+            else:
+                return jsonify({'success': False, 'error': 'Debe especificar días o fecha'}), 400
+            
+            # Actualizar
+            nuevo_estado = data.get('estado_suscripcion', 'activa')
+            cur.execute('''
+                UPDATE restaurantes 
+                SET fecha_vencimiento = %s, estado_suscripcion = %s, fecha_actualizacion = NOW()
+                WHERE id = %s
+            ''', (nueva_fecha, nuevo_estado, restaurante_id))
+            db.commit()
+            
+            logger.info("Suscripción actualizada: restaurante=%s, nueva_fecha=%s, estado=%s", 
+                       restaurante_id, nueva_fecha, nuevo_estado)
+            
+            return jsonify({'success': True, 'nueva_fecha': str(nueva_fecha)})
+            
+    except Exception as e:
+        logger.exception("Error actualizando suscripción")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/superadmin/estadisticas')
