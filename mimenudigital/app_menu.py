@@ -1120,7 +1120,7 @@ def ver_menu_publico(url_slug):
             cur.execute('''
                 SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.icono as categoria_icono,
                        p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
-                       p.precio_oferta, p.imagen_url, p.etiquetas, p.es_nuevo, p.es_popular,
+                       p.precio_oferta, p.imagen_url, p.imagen_public_id, p.etiquetas, p.es_nuevo, p.es_popular,
                        p.es_vegetariano, p.es_vegano, p.es_sin_gluten, p.es_picante
                 FROM categorias c
                 LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1
@@ -1142,16 +1142,29 @@ def ver_menu_publico(url_slug):
                     }
                 
                 if row['plato_id']:
+                    # Determinar URL de imagen - siempre usar imagen_url como fallback
+                    img_url = row['imagen_url']
+                    img_public_id = row.get('imagen_public_id')
+                    
+                    # Intentar generar URL optimizada, pero siempre caer a imagen_url si falla
+                    if img_public_id and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED:
+                        generated_url = cloudinary_image_url(img_public_id, width=640)
+                        imagen_src = generated_url if generated_url else img_url
+                        imagen_srcset = cloudinary_srcset(img_public_id) if generated_url else None
+                    else:
+                        imagen_src = img_url
+                        imagen_srcset = None
+                    
                     plato = {
                         'id': row['plato_id'],
                         'nombre': row['plato_nombre'],
                         'descripcion': row['descripcion'],
                         'precio': float(row['precio'] or 0),
                         'precio_oferta': float(row['precio_oferta']) if row['precio_oferta'] else None,
-                        'imagen_url': row['imagen_url'],
-                        'imagen_public_id': row.get('imagen_public_id'),
-                        'imagen_src': (cloudinary_image_url(row.get('imagen_public_id'), width=640) if row.get('imagen_public_id') and CLOUDINARY_AVAILABLE else row['imagen_url']),
-                        'imagen_srcset': (cloudinary_srcset(row.get('imagen_public_id')) if row.get('imagen_public_id') and CLOUDINARY_AVAILABLE else None),
+                        'imagen_url': img_url,
+                        'imagen_public_id': img_public_id,
+                        'imagen_src': imagen_src,
+                        'imagen_srcset': imagen_srcset,
                         'etiquetas': row['etiquetas'].split(',') if row['etiquetas'] else [],
                         'es_nuevo': row['es_nuevo'],
                         'es_popular': row['es_popular'],
@@ -1949,11 +1962,16 @@ def api_platos():
                 # Enriquecer con URLs responsivas si tenemos imagen_public_id
                 for r in rows:
                     pid = r.get('imagen_public_id')
-                    if pid and CLOUDINARY_AVAILABLE:
-                        r['imagen_src'] = cloudinary_image_url(pid, width=640)
-                        r['imagen_srcset'] = cloudinary_srcset(pid)
+                    img_url = r.get('imagen_url')
+                    
+                    # Intentar generar URL optimizada con Cloudinary
+                    if pid and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED:
+                        generated_url = cloudinary_image_url(pid, width=640)
+                        r['imagen_src'] = generated_url if generated_url else img_url
+                        r['imagen_srcset'] = cloudinary_srcset(pid) if generated_url else None
                     else:
-                        r['imagen_src'] = r.get('imagen_url')
+                        # Usar la URL directa guardada en la base de datos
+                        r['imagen_src'] = img_url
                         r['imagen_srcset'] = None
                 return jsonify(rows)
                 
