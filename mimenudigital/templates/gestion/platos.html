@@ -186,7 +186,7 @@
                     
                     <!-- Tabs para elegir método -->
                     <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
-                        <button type="button" class="btn-secondary image-tab active" onclick="cambiarTabImagen('upload')" id="tabUpload" style="flex: 1; padding: 0.5rem;">
+                        <button type="button" class="btn-primary image-tab active" onclick="cambiarTabImagen('upload')" id="tabUpload" style="flex: 1; padding: 0.5rem; background: #e74c3c;">
                             <i class="fas fa-upload"></i> Subir
                         </button>
                         <button type="button" class="btn-secondary image-tab" onclick="cambiarTabImagen('url')" id="tabUrl" style="flex: 1; padding: 0.5rem;">
@@ -196,15 +196,18 @@
                     
                     <!-- Opción Subir Imagen -->
                     <div id="uploadSection">
-                        <div style="border: 2px dashed #ddd; border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.3s;" 
+                        <div style="border: 2px dashed #e74c3c; border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.3s; background: #fef5f5;" 
                              id="dropZone" onclick="document.getElementById('fileInput').click()">
-                            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #bdc3c7; margin-bottom: 0.5rem;"></i>
-                            <p style="color: #7f8c8d; margin: 0;">Arrastra una imagen o haz clic para seleccionar</p>
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #e74c3c; margin-bottom: 0.5rem;"></i>
+                            <p style="color: #c0392b; margin: 0; font-weight: 500;">Haz clic para seleccionar una imagen</p>
                             <small style="color: #95a5a6;">PNG, JPG, GIF, WEBP (máx. 5MB)</small>
                         </div>
                         <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="subirImagen(this)">
                         <div id="uploadProgress" style="display: none; margin-top: 0.5rem;">
-                            <progress class="progress is-primary" max="100" style="height: 8px;"></progress>
+                            <div style="background: #eee; border-radius: 4px; overflow: hidden;">
+                                <div id="progressBar" style="width: 0%; height: 8px; background: linear-gradient(90deg, #e74c3c, #c0392b); transition: width 0.3s;"></div>
+                            </div>
+                            <p id="uploadStatus" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; text-align: center;">Subiendo imagen...</p>
                         </div>
                     </div>
                     
@@ -216,8 +219,11 @@
                     <!-- Preview de imagen -->
                     <div id="imagenPreview" style="margin-top: 0.75rem; display: none;">
                         <div style="position: relative; display: inline-block;">
-                            <img id="previewImg" src="" alt="Preview" style="max-width: 150px; max-height: 100px; border-radius: 8px; object-fit: cover;">
-                            <button type="button" onclick="eliminarImagen()" style="position: absolute; top: -8px; right: -8px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">
+                            <img id="previewImg" src="" alt="Preview" style="max-width: 150px; max-height: 100px; border-radius: 8px; object-fit: cover; border: 2px solid #ddd;" onerror="this.style.display='none'; document.getElementById('previewError').style.display='block';">
+                            <div id="previewError" style="display: none; padding: 1rem; background: #fee; border-radius: 8px; color: #c00; font-size: 0.85rem;">
+                                <i class="fas fa-exclamation-triangle"></i> Error al cargar imagen
+                            </div>
+                            <button type="button" onclick="eliminarImagen()" style="position: absolute; top: -8px; right: -8px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                                 <i class="fas fa-times" style="font-size: 12px;"></i>
                             </button>
                         </div>
@@ -398,7 +404,7 @@
         
         // Si tiene imagen, mostrar preview
         if (plato.imagen_url) {
-            mostrarPreviewImagen(plato.imagen_url);
+            mostrarPreviewImagen(plato.imagen_url, false);
         } else {
             document.getElementById('imagenPreview').style.display = 'none';
             resetDropZone();
@@ -604,56 +610,92 @@
             return;
         }
         
+        // Mostrar preview local inmediatamente
+        const localPreviewUrl = URL.createObjectURL(file);
+        mostrarPreviewImagen(localPreviewUrl, true); // true = es local, aún subiendo
+        
         // Mostrar progreso
         const progressDiv = document.getElementById('uploadProgress');
+        const progressBar = document.getElementById('progressBar');
+        const uploadStatus = document.getElementById('uploadStatus');
         const dropZone = document.getElementById('dropZone');
+        
         progressDiv.style.display = 'block';
-        dropZone.style.borderColor = '#3498db';
-        dropZone.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #3498db;"></i><p style="color: #3498db;">Subiendo...</p>';
+        dropZone.style.display = 'none';
+        progressBar.style.width = '30%';
+        uploadStatus.textContent = 'Subiendo imagen...';
         
         const formData = new FormData();
         formData.append('image', file);
         
         try {
+            progressBar.style.width = '60%';
+            
             const response = await fetch('/api/upload-image', {
                 method: 'POST',
                 body: formData
             });
             
+            progressBar.style.width = '90%';
             const result = await response.json();
             
             if (result.success) {
+                progressBar.style.width = '100%';
+                uploadStatus.textContent = '¡Imagen subida!';
+                
                 // Guardar URL y public_id en campos ocultos
                 document.getElementById('platoImagen').value = result.url;
                 document.getElementById('platoImagenPublicId').value = result.public_id || '';
                 
-                // Mostrar preview
-                mostrarPreviewImagen(result.url);
+                // Actualizar preview con URL de Cloudinary
+                setTimeout(() => {
+                    mostrarPreviewImagen(result.url, false);
+                    progressDiv.style.display = 'none';
+                }, 500);
+                
                 mostrarExito('Imagen subida correctamente');
             } else {
                 mostrarError(result.error || 'Error al subir imagen');
-                resetDropZone();
+                eliminarImagen();
+                progressDiv.style.display = 'none';
             }
         } catch (error) {
             console.error('Error:', error);
             mostrarError('Error de conexión al subir imagen');
-            resetDropZone();
+            eliminarImagen();
+            progressDiv.style.display = 'none';
         }
         
-        progressDiv.style.display = 'none';
+        // Limpiar URL local
+        URL.revokeObjectURL(localPreviewUrl);
     }
 
     function previewImagenUrl() {
         const url = document.getElementById('platoImagenUrl').value;
         if (url) {
             document.getElementById('platoImagen').value = url;
-            mostrarPreviewImagen(url);
+            mostrarPreviewImagen(url, false);
         }
     }
 
-    function mostrarPreviewImagen(url) {
+    function mostrarPreviewImagen(url, isLoading = false) {
         const preview = document.getElementById('imagenPreview');
         const img = document.getElementById('previewImg');
+        const previewError = document.getElementById('previewError');
+        
+        // Resetear estados
+        img.style.display = 'block';
+        previewError.style.display = 'none';
+        
+        // Si está cargando, añadir indicador visual
+        if (isLoading) {
+            img.style.opacity = '0.6';
+            img.style.filter = 'blur(1px)';
+        } else {
+            img.style.opacity = '1';
+            img.style.filter = 'none';
+        }
+        
         img.src = url;
         preview.style.display = 'block';
         
@@ -667,16 +709,18 @@
         document.getElementById('platoImagenPublicId').value = '';
         document.getElementById('platoImagenUrl').value = '';
         document.getElementById('imagenPreview').style.display = 'none';
+        document.getElementById('fileInput').value = ''; // Limpiar input de archivo
         resetDropZone();
     }
 
     function resetDropZone() {
         const dropZone = document.getElementById('dropZone');
         dropZone.style.display = 'block';
-        dropZone.style.borderColor = '#ddd';
+        dropZone.style.borderColor = '#e74c3c';
+        dropZone.style.background = '#fef5f5';
         dropZone.innerHTML = `
-            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #bdc3c7; margin-bottom: 0.5rem;"></i>
-            <p style="color: #7f8c8d; margin: 0;">Arrastra una imagen o haz clic para seleccionar</p>
+            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #e74c3c; margin-bottom: 0.5rem;"></i>
+            <p style="color: #c0392b; margin: 0; font-weight: 500;">Haz clic para seleccionar una imagen</p>
             <small style="color: #95a5a6;">PNG, JPG, GIF, WEBP (máx. 5MB)</small>
         `;
     }

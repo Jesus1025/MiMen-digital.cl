@@ -18,7 +18,13 @@ os.environ.setdefault('FLASK_ENV', 'production')
 os.environ.setdefault('BASE_URL', 'https://mimenudigital.pythonanywhere.com')
 
 # API_PROXY para cuentas gratuitas de PythonAnywhere
-os.environ.setdefault('API_PROXY', 'http://proxy.server:3128')
+# CRÍTICO: Debe configurarse ANTES de importar cualquier librería que haga HTTP
+_api_proxy = 'http://proxy.server:3128'
+os.environ.setdefault('API_PROXY', _api_proxy)
+os.environ['HTTP_PROXY'] = _api_proxy
+os.environ['HTTPS_PROXY'] = _api_proxy
+os.environ['http_proxy'] = _api_proxy
+os.environ['https_proxy'] = _api_proxy
 
 # ============================================================
 # ⚠️ CREDENCIALES SENSIBLES - NO SUBIR A GIT
