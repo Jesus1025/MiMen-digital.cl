@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `imagenes_pendientes` (
   `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `restaurante_id` INT DEFAULT NULL,
   `plato_id` INT DEFAULT NULL,
+  `tipo` VARCHAR(50) DEFAULT 'plato',
   `local_path` VARCHAR(1024) DEFAULT NULL,
   `source_url` TEXT DEFAULT NULL,
   `attempts` INT DEFAULT 0,
@@ -20,3 +21,9 @@ CREATE TABLE IF NOT EXISTS `imagenes_pendientes` (
   INDEX (`status`),
   INDEX (`attempts`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `imagenes_pendientes`
+  ADD COLUMN IF NOT EXISTS `tipo` VARCHAR(50) DEFAULT 'plato';
+
+ALTER TABLE `imagenes_pendientes`
+  MODIFY COLUMN `status` ENUM('pending','processing','failed','uploaded') NOT NULL DEFAULT 'pending';

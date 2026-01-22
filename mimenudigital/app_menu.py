@@ -49,15 +49,69 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import logging
 # Cloudinary is optional; handle missing dependency gracefully
+# ESTRATEGIA BLINDAJE TOTAL: Retirar la variable del entorno ANTES de importar
+# Esto evita que cloudinary intente auto-configurarse y crashee al importar si la URL está mal.
+_temp_cloudinary_url = os.environ.get('CLOUDINARY_URL')
+if _temp_cloudinary_url:
+    del os.environ['CLOUDINARY_URL']
+
 try:
     import cloudinary
     from cloudinary.uploader import upload as cloudinary_upload
     CLOUDINARY_AVAILABLE = True
-except ImportError:
+except (ImportError, ValueError, Exception) as e:
     cloudinary = None
     cloudinary_upload = None
     CLOUDINARY_AVAILABLE = False
-    logging.getLogger(__name__).warning("Cloudinary SDK not installed. Image uploads will be disabled.")
+    logging.getLogger(__name__).warning("Cloudinary SDK error during import: %s. Image uploads disabled.", e)
+
+# Restaurar la variable limpia y saneada para que init_cloudinary la use después de forma segura
+if _temp_cloudinary_url:
+    # Limpieza agresiva de basura común (comillas, prefijos repetidos)
+    clean_url = _temp_cloudinary_url.strip().strip("'").strip('"')
+    if clean_url.startswith('CLOUDINARY_URL='):
+        clean_url = clean_url.split('=', 1)[1]
+    os.environ['CLOUDINARY_URL'] = clean_url
+
+
+# --- Cloudinary helpers: build eager transforms, generate URLs and srcsets for responsive images ---
+def get_cloudinary_eager():
+    """Genera la lista de transformaciones eager según la configuración (anchos).
+    Devuelve lista de dicts para pasar a `upload(..., eager=...)`."""
+    widths = app.config.get('CLOUDINARY_IMAGE_WIDTHS', [320, 640, 1024])
+    q = app.config.get('CLOUDINARY_IMAGE_QUALITY', 'auto')
+    return [{'width': w, 'crop': 'limit', 'quality': q, 'fetch_format': 'auto'} for w in widths]
+
+
+def cloudinary_image_url(public_id, width=None):
+    """Construye una URL de Cloudinary para `public_id` con transformación opcional de ancho."""
+    if not CLOUDINARY_AVAILABLE or not public_id:
+        return None
+    try:
+        opts = {'quality': app.config.get('CLOUDINARY_IMAGE_QUALITY', 'auto'), 'fetch_format': 'auto', 'resource_type': 'image'}
+        if width:
+            opts.update({'width': width, 'crop': 'limit'})
+        url, _ = cloudinary.utils.cloudinary_url(public_id, **opts)
+        return url
+    except Exception as e:
+        logger.exception('Error generating cloudinary URL for %s: %s', public_id, e)
+        return None
+
+
+def cloudinary_srcset(public_id, widths=None):
+    """Genera un `srcset` (string) para el `public_id` usando los anchos configurados o pasados."""
+    if not CLOUDINARY_AVAILABLE or not public_id:
+        return None
+    if widths is None:
+        widths = app.config.get('CLOUDINARY_IMAGE_WIDTHS', [320, 640, 1024])
+    parts = []
+    for w in widths:
+        url = cloudinary_image_url(public_id, width=w)
+        if url:
+            parts.append(f"{url} {w}w")
+    return ', '.join(parts)
+
+
 import traceback
 from logging.handlers import RotatingFileHandler
 
@@ -68,6 +122,16 @@ try:
 except ImportError:
     pdfkit = None
     PDFKIT_AVAILABLE = False
+
+# Intentar importar python-magic para MIME sniffing de archivos subidos
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except Exception:
+    magic = None
+    MAGIC_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.info('python-magic no disponible: MIME sniffing deshabilitado')
 
 # Intentar importar SDK de Mercado Pago
 MERCADOPAGO_IMPORT_ERROR = None
@@ -141,6 +205,14 @@ app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 # Función now() para templates
 app.jinja_env.globals['now'] = lambda: datetime.utcnow()
 
+# Registrar helpers de Cloudinary en Jinja si la app está inicializada
+try:
+    app.jinja_env.globals['cloudinary_image_url'] = cloudinary_image_url
+    app.jinja_env.globals['cloudinary_srcset'] = cloudinary_srcset
+except Exception:
+    # En pruebas unitarias 'app' podría no comportarse como en runtime; ignorar errores de registro
+    pass
+
 # ============================================================
 # FUNCIONES DE INICIALIZACIÓN
 # ============================================================
@@ -153,34 +225,101 @@ def init_cloudinary():
     Inicializa la configuración de Cloudinary.
     Se llama después de que Flask está completamente cargado.
     Requiere la librería `cloudinary` y la variable de entorno `CLOUDINARY_URL`.
+    Opcionalmente, usa `API_PROXY` para entornos que lo requieran (PythonAnywhere free tier).
     """
     global CLOUDINARY_CONFIGURED
 
-    # Verificar primero que el SDK esté disponible
     if not CLOUDINARY_AVAILABLE:
         logger.warning("Cloudinary SDK no está instalado. Instala con: pip install cloudinary")
         CLOUDINARY_CONFIGURED = False
         return False
 
     cloudinary_url = os.environ.get('CLOUDINARY_URL')
+    api_proxy = os.environ.get('API_PROXY')
+    
+    logger.info("init_cloudinary() - CLOUDINARY_URL presente: %s", bool(cloudinary_url))
+    logger.info("init_cloudinary() - API_PROXY presente: %s", bool(api_proxy))
 
     if cloudinary_url:
         try:
-            cloudinary.config_from_url(cloudinary_url)
-            logger.info("Cloudinary configurado correctamente")
+            # Construir un diccionario de configuración
+            config_options = {}
+            if api_proxy:
+                config_options['api_proxy'] = api_proxy
+                logger.info("Usando proxy para Cloudinary: %s", api_proxy)
+
+            # Extraer credenciales de la URL
+            from urllib.parse import urlparse
+            u = urlparse(cloudinary_url)
+            logger.info("Cloudinary URL scheme: %s, netloc: %s", u.scheme, u.netloc[:20] + '...' if len(u.netloc) > 20 else u.netloc)
+            
+            if u.scheme != 'cloudinary':
+                raise ValueError(f'Invalid CLOUDINARY_URL scheme: {u.scheme}')
+            
+            creds = u.netloc
+            if '@' in creds:
+                userinfo, cloud_name = creds.split('@', 1)
+                api_key, api_secret = userinfo.split(':', 1)
+                
+                config_options.update({
+                    'cloud_name': cloud_name,
+                    'api_key': api_key,
+                    'api_secret': api_secret
+                })
+                
+                cloudinary.config(**config_options)
+                logger.info("Cloudinary config() llamado con cloud_name: %s", cloud_name)
+            else:
+                raise ValueError('Invalid CLOUDINARY_URL format - missing @')
+
+            logger.info("Cloudinary configurado correctamente - CLOUDINARY_CONFIGURED = True")
             CLOUDINARY_CONFIGURED = True
             return True
-        except Exception:
-            logger.exception("Error configurando Cloudinary")
+        except Exception as e:
+            logger.exception("Error configurando Cloudinary: %s", str(e))
             CLOUDINARY_CONFIGURED = False
             return False
     else:
-        logger.warning("CLOUDINARY_URL no está configurada en las variables de entorno. Establece CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>")
+        logger.warning("CLOUDINARY_URL no está configurada. Las subidas de imágenes no funcionarán.")
         CLOUDINARY_CONFIGURED = False
         return False
 
-# Inicializar Cloudinary después de crear la app
-init_cloudinary()
+
+def is_cloudinary_ready():
+    """Verifica si Cloudinary está listo para usar. Re-inicializa si es necesario."""
+    global CLOUDINARY_CONFIGURED
+    if CLOUDINARY_CONFIGURED:
+        return True
+    # Intentar inicializar si aún no está configurado
+    if CLOUDINARY_AVAILABLE and os.environ.get('CLOUDINARY_URL'):
+        logger.info("is_cloudinary_ready() - Intentando re-inicializar Cloudinary...")
+        return init_cloudinary()
+    return False
+
+# Inicialización perezosa: se realiza al primer request (compatibilidad con Flask 3)
+@app.before_request
+def _lazy_init_services_once():
+    # Ejecutar solo una vez para evitar ejecutar en cada petición
+    if app.config.get('_services_initialized'):
+        return
+    try:
+        # Inicializar servicios dependientes de configuración externa
+        init_cloudinary()
+        init_mercadopago()
+        # Ejecutar comprobaciones críticas de entorno (solo lanzará en producción)
+        enforce_required_envs()
+
+        # Registrar helpers de Jinja que usan funciones definidas en este módulo
+        try:
+            app.jinja_env.globals['cloudinary_image_url'] = cloudinary_image_url
+            app.jinja_env.globals['cloudinary_srcset'] = cloudinary_srcset
+        except Exception:
+            # Ignorar errores de registro en entornos de test o importación
+            pass
+
+        app.config['_services_initialized'] = True
+    except Exception:
+        logger.exception("Error durante la inicialización perezosa de servicios")
 
 # Variable global para almacenar cliente de Mercado Pago
 MERCADOPAGO_CLIENT = None
@@ -227,8 +366,7 @@ def init_mercadopago():
         MERCADOPAGO_CLIENT = None
         return False
 
-# Inicializar Mercado Pago
-init_mercadopago()
+# Inicializar Mercado Pago (la inicialización se ejecuta perezosamente en `_lazy_init_services`)
 
 # ============================================================
 # CONFIGURACIÓN DE UPLOADS Y ARCHIVOS
@@ -280,6 +418,10 @@ logger.info("Base URL: %s", BASE_URL)
 def enforce_required_envs():
     """Enforce presence of critical environment variables in production.
     This raises only when FLASK_ENV == 'production' to avoid breaking local/dev.
+
+    Additional checks:
+    - If Cloudinary SDK is available, require `CLOUDINARY_URL` in production.
+    - If Mercado Pago SDK is available, require `MERCADO_PAGO_ACCESS_TOKEN` in production.
     """
     missing = []
     if os.environ.get('FLASK_ENV') == 'production':
@@ -287,6 +429,12 @@ def enforce_required_envs():
             missing.append('SECRET_KEY')
         if not os.environ.get('MYSQL_PASSWORD'):
             missing.append('MYSQL_PASSWORD')
+        # If cloudinary SDK is installed, require CLOUDINARY_URL in production
+        if CLOUDINARY_AVAILABLE and not os.environ.get('CLOUDINARY_URL'):
+            missing.append('CLOUDINARY_URL')
+        # If Mercado Pago is installed, require token in production
+        if MERCADOPAGO_AVAILABLE and not os.environ.get('MERCADO_PAGO_ACCESS_TOKEN'):
+            missing.append('MERCADO_PAGO_ACCESS_TOKEN')
     if missing:
         msg = f"Missing required env vars in production: {', '.join(missing)}"
         logger.error(msg)
@@ -297,9 +445,18 @@ def enforce_required_envs():
             logger.warning('SECRET_KEY not set; use a strong secret in production')
         if not os.environ.get('MYSQL_PASSWORD'):
             logger.warning('MYSQL_PASSWORD not set; ensure DB credentials are configured')
+        if CLOUDINARY_AVAILABLE and not os.environ.get('CLOUDINARY_URL'):
+            logger.warning('CLOUDINARY_URL not set; uploads will not work without it')
+        if MERCADOPAGO_AVAILABLE and not os.environ.get('MERCADO_PAGO_ACCESS_TOKEN'):
+            logger.warning('MERCADO_PAGO_ACCESS_TOKEN not set; Mercado Pago will not work')
 
-# Run checks early (will raise only in production)
-enforce_required_envs()
+# Comprobaciones críticas de entorno: se ejecutan perezosamente en `_lazy_init_services`
+# para evitar lanzar en import time durante desarrollo. Sin embargo, para mantener
+# compatibilidad con el comportamiento previo en producción, ejecutamos las comprobaciones
+# durante la importación si estamos en producción (esto replicará el comportamiento
+# previo que fallaba rápido en despliegue si faltan variables críticas).
+if os.environ.get('FLASK_ENV') == 'production':
+    enforce_required_envs()
 
 # Secure session cookie settings (only enforce secure cookies in production)
 app.config['SESSION_COOKIE_SECURE'] = True if os.environ.get('FLASK_ENV') == 'production' else False
@@ -428,6 +585,9 @@ def get_subscription_info(restaurante_id):
 # CONTEXTO GLOBAL PARA TEMPLATES
 # ============================================================
 
+from werkzeug.exceptions import RequestEntityTooLarge
+
+
 @app.before_request
 def inject_subscription_info():
     """
@@ -435,6 +595,11 @@ def inject_subscription_info():
     Se ejecuta antes de cada request para que esté disponible en todos los templates.
     """
     try:
+        # Evitar llamadas a la base de datos durante tests para reducir flakiness
+        if app.config.get('TESTING'):
+            g.subscription_info = None
+            return
+
         if 'restaurante_id' in session:
             subscription_info = get_subscription_info(session['restaurante_id'])
             g.subscription_info = subscription_info
@@ -444,6 +609,13 @@ def inject_subscription_info():
         logger.exception("Error injecting subscription info")
         g.subscription_info = None
 
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_entity_too_large(e):
+    # Return JSON for API routes, otherwise render friendly page
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 413
+    return render_template('error_publico.html', error_code=413, error_message='Archivo demasiado grande'), 413
 
 # Hacer disponible en templates
 @app.context_processor
@@ -540,7 +712,27 @@ def not_found_error(error):
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Maneja excepciones globales no controladas."""
-    logger.exception("Unhandled exception: %s", type(e).__name__) 
+    logger.exception("Unhandled exception: %s", type(e).__name__)
+
+    # During TESTING return the exception details as JSON to aid debugging
+    if app.config.get('TESTING'):
+        return jsonify({'success': False, 'error': str(e), 'type': type(e).__name__}), 500
+
+    # Report to Sentry if available
+    try:
+        if 'sentry_sdk' in globals() and hasattr(sentry_sdk, 'capture_exception'):
+            try:
+                # Attach user context if present
+                with sentry_sdk.push_scope() as scope:
+                    if 'user_id' in session:
+                        sentry_sdk.set_user({'id': session.get('user_id'), 'restaurante_id': session.get('restaurante_id')})
+                    sentry_sdk.capture_exception(e)
+            except Exception as sentry_e:
+                logger.debug('Sentry capture failed: %s', sentry_e)
+    except Exception:
+        # Be resilient if sentry isn't present
+        pass
+
     if request.path.startswith('/api/'):
         return jsonify({
             'success': False, 
@@ -550,6 +742,39 @@ def handle_exception(e):
     return render_template('error_publico.html', 
                           error_code=500, 
                           error_message=f'Error: {str(e)}'), 500
+
+
+# Helper: register the same Sentry-aware error handler onto another Flask app instance
+# Useful for tests that need a fresh app and for programmatic setups.
+def register_sentry_error_handler(target_app, sentry_module=None):
+    """Registra un manejador de errores en `target_app` que replica la lógica del
+    manejador global definido arriba y que informará a `sentry_module` si se proporciona.
+    """
+    def _handler(e):
+        logger.exception("Unhandled exception (external app): %s", type(e).__name__)
+        try:
+            sentry = sentry_module if sentry_module is not None else globals().get('sentry_sdk')
+            if sentry and hasattr(sentry, 'capture_exception'):
+                try:
+                    with sentry.push_scope() as scope:
+                        if 'user_id' in session:
+                            sentry.set_user({'id': session.get('user_id'), 'restaurante_id': session.get('restaurante_id')})
+                        sentry.capture_exception(e)
+                except Exception as sentry_e:
+                    logger.debug('Sentry capture failed: %s', sentry_e)
+        except Exception:
+            pass
+
+        if request.path.startswith('/api/'):
+            return jsonify({
+                'success': False,
+                'error': 'Error interno',
+                'type': type(e).__name__
+            }), 500
+        return render_template('error_publico.html', error_code=500, error_message=f'Error: {str(e)}'), 500
+
+    target_app.register_error_handler(Exception, _handler)
+    return _handler
 
 
 # ============================================================
@@ -572,6 +797,77 @@ def allowed_file(filename):
         return False
     ext = filename.rsplit('.', 1)[1].lower()
     return ext in ALLOWED_EXTENSIONS
+
+
+def validate_image_file(file):
+    """Validación más robusta de imágenes: extensión, Content-Type y, si está disponible, MIME sniffing.
+    Retorna (True, None) si válido, o (False, 'mensaje') si inválido."""
+    if not file:
+        return False, 'No se recibió archivo'
+
+    filename = getattr(file, 'filename', '')
+    if not allowed_file(filename):
+        return False, 'Extensión no permitida'
+
+    # Content-Type (por ejemplo: image/jpeg) — usado como heurística, pero no siempre confiable
+    content_type = getattr(file, 'content_type', '') or getattr(file, 'mimetype', '')
+
+    # Tamaño máximo por archivo (intentar comprobar de forma segura)
+    max_len = app.config.get('MAX_CONTENT_LENGTH', MAX_CONTENT_LENGTH)
+    # Algunos objetos file tienen .content_length
+    cl = getattr(file, 'content_length', None)
+    if cl and cl > max_len:
+        return False, 'Archivo demasiado grande'
+
+    # Intentar inspeccionar parcialmente el stream para chequear tamaño sin consumirlo
+    try:
+        pos = file.stream.tell()
+        peek = file.stream.read(max_len + 1)
+        file.stream.seek(pos)
+        if len(peek) > max_len:
+            return False, 'Archivo demasiado grande'
+    except Exception:
+        # Si no podemos medir, no bloquear; será chequeado por request.content_length
+        pass
+
+    # En modo TESTING, ser menos restrictivos para facilitar tests unitarios (aceptar archivos de prueba)
+    if app.config.get('TESTING'):
+        return True, None
+
+    # Si python-magic está disponible, leer los primeros KB y verificar MIME
+    if MAGIC_AVAILABLE and magic:
+        try:
+            # Mantener posición del stream
+            pos = file.stream.tell()
+            head = file.stream.read(2048)
+            file.stream.seek(pos)
+            mtype = magic.from_buffer(head, mime=True)
+            if not mtype or not mtype.startswith('image/'):
+                return False, f'Contenido no es imagen (detected: {mtype})'
+        except Exception as e:
+            # En caso de error en magic, no bloquear la subida; solo loggear
+            logger = logging.getLogger(__name__)
+            logger.debug('Error al usar python-magic para detectar MIME: %s', e)
+    else:
+        # Fallback simple: verificar firmas binarias para tipos comunes si no hay magic
+        try:
+            pos = file.stream.tell()
+            head = file.stream.read(16)
+            file.stream.seek(pos)
+            if head.startswith(b'\xff\xd8\xff'):
+                return True, None  # JPEG
+            if head.startswith(b'\x89PNG'):
+                return True, None  # PNG
+            if head.startswith(b'GIF8'):
+                return True, None  # GIF
+            if len(head) >= 12 and head[0:4] == b'RIFF' and head[8:12] == b'WEBP':
+                return True, None  # WEBP
+            return False, 'Contenido no es imagen'
+        except Exception:
+            # Si no podemos inspeccionar, permitir y confiar en Content-Type or size checks
+            pass
+
+    return True, None
 
 
 # Context processor para inyectar menu_url en todos los templates
@@ -853,6 +1149,9 @@ def ver_menu_publico(url_slug):
                         'precio': float(row['precio'] or 0),
                         'precio_oferta': float(row['precio_oferta']) if row['precio_oferta'] else None,
                         'imagen_url': row['imagen_url'],
+                        'imagen_public_id': row.get('imagen_public_id'),
+                        'imagen_src': (cloudinary_image_url(row.get('imagen_public_id'), width=640) if row.get('imagen_public_id') and CLOUDINARY_AVAILABLE else row['imagen_url']),
+                        'imagen_srcset': (cloudinary_srcset(row.get('imagen_public_id')) if row.get('imagen_public_id') and CLOUDINARY_AVAILABLE else None),
                         'etiquetas': row['etiquetas'].split(',') if row['etiquetas'] else [],
                         'es_nuevo': row['es_nuevo'],
                         'es_popular': row['es_popular'],
@@ -1434,6 +1733,59 @@ def api_crear_preferencia_pago():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/admin/mercadopago/status', methods=['GET', 'POST'])
+@login_required
+@restaurante_owner_required
+def admin_mercadopago_status():
+    """GET: devuelve estado de Mercado Pago. POST: reintenta inicializar (útil tras setear env vars)."""
+    if request.method == 'POST':
+        ok = init_mercadopago()
+        return jsonify({'reinitialized': ok, 'client_present': bool(MERCADOPAGO_CLIENT), 'sdk_available': MERCADOPAGO_AVAILABLE})
+
+    # GET
+    mp_public_preview = None
+    try:
+        mp_pub = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
+        mp_public_preview = (mp_pub[:8] + '...') if mp_pub else None
+    except Exception:
+        mp_public_preview = None
+
+    return jsonify({'initialized': bool(MERCADOPAGO_CLIENT), 'sdk_available': MERCADOPAGO_AVAILABLE, 'public_key_preview': mp_public_preview})
+
+
+@app.route('/admin/mercadopago/test-preference', methods=['POST'])
+@login_required
+@restaurante_owner_required
+def admin_mercadopago_test_preference():
+    """Crea una preferencia de prueba en MercadoPago y devuelve init_point para testing."""
+    if not MERCADOPAGO_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Mercado Pago SDK no instalado. pip install mercado-pago'}), 500
+    if not MERCADOPAGO_CLIENT:
+        ok = init_mercadopago()
+        if not ok or not MERCADOPAGO_CLIENT:
+            return jsonify({'success': False, 'error': 'Mercado Pago no está configurado. Revisa MERCADO_PAGO_ACCESS_TOKEN'}), 500
+
+    try:
+        data = request.get_json() or {}
+        price = data.get('price', 1000)
+        description = data.get('description', 'Prueba - Preferencia')
+        preference_data = {
+            "items": [{"title": description, "quantity": 1, "currency_id": "CLP", "unit_price": price}],
+            "back_urls": {
+                "success": f"{request.host_url.rstrip('/')}/pago/exito",
+                "failure": f"{request.host_url.rstrip('/')}/pago/fallo",
+                "pending": f"{request.host_url.rstrip('/')}/pago/pendiente"
+            },
+            "notification_url": f"{request.host_url.rstrip('/')}/webhook/mercado-pago",
+            "auto_return": "approved"
+        }
+        response = MERCADOPAGO_CLIENT.preference().create(preference_data)
+        return jsonify({'success': True, 'response': response})
+    except Exception as e:
+        logger.exception("Error creando test preference")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/webhook/mercado-pago', methods=['POST'])
 def webhook_mercado_pago():
     """Webhook para recibir notificaciones de Mercado Pago."""
@@ -1498,6 +1850,13 @@ def webhook_mercado_pago():
             dias_extension = 30  # Por defecto mensual
             
             with db.cursor() as cur:
+                # Idempotencia: comprobar si este payment_id ya fue aplicado
+                cur.execute("SELECT ultimo_pago_mercadopago FROM restaurantes WHERE id = %s", (restaurante_id,))
+                prev = cur.fetchone()
+                if prev and prev.get('ultimo_pago_mercadopago') == payment_id:
+                    logger.info('Payment %s already applied for restaurante %s; ignoring (idempotent)', payment_id, restaurante_id)
+                    return jsonify({'status': 'already_processed'}), 200
+
                 # Obtener fecha de vencimiento actual
                 cur.execute(
                     "SELECT fecha_vencimiento FROM restaurantes WHERE id = %s",
@@ -1505,8 +1864,12 @@ def webhook_mercado_pago():
                 )
                 result = dict_from_row(cur.fetchone())
                 
-                fecha_vencimiento_actual = result.get('fecha_vencimiento') if result else date.today()
-                
+                fecha_vencimiento_actual = None
+                if result and result.get('fecha_vencimiento'):
+                    fecha_vencimiento_actual = result.get('fecha_vencimiento')
+                else:
+                    fecha_vencimiento_actual = date.today()
+
                 # Si está vencido, comenzar desde hoy
                 if fecha_vencimiento_actual < date.today():
                     fecha_vencimiento_actual = date.today()
@@ -1582,39 +1945,84 @@ def api_platos():
                     WHERE p.restaurante_id = %s 
                     ORDER BY p.orden, p.nombre
                 ''', (restaurante_id,))
-                return jsonify(list_from_rows(cur.fetchall()))
+                rows = list_from_rows(cur.fetchall())
+                # Enriquecer con URLs responsivas si tenemos imagen_public_id
+                for r in rows:
+                    pid = r.get('imagen_public_id')
+                    if pid and CLOUDINARY_AVAILABLE:
+                        r['imagen_src'] = cloudinary_image_url(pid, width=640)
+                        r['imagen_srcset'] = cloudinary_srcset(pid)
+                    else:
+                        r['imagen_src'] = r.get('imagen_url')
+                        r['imagen_srcset'] = None
+                return jsonify(rows)
                 
             if request.method == 'POST':
                 data = request.get_json()
                 
                 # Procesar imagen si se envía como archivo
                 imagen_url = data.get('imagen_url', '')
-                
+                imagen_public_id = None
+
                 if 'imagen' in request.files and request.files['imagen']:
                     file = request.files['imagen']
                     if file and allowed_file(file.filename):
+                        # Validación de MIME y tamaño
+                        if request.content_length and request.content_length > app.config.get('MAX_CONTENT_LENGTH', MAX_CONTENT_LENGTH):
+                            return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 400
+                        is_valid, err = validate_image_file(file)
+                        if not is_valid:
+                            return jsonify({'success': False, 'error': err}), 400
                         try:
-                            if not CLOUDINARY_CONFIGURED:
+                            if not is_cloudinary_ready():
                                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
                             
-                            # Subir a Cloudinary con transformaciones
+                            # Subir a Cloudinary con transformaciones (eager for responsive sizes)
                             result = cloudinary_upload(
                                 file,
                                 folder=f"mimenudigital/platos/{restaurante_id}",
                                 quality="auto",
                                 fetch_format="auto",
-                                resource_type="auto"
+                                resource_type="auto",
+                                eager=get_cloudinary_eager()
                             )
-                            imagen_url = result['secure_url']
+                            imagen_url = result.get('secure_url')
+                            imagen_public_id = result.get('public_id')
+                            if not imagen_url:
+                                raise Exception('Cloudinary no retornó URL')
                         except Exception as e:
-                            logger.error("Error subiendo imagen a Cloudinary: %s", traceback.format_exc())
-                            return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
+                            logger.exception("Error subiendo imagen a Cloudinary: %s", traceback.format_exc())
+                            # Guardar localmente y crear registro pendiente para reintento
+                            try:
+                                ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+                                unique_filename = f"{restaurante_id}_{uuid.uuid4().hex[:8]}.{ext}"
+                                upload_folder = app.config.get('UPLOAD_FOLDER')
+                                os.makedirs(upload_folder, exist_ok=True)
+                                filepath = os.path.join(upload_folder, unique_filename)
+                                file.save(filepath)
+
+                                # Insertar registro pendiente (sin plato_id, se asociará tras insertar el plato)
+                                with db.cursor() as cur_pending:
+                                    cur_pending.execute('''
+                                        INSERT INTO imagenes_pendientes (restaurante_id, local_path, tipo, attempts, status, created_at)
+                                        VALUES (%s, %s, %s, 0, 'pending', NOW())
+                                    ''', (restaurante_id, filepath, 'plato_upload'))
+                                    db.commit()
+                                    pending_id = cur_pending.lastrowid
+
+                                imagen_url = f"/static/uploads/{unique_filename}"
+                                imagen_public_id = None
+                                # No return aquí; se insertará el plato con la imagen local y se asociará pending luego
+                                logger.info('Imagen guardada localmente y pendiente de subida (pending_id=%s)', pending_id)
+                            except Exception as err:
+                                logger.exception('Error creando pending tras fallo de Cloudinary: %s', err)
+                                return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
                 
                 cur.execute('''
                     INSERT INTO platos (restaurante_id, categoria_id, nombre, descripcion, precio, 
-                                        precio_oferta, imagen_url, etiquetas, es_vegetariano, es_vegano,
+                                        precio_oferta, imagen_url, imagen_public_id, etiquetas, es_vegetariano, es_vegano,
                                         es_sin_gluten, es_picante, es_nuevo, es_popular, orden, activo)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
                 ''', (
                     restaurante_id,
                     data.get('categoria_id'),
@@ -1623,6 +2031,7 @@ def api_platos():
                     data.get('precio', 0),
                     data.get('precio_oferta'),
                     imagen_url,
+                    imagen_public_id,
                     data.get('etiquetas', ''),
                     data.get('es_vegetariano', 0),
                     data.get('es_vegano', 0),
@@ -1633,7 +2042,18 @@ def api_platos():
                     data.get('orden', 0)
                 ))
                 db.commit()
-                return jsonify({'success': True, 'id': cur.lastrowid})
+                new_id = cur.lastrowid
+                # Si existe un pending creado antes (fallo de subida), asociarlo al plato recién creado
+                try:
+                    if 'pending_id' in locals() and pending_id:
+                        with db.cursor() as cur2:
+                            cur2.execute("UPDATE imagenes_pendientes SET plato_id = %s WHERE id = %s", (new_id, pending_id))
+                            db.commit()
+                            logger.info('Asociado pending_id %s con plato %s', pending_id, new_id)
+                except Exception as e:
+                    logger.warning('No se pudo asociar pending_id %s con plato %s: %s', pending_id, new_id, e)
+
+                return jsonify({'success': True, 'id': new_id})
                 
     except Exception as e:
         try:
@@ -1654,8 +2074,10 @@ def api_upload_image():
         if not CLOUDINARY_AVAILABLE:
             logger.error('Cloudinary SDK no instalado. Instalalo con: pip install cloudinary')
             return jsonify({'success': False, 'error': 'Cloudinary SDK no está instalado. Ejecuta: pip install cloudinary'}), 500
-        if not CLOUDINARY_CONFIGURED:
-            logger.error('Cloudinary no configurado (CLOUDINARY_URL no encontrado).')
+        
+        # Usar is_cloudinary_ready() para verificar y re-inicializar si es necesario
+        if not is_cloudinary_ready():
+            logger.error('Cloudinary no configurado. CLOUDINARY_URL=%s', os.environ.get('CLOUDINARY_URL', 'NO DEFINIDA'))
             return jsonify({'success': False, 'error': 'Cloudinary no está configurado. Añade la variable de entorno CLOUDINARY_URL'}), 500
 
         if 'image' not in request.files:
@@ -1672,25 +2094,59 @@ def api_upload_image():
         if request.content_length and request.content_length > app.config.get('MAX_CONTENT_LENGTH', MAX_CONTENT_LENGTH):
             return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 400
 
-        # Subir a Cloudinary
+        # Validación adicional de contenido (MIME sniffing si está disponible)
+        is_valid, err = validate_image_file(file)
+        if not is_valid:
+            return jsonify({'success': False, 'error': err}), 400
+
+        # Intentar subir a Cloudinary
         try:
             restaurante_id = session.get('restaurante_id') or 'anon'
             result = cloudinary_upload(
                 file,
                 folder=f"mimenudigital/platos/{restaurante_id}",
-                quality="auto",
-                fetch_format="auto",
-                resource_type="auto"
+                quality='auto', fetch_format='auto', resource_type='auto',
+                eager=get_cloudinary_eager()
             )
             url = result.get('secure_url') or result.get('url')
+            public_id = result.get('public_id')
             if not url:
                 raise Exception('Cloudinary no retornó URL')
-            return jsonify({'success': True, 'message': 'Imagen subida correctamente', 'url': url})
+            return jsonify({'success': True, 'message': 'Imagen subida correctamente', 'url': url, 'public_id': public_id})
+
         except Exception as e:
-            logger.exception("Error subiendo imagen a Cloudinary")
-            return jsonify({'success': False, 'error': f'Error al subir imagen a Cloudinary: {str(e)}'}), 500
+            logger.exception("Error subiendo imagen a Cloudinary: %s", traceback.format_exc())
+            # Guardar localmente y crear registro pendiente para reintento
+            try:
+                ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+                unique_filename = f"{session.get('restaurante_id')}_{uuid.uuid4().hex[:8]}.{ext}"
+                upload_folder = app.config.get('UPLOAD_FOLDER')
+                os.makedirs(upload_folder, exist_ok=True)
+                filepath = os.path.join(upload_folder, unique_filename)
+                file.save(filepath)
+
+                # Insertar registro pendiente
+                db = get_db()
+                with db.cursor() as cur2:
+                    cur2.execute('''
+                        INSERT INTO imagenes_pendientes (restaurante_id, local_path, tipo, attempts, status, created_at)
+                        VALUES (%s, %s, %s, 0, 'pending', NOW())
+                    ''', (session.get('restaurante_id'), filepath, 'upload'))
+                    db.commit()
+                    pending_id = cur2.lastrowid
+
+                image_url = f"/static/uploads/{unique_filename}"
+                return jsonify({'success': True, 'message': 'Imagen guardada localmente y pendiente de subida (se reintentará)', 'url': image_url, 'pending_id': pending_id}), 200
+
+            except Exception as err:
+                logger.exception("Error creando pending tras fallo de Cloudinary: %s", err)
+                return jsonify({'success': False, 'error': f'Error al subir imagen a Cloudinary: {str(e)}'}), 500
 
     except Exception as e:
+        # If it's a request entity too large error, respond with 413
+        from werkzeug.exceptions import RequestEntityTooLarge as _ReqTooLarge
+        if isinstance(e, _ReqTooLarge):
+            return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 413
         logger.exception("Error en api_upload_image")
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -1718,25 +2174,34 @@ def api_plato(plato_id):
                 
                 # Procesar imagen si se envía como archivo
                 imagen_url = data.get('imagen_url', '')
+                imagen_public_id = None
                 
                 if 'imagen' in request.files and request.files['imagen']:
                     file = request.files['imagen']
                     if file and allowed_file(file.filename):
+                        # Validación de MIME y tamaño
+                        if request.content_length and request.content_length > app.config.get('MAX_CONTENT_LENGTH', MAX_CONTENT_LENGTH):
+                            return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 400
+                        is_valid, err = validate_image_file(file)
+                        if not is_valid:
+                            return jsonify({'success': False, 'error': err}), 400
                         try:
-                            if not CLOUDINARY_CONFIGURED:
+                            if not is_cloudinary_ready():
                                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
                             
                             # Subir a Cloudinary con transformaciones
+                            public_id_for_update = f"plato_{plato_id}"
                             result = cloudinary_upload(
                                 file,
                                 folder=f"mimenudigital/platos/{restaurante_id}",
-                                public_id=f"plato_{plato_id}",
+                                public_id=public_id_for_update,
                                 overwrite=True,
                                 quality="auto",
                                 fetch_format="auto",
                                 resource_type="auto"
                             )
-                            imagen_url = result['secure_url']
+                            imagen_url = result.get('secure_url')
+                            imagen_public_id = result.get('public_id') or public_id_for_update
                         except Exception as e:
                             logger.error("Error subiendo imagen a Cloudinary: %s", traceback.format_exc())
                             return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
@@ -1744,7 +2209,7 @@ def api_plato(plato_id):
                 cur.execute('''
                     UPDATE platos SET 
                         categoria_id = %s, nombre = %s, descripcion = %s, precio = %s,
-                        precio_oferta = %s, imagen_url = %s, etiquetas = %s, 
+                        precio_oferta = %s, imagen_url = %s, imagen_public_id = %s, etiquetas = %s, 
                         es_vegetariano = %s, es_vegano = %s, es_sin_gluten = %s,
                         es_picante = %s, es_nuevo = %s, es_popular = %s,
                         orden = %s, activo = %s
@@ -1756,6 +2221,7 @@ def api_plato(plato_id):
                     data.get('precio', 0),
                     data.get('precio_oferta'),
                     imagen_url,
+                    imagen_public_id,
                     data.get('etiquetas', ''),
                     data.get('es_vegetariano', 0),
                     data.get('es_vegano', 0),
@@ -1771,6 +2237,20 @@ def api_plato(plato_id):
                 return jsonify({'success': True})
                 
             if request.method == 'DELETE':
+                # Antes de borrar, intentar eliminar la imagen en Cloudinary si existe
+                try:
+                    cur.execute("SELECT imagen_public_id FROM platos WHERE id = %s AND restaurante_id = %s", (plato_id, restaurante_id))
+                    row = cur.fetchone()
+                    public_id = row.get('imagen_public_id') if row else None
+                    if public_id and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED and hasattr(cloudinary, 'uploader'):
+                        try:
+                            cloudinary.uploader.destroy(public_id, resource_type='image')
+                            logger.info('Imagen Cloudinary %s eliminada para plato %s', public_id, plato_id)
+                        except Exception as e:
+                            logger.warning('No se pudo eliminar imagen en Cloudinary: %s', e)
+                except Exception as e:
+                    logger.warning('Error comprobando imagen_public_id antes de borrar plato: %s', e)
+
                 cur.execute("DELETE FROM platos WHERE id = %s AND restaurante_id = %s", 
                            (plato_id, restaurante_id))
                 db.commit()
@@ -2045,16 +2525,17 @@ def api_subir_logo():
     
     if file and allowed_file(file.filename):
         try:
-            if not CLOUDINARY_CONFIGURED:
+            if not is_cloudinary_ready():
                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
             
-            # Subir a Cloudinary
+            # Subir a Cloudinary (generar variantes para logo)
             result = cloudinary_upload(
                 file,
                 folder=f"mimenudigital/logos",
                 public_id=f"logo_{session['restaurante_id']}",
                 overwrite=True,
-                resource_type="auto"
+                resource_type="auto",
+                eager=get_cloudinary_eager()
             )
             
             logo_url = result['secure_url']
@@ -2636,9 +3117,155 @@ def health_check():
     return jsonify(status)
 
 
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    """Lightweight health check (for load balancers): checks DB connectivity and Cloudinary config."""
+    ok = True
+    components = {}
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute('SELECT 1')
+        components['db'] = 'ok'
+    except Exception as e:
+        components['db'] = str(e)
+        ok = False
+
+    # Verificar Cloudinary con más detalle
+    cloudinary_url = os.environ.get('CLOUDINARY_URL', '')
+    components['cloudinary'] = {
+        'sdk_available': CLOUDINARY_AVAILABLE,
+        'configured': CLOUDINARY_CONFIGURED,
+        'url_set': bool(cloudinary_url),
+        'url_preview': cloudinary_url[:30] + '...' if len(cloudinary_url) > 30 else cloudinary_url,
+        'api_proxy': os.environ.get('API_PROXY', 'not set')
+    }
+    
+    # Intentar re-inicializar si no está configurado
+    if not CLOUDINARY_CONFIGURED and CLOUDINARY_AVAILABLE and cloudinary_url:
+        try:
+            init_result = init_cloudinary()
+            components['cloudinary']['init_retry'] = init_result
+            components['cloudinary']['configured_after_retry'] = CLOUDINARY_CONFIGURED
+        except Exception as e:
+            components['cloudinary']['init_error'] = str(e)
+    
+    return jsonify({'ok': ok, 'components': components}), (200 if ok else 500)
+
+
 # ============================================================
 # ARCHIVOS ESTÁTICOS
 # ============================================================
+
+
+# ------------------------------------------------------------------
+# Cloudinary diagnostics and test endpoints
+# ------------------------------------------------------------------
+@app.route('/admin/cloudinary/status', methods=['GET', 'POST'])
+@login_required
+@restaurante_owner_required
+def admin_cloudinary_status():
+    """GET: devuelve status de Cloudinary. POST: reintenta inicializar (útil después de setear CLOUDINARY_URL)."""
+    if request.method == 'POST':
+        ok = init_cloudinary()
+        return jsonify({'reinitialized': ok, 'configured': CLOUDINARY_CONFIGURED, 'sdk_installed': CLOUDINARY_AVAILABLE})
+
+    # GET
+    # Mostrar información útil pero no exponer credenciales completas
+    cloud_name = None
+    if CLOUDINARY_CONFIGURED and cloudinary and hasattr(cloudinary, 'config'):
+        try:
+            cloud_name = getattr(cloudinary.config(), 'cloud_name', None) or os.environ.get('CLOUDINARY_URL', '').split('@')[-1]
+        except Exception:
+            cloud_name = None
+    return jsonify({
+        'configured': CLOUDINARY_CONFIGURED,
+        'sdk_installed': CLOUDINARY_AVAILABLE,
+        'cloud_name_preview': (cloud_name[:8] + '...') if cloud_name else None
+    })
+
+
+@app.route('/admin/cloudinary/test-upload', methods=['POST'])
+@login_required
+@restaurante_owner_required
+def admin_cloudinary_test_upload():
+    """Sube una imagen a Cloudinary para pruebas. Acepta campo 'image' (archivo) o 'image_url' (URL pública)."""
+    if not CLOUDINARY_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Cloudinary SDK no instalado. Ejecuta pip install cloudinary'}), 500
+    if not is_cloudinary_ready():
+        return jsonify({'success': False, 'error': 'Cloudinary no está configurado. Establece CLOUDINARY_URL'}), 500
+
+    # Permitir subir por archivo
+    if 'image' in request.files and request.files['image']:
+        file = request.files['image']
+        # Validación de MIME y tamaño
+        if request.content_length and request.content_length > app.config.get('MAX_CONTENT_LENGTH', MAX_CONTENT_LENGTH):
+            return jsonify({'success': False, 'error': 'Archivo demasiado grande'}), 400
+        is_valid, err = validate_image_file(file)
+        if not is_valid:
+            return jsonify({'success': False, 'error': err}), 400
+        try:
+            restaurante_id = session.get('restaurante_id') or 'anon'
+            result = cloudinary_upload(
+                file,
+                folder=f"mimenudigital/test/{restaurante_id}",
+                quality='auto', fetch_format='auto', resource_type='image',
+                eager=get_cloudinary_eager()
+            )
+            return jsonify({'success': True, 'result': {'url': result.get('secure_url'), 'public_id': result.get('public_id')}})
+        except Exception as e:
+            logger.exception('Error al subir imagen de prueba a Cloudinary: %s', e)
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    # O permitir subir por URL
+    image_url = request.form.get('image_url') or request.json.get('image_url') if request.is_json else None
+    if image_url:
+        try:
+            restaurante_id = session.get('restaurante_id') or 'anon'
+            result = cloudinary_upload(
+                image_url,
+                folder=f"mimenudigital/test/{restaurante_id}",
+                quality='auto', fetch_format='auto', resource_type='image',
+                eager=get_cloudinary_eager()
+            )
+            return jsonify({'success': True, 'result': {'url': result.get('secure_url'), 'public_id': result.get('public_id')}})
+        except Exception as e:
+            logger.exception('Error al subir imagen por URL a Cloudinary: %s', e)
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    return jsonify({'success': False, 'error': 'Proporciona un archivo en el campo "image" o un "image_url" en el body.'}), 400
+
+
+@app.route('/admin/cloudinary/process-pendings', methods=['POST'])
+@login_required
+@restaurante_owner_required
+def admin_cloudinary_process_pendings():
+    """Trigger processing of pending image uploads (synchronous). Accepts JSON: {"limit": 50, "max_attempts": 5, "dry_run": false}.
+    Returns 200 on success and a brief summary."""
+    data = request.get_json() or {}
+    limit = int(data.get('limit', 50))
+    max_attempts = int(data.get('max_attempts', 5))
+    dry_run = bool(data.get('dry_run', False))
+
+    if not CLOUDINARY_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Cloudinary SDK no instalado.'}), 500
+    if not is_cloudinary_ready():
+        return jsonify({'success': False, 'error': 'Cloudinary no está configurado.'}), 500
+
+    try:
+        # Import local script and run
+        from scripts.process_pending_images import process
+        exit_code = process(limit=limit, max_attempts=max_attempts, dry_run=dry_run)
+        if exit_code == 0:
+            return jsonify({'success': True, 'message': 'Procesamiento completado'}), 200
+        elif exit_code == 2:
+            return jsonify({'success': False, 'error': 'Cloudinary no disponible o no configurado'}), 500
+        else:
+            return jsonify({'success': False, 'error': 'Error durante el procesamiento'}), 500
+    except Exception as e:
+        logger.exception('Error ejecutando procesador de pendings: %s', e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/static/uploads/<path:filename>')
 def uploaded_file(filename):

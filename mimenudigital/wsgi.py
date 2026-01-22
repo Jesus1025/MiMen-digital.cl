@@ -17,8 +17,16 @@ os.environ.setdefault('BASE_URL', 'https://mimenudigital.pythonanywhere.com')
 os.environ.setdefault('SECRET_KEY', 'super_secreto_produccion_123_cambiar')
 os.environ.setdefault('MERCADO_PAGO_ACCESS_TOKEN', '***REMOVED***')
 os.environ.setdefault('MERCADO_PAGO_PUBLIC_KEY', '***REMOVED***')
-# Credenciales de Cloudinary (Asegúrate de que esta línea esté ANTES de importar la app)
-os.environ['CLOUDINARY_URL'] = 'cloudinary://***REMOVED***:***REMOVED***@tu_cloud_name'
+
+# CLOUDINARY_URL - CON TUS CREDENCIALES REALES COMPLETAS
+os.environ.setdefault('CLOUDINARY_URL', 'cloudinary://***REMOVED***:***REMOVED***@tu_cloud_name')
+
+# API_PROXY para cuentas gratuitas de PythonAnywhere
+# Formato correcto: http://proxy.server:3128
+os.environ.setdefault('API_PROXY', 'http://proxy.server:3128')
+
+# SENTRY_DSN (opcional para monitoreo de errores)
+# os.environ.setdefault('SENTRY_DSN', 'https://tu_sentry_dsn_aqui')
 
 import logging
 logger = logging.getLogger(__name__)
@@ -51,10 +59,8 @@ except Exception as e:
     import traceback
     from flask import Flask
     application = Flask(__name__)
-    
     error_msg = f"Error importando app_menu: {str(e)}\n{traceback.format_exc()}"
     logger.error("ERROR: %s", error_msg)
-    
     @application.route('/')
     def error():
         return f"<pre>Import Error:\n{error_msg}</pre>", 500
