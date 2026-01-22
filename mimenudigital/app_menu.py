@@ -1960,9 +1960,9 @@ def api_platos():
             if request.method == 'POST':
                 data = request.get_json()
                 
-                # Procesar imagen si se envía como archivo
+                # Procesar imagen - puede venir como archivo o ya subida previamente
                 imagen_url = data.get('imagen_url', '')
-                imagen_public_id = None
+                imagen_public_id = data.get('imagen_public_id')  # Puede venir del frontend si ya se subió
 
                 if 'imagen' in request.files and request.files['imagen']:
                     file = request.files['imagen']
@@ -2172,9 +2172,9 @@ def api_plato(plato_id):
             if request.method == 'PUT':
                 data = request.get_json()
                 
-                # Procesar imagen si se envía como archivo
+                # Procesar imagen - puede venir como archivo o ya subida previamente
                 imagen_url = data.get('imagen_url', '')
-                imagen_public_id = None
+                imagen_public_id = data.get('imagen_public_id')  # Puede venir del frontend si ya se subió
                 
                 if 'imagen' in request.files and request.files['imagen']:
                     file = request.files['imagen']

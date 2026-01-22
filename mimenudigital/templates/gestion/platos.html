@@ -140,8 +140,9 @@
                         </div>
                     </div>
                     
-                    <!-- Campo oculto con la URL final -->
+                    <!-- Campos ocultos con la URL e ID de Cloudinary -->
                     <input type="hidden" id="platoImagen">
+                    <input type="hidden" id="platoImagenPublicId">
                 </div>
                 
                 <div class="form-group">
@@ -290,6 +291,7 @@
         document.getElementById('imagenPreview').style.display = 'none';
         resetDropZone();
         cambiarTabImagen('upload');
+        document.getElementById('platoImagenPublicId').value = '';
         document.getElementById('modalPlato').classList.add('active');
     }
 
@@ -308,6 +310,7 @@
         document.getElementById('platoPrecio').value = plato.precio;
         document.getElementById('platoDescripcion').value = plato.descripcion || '';
         document.getElementById('platoImagen').value = plato.imagen_url || '';
+        document.getElementById('platoImagenPublicId').value = plato.imagen_public_id || '';
         document.getElementById('platoEtiquetas').value = plato.etiquetas || '';
         
         // Si tiene imagen, mostrar preview
@@ -329,6 +332,7 @@
             precio: parseFloat(document.getElementById('platoPrecio').value),
             descripcion: document.getElementById('platoDescripcion').value,
             imagen_url: document.getElementById('platoImagen').value,
+            imagen_public_id: document.getElementById('platoImagenPublicId').value || null,
             etiquetas: document.getElementById('platoEtiquetas').value
         };
 
@@ -536,8 +540,9 @@
             const result = await response.json();
             
             if (result.success) {
-                // Guardar URL en campo oculto
+                // Guardar URL y public_id en campos ocultos
                 document.getElementById('platoImagen').value = result.url;
+                document.getElementById('platoImagenPublicId').value = result.public_id || '';
                 
                 // Mostrar preview
                 mostrarPreviewImagen(result.url);
@@ -576,6 +581,7 @@
 
     function eliminarImagen() {
         document.getElementById('platoImagen').value = '';
+        document.getElementById('platoImagenPublicId').value = '';
         document.getElementById('platoImagenUrl').value = '';
         document.getElementById('imagenPreview').style.display = 'none';
         resetDropZone();
