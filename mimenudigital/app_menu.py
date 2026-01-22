@@ -205,6 +205,7 @@ if not secret_key:
         logger.warning('SECRET_KEY not set in environment. Set SECRET_KEY in production.')
 
 app.secret_key = secret_key
+app.config['FLASK_ENV'] = os.environ.get('FLASK_ENV', 'development')
 
 # Configuración de sesiones (mejorada)
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
@@ -212,6 +213,39 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
 app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+
+# ============================================================
+# INICIALIZAR MIDDLEWARE DE SEGURIDAD Y PERFORMANCE
+# ============================================================
+try:
+    from security_middleware import (
+        init_security_middleware, 
+        check_login_allowed, 
+        record_login_attempt,
+        get_client_ip,
+        get_cache,
+        invalidate_menu_cache,
+        rate_limit
+    )
+    init_security_middleware(app)
+    SECURITY_MIDDLEWARE_AVAILABLE = True
+    logger.info("Security middleware loaded successfully")
+except ImportError as e:
+    logger.warning("Security middleware not available: %s", e)
+    SECURITY_MIDDLEWARE_AVAILABLE = False
+    # Funciones placeholder si el módulo no está disponible
+    def check_login_allowed(ip, username=None):
+        return False, None
+    def record_login_attempt(ip, username, success):
+        pass
+    def get_client_ip():
+        return request.remote_addr or '127.0.0.1'
+    def invalidate_menu_cache(restaurante_id):
+        pass
+    def rate_limit(limit_type='default'):
+        def decorator(f):
+            return f
+        return decorator
 
 # Función now() para templates
 app.jinja_env.globals['now'] = lambda: datetime.utcnow()
@@ -1110,8 +1144,25 @@ def index():
 
 @app.route('/menu/<string:url_slug>')
 def ver_menu_publico(url_slug):
-    """Ruta pública para ver el menú. Accesible por QR."""
+    """Ruta pública para ver el menú. Accesible por QR. Con cache para mejor rendimiento."""
     try:
+        # Preview de tema - no cachear
+        preview_tema = request.args.get('preview_tema')
+        
+        # Intentar obtener del cache si no es preview
+        cache_key = f"menu:{url_slug}"
+        cached_data = None
+        if not preview_tema and SECURITY_MIDDLEWARE_AVAILABLE:
+            cached_data = get_cache().get(cache_key)
+        
+        if cached_data:
+            restaurante, menu_estructurado = cached_data
+            # Registrar visita aunque venga del cache
+            registrar_visita(restaurante['id'], request)
+            return render_template('menu_publico.html', 
+                                   restaurante=restaurante, 
+                                   menu=list(menu_estructurado.values()))
+        
         db = get_db()
         with db.cursor() as cur:
             # 1. Obtener datos del restaurante
@@ -1123,8 +1174,6 @@ def ver_menu_publico(url_slug):
             
             restaurante = dict_from_row(row)
             
-            # Preview de tema
-            preview_tema = request.args.get('preview_tema')
             if preview_tema:
                 restaurante['tema'] = preview_tema
             
@@ -1191,6 +1240,10 @@ def ver_menu_publico(url_slug):
                     }
                     menu_estructurado[cat_id]['platos'].append(plato)
 
+            # Guardar en cache si no es preview (5 minutos TTL)
+            if not preview_tema and SECURITY_MIDDLEWARE_AVAILABLE:
+                get_cache().set(cache_key, (restaurante, menu_estructurado), ttl=300)
+
             return render_template('menu_publico.html', 
                                    restaurante=restaurante, 
                                    menu=list(menu_estructurado.values()))
@@ -1206,10 +1259,18 @@ def ver_menu_publico(url_slug):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Página de inicio de sesión."""
+    """Página de inicio de sesión con protección contra brute force."""
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        ip = get_client_ip()
+        
+        # Verificar si el IP o usuario está bloqueado por demasiados intentos
+        is_locked, unlock_time = check_login_allowed(ip, username)
+        if is_locked:
+            logger.warning("Login blocked for IP %s (user: %s) - too many attempts", ip, username)
+            flash(f'Demasiados intentos fallidos. Intenta de nuevo en {unlock_time} segundos.', 'error')
+            return render_template('login.html')
         
         db = get_db()
         with db.cursor() as cur:
@@ -1224,6 +1285,9 @@ def login():
             if row:
                 user = dict_from_row(row)
                 if check_password_hash(user['password_hash'], password):
+                    # Login exitoso - registrar y limpiar intentos fallidos
+                    record_login_attempt(ip, username, success=True)
+                    
                     # Prevent session fixation: clear existing session and set fresh values
                     session.clear()
                     session['user_id'] = user['id']
@@ -1237,12 +1301,16 @@ def login():
                     cur.execute("UPDATE usuarios_admin SET ultimo_login = NOW() WHERE id = %s", (user['id'],))
                     db.commit()
                     
+                    logger.info("Successful login for user %s from IP %s", username, ip)
                     flash('Bienvenido ' + user['nombre'], 'success')
                     
                     if user['rol'] == 'superadmin':
                         return redirect(url_for('superadmin_restaurantes'))
                     return redirect(url_for('menu_gestion'))
             
+            # Login fallido - registrar intento
+            record_login_attempt(ip, username, success=False)
+            logger.warning("Failed login attempt for user %s from IP %s", username, ip)
             flash('Usuario o contraseña incorrectos', 'error')
     
     return render_template('login.html')
@@ -1967,13 +2035,68 @@ def api_platos():
     try:
         with db.cursor() as cur:
             if request.method == 'GET':
-                cur.execute('''
+                # Paginación opcional
+                page = request.args.get('page', type=int)
+                per_page = request.args.get('per_page', 50, type=int)
+                per_page = min(per_page, 100)  # Máximo 100 por página
+                
+                # Filtro opcional por categoría
+                categoria_id = request.args.get('categoria_id', type=int)
+                
+                base_query = '''
                     SELECT p.*, c.nombre as categoria_nombre 
                     FROM platos p 
                     LEFT JOIN categorias c ON p.categoria_id = c.id
                     WHERE p.restaurante_id = %s 
-                    ORDER BY p.orden, p.nombre
-                ''', (restaurante_id,))
+                '''
+                params = [restaurante_id]
+                
+                if categoria_id:
+                    base_query += ' AND p.categoria_id = %s'
+                    params.append(categoria_id)
+                
+                base_query += ' ORDER BY p.orden, p.nombre'
+                
+                # Si se pide paginación
+                if page is not None:
+                    # Contar total
+                    count_query = 'SELECT COUNT(*) as total FROM platos WHERE restaurante_id = %s'
+                    count_params = [restaurante_id]
+                    if categoria_id:
+                        count_query += ' AND categoria_id = %s'
+                        count_params.append(categoria_id)
+                    cur.execute(count_query, count_params)
+                    total = cur.fetchone()['total']
+                    
+                    offset = (page - 1) * per_page
+                    base_query += ' LIMIT %s OFFSET %s'
+                    params.extend([per_page, offset])
+                    
+                    cur.execute(base_query, params)
+                    rows = list_from_rows(cur.fetchall())
+                    
+                    # Enriquecer con URLs responsivas
+                    for r in rows:
+                        pid = r.get('imagen_public_id')
+                        img_url = r.get('imagen_url')
+                        if pid and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED:
+                            generated_url = cloudinary_image_url(pid, width=640)
+                            r['imagen_src'] = generated_url if generated_url else img_url
+                            r['imagen_srcset'] = cloudinary_srcset(pid) if generated_url else None
+                        else:
+                            r['imagen_src'] = img_url
+                            r['imagen_srcset'] = None
+                    
+                    return jsonify({
+                        'items': rows,
+                        'total': total,
+                        'page': page,
+                        'per_page': per_page,
+                        'pages': (total + per_page - 1) // per_page
+                    })
+                
+                # Sin paginación (compatibilidad hacia atrás)
+                cur.execute(base_query, params)
                 rows = list_from_rows(cur.fetchall())
                 # Enriquecer con URLs responsivas si tenemos imagen_public_id
                 for r in rows:
@@ -2089,6 +2212,9 @@ def api_platos():
                 except Exception as e:
                     logger.warning('No se pudo asociar pending_id %s con plato %s: %s', pending_id, new_id, e)
 
+                # Invalidar cache del menú público
+                invalidate_menu_cache(restaurante_id)
+                
                 return jsonify({'success': True, 'id': new_id})
                 
     except Exception as e:
@@ -2274,6 +2400,8 @@ def api_plato(plato_id):
                     plato_id, restaurante_id
                 ))
                 db.commit()
+                # Invalidar cache del menú público
+                invalidate_menu_cache(restaurante_id)
                 return jsonify({'success': True})
                 
             if request.method == 'DELETE':
@@ -2294,6 +2422,8 @@ def api_plato(plato_id):
                 cur.execute("DELETE FROM platos WHERE id = %s AND restaurante_id = %s", 
                            (plato_id, restaurante_id))
                 db.commit()
+                # Invalidar cache del menú público
+                invalidate_menu_cache(restaurante_id)
                 return jsonify({'success': True})
                 
     except Exception as e:
@@ -2348,6 +2478,8 @@ def api_apariencia():
                 restaurante_id
             ))
             db.commit()
+        # Invalidar cache del menú público
+        invalidate_menu_cache(restaurante_id)
         return jsonify({'success': True, 'message': 'Apariencia actualizada'})
     except Exception as e:
         try:
@@ -2395,6 +2527,8 @@ def api_categorias():
                     data.get('orden', 0)
                 ))
                 db.commit()
+                # Invalidar cache del menú público
+                invalidate_menu_cache(restaurante_id)
                 return jsonify({'success': True, 'id': cur.lastrowid})
                 
     except Exception as e:
@@ -2439,6 +2573,8 @@ def api_categoria(categoria_id):
                     categoria_id, restaurante_id
                 ))
                 db.commit()
+                # Invalidar cache del menú público
+                invalidate_menu_cache(restaurante_id)
                 return jsonify({'success': True})
                 
             if request.method == 'DELETE':
@@ -2448,6 +2584,8 @@ def api_categoria(categoria_id):
                 cur.execute("DELETE FROM categorias WHERE id = %s AND restaurante_id = %s", 
                            (categoria_id, restaurante_id))
                 db.commit()
+                # Invalidar cache del menú público
+                invalidate_menu_cache(restaurante_id)
                 return jsonify({'success': True})
                 
     except Exception as e:
@@ -2508,6 +2646,9 @@ def api_mi_restaurante():
                 # Actualizar nombre en sesión
                 session['restaurante_nombre'] = data.get('nombre')
                 
+                # Invalidar cache del menú público
+                invalidate_menu_cache(restaurante_id)
+                
                 return jsonify({'success': True})
                 
     except Exception as e:
@@ -2541,6 +2682,8 @@ def api_actualizar_tema():
                 restaurante_id
             ))
             db.commit()
+        # Invalidar cache del menú público
+        invalidate_menu_cache(restaurante_id)
         return jsonify({'success': True})
         
     except Exception as e:
@@ -2591,6 +2734,8 @@ def api_subir_logo():
                 db.commit()
             
             logger.info("Logo subido a Cloudinary para restaurante %s", session['restaurante_id'])
+            # Invalidar cache del menú público
+            invalidate_menu_cache(session['restaurante_id'])
             return jsonify({'success': True, 'logo_url': logo_url})
         
         except Exception as e:
