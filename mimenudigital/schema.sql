@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS platos (
     precio DECIMAL(10,2) NOT NULL DEFAULT 0,
     precio_oferta DECIMAL(10,2),
     imagen_url VARCHAR(500),
+    imagen_public_id VARCHAR(255),
     etiquetas VARCHAR(255),
     es_vegetariano TINYINT(1) DEFAULT 0,
     es_vegano TINYINT(1) DEFAULT 0,
@@ -138,6 +139,31 @@ CREATE TABLE IF NOT EXISTS platos (
     INDEX idx_orden (orden),
     FOREIGN KEY (restaurante_id) REFERENCES restaurantes(id) ON DELETE CASCADE,
     FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABLA: IMÁGENES PENDIENTES DE CLOUDINARY
+-- Mantiene archivos locales que fallaron al subir para reintentos.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS imagenes_pendientes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    restaurante_id INT DEFAULT NULL,
+    plato_id INT DEFAULT NULL,
+    tipo VARCHAR(50) DEFAULT 'plato',
+    local_path VARCHAR(1024) DEFAULT NULL,
+    source_url TEXT DEFAULT NULL,
+    attempts INT DEFAULT 0,
+    max_attempts INT DEFAULT 5,
+    status ENUM('pending','processing','failed','uploaded') NOT NULL DEFAULT 'pending',
+    last_error TEXT DEFAULT NULL,
+    public_id VARCHAR(255) DEFAULT NULL,
+    url TEXT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    processed_at DATETIME DEFAULT NULL,
+    INDEX idx_imagenes_pendientes_restaurante (restaurante_id),
+    INDEX idx_imagenes_pendientes_status (status),
+    INDEX idx_imagenes_pendientes_plato (plato_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
