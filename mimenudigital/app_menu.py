@@ -36,6 +36,17 @@ except ImportError:
     # dotenv no instalado, está bien - las vars vienen de PythonAnywhere
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
+# ============================================================
+# CONFIGURACIÓN DE PROXY PARA PYTHONANYWHERE (CUENTA GRATUITA)
+# Debe hacerse ANTES de cualquier importación que haga conexiones HTTP
+# ============================================================
+_api_proxy = os.environ.get('API_PROXY')
+if _api_proxy:
+    os.environ['HTTP_PROXY'] = _api_proxy
+    os.environ['HTTPS_PROXY'] = _api_proxy
+    os.environ['http_proxy'] = _api_proxy
+    os.environ['https_proxy'] = _api_proxy
+
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for, 
     flash, session, g, send_from_directory, make_response
@@ -246,7 +257,12 @@ def init_cloudinary():
             config_options = {}
             if api_proxy:
                 config_options['api_proxy'] = api_proxy
-                logger.info("Usando proxy para Cloudinary: %s", api_proxy)
+                # También configurar variables de entorno HTTP para que urllib3/requests usen el proxy
+                os.environ['HTTP_PROXY'] = api_proxy
+                os.environ['HTTPS_PROXY'] = api_proxy
+                os.environ['http_proxy'] = api_proxy
+                os.environ['https_proxy'] = api_proxy
+                logger.info("Usando proxy para Cloudinary y HTTP/HTTPS: %s", api_proxy)
 
             # Extraer credenciales de la URL
             from urllib.parse import urlparse
