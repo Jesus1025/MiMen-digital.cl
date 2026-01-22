@@ -245,6 +245,127 @@
         }
 
         /* ============================================
+           INFORMACIÓN DEL RESTAURANTE
+           ============================================ */
+        .restaurant-info-section {
+            background: var(--bg-white);
+            border-top: 1px solid var(--border-color);
+            padding: 1rem;
+        }
+        
+        .info-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+            background: var(--bg-light);
+            border-radius: 25px;
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .info-item:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .info-item i {
+            color: var(--primary-color);
+        }
+        
+        .info-item:hover i {
+            color: white;
+        }
+        
+        .info-item.whatsapp-item {
+            background: #25d366;
+            color: white;
+        }
+        
+        .info-item.whatsapp-item i {
+            color: white;
+        }
+        
+        .info-item.whatsapp-item:hover {
+            background: #128c7e;
+        }
+        
+        .horario-item {
+            cursor: pointer;
+        }
+        
+        .horarios-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: var(--bg-light);
+            border-radius: 12px;
+            margin-top: 0;
+        }
+        
+        .horarios-dropdown.open {
+            max-height: 400px;
+            margin-top: 1rem;
+        }
+        
+        .horarios-content {
+            padding: 1rem;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .horario-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+        
+        .horario-row:last-child {
+            border-bottom: none;
+        }
+        
+        .horario-row.hoy {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .horario-dia {
+            color: var(--text-dark);
+        }
+        
+        .horario-horas {
+            color: var(--text-muted);
+        }
+        
+        .horario-cerrado {
+            color: #e74c3c;
+        }
+
+        #horarioChevron {
+            transition: transform 0.3s ease;
+            font-size: 0.7rem;
+            margin-left: 0.3rem;
+        }
+        
+        .horarios-dropdown.open ~ .info-container #horarioChevron,
+        .horario-item.open #horarioChevron {
+            transform: rotate(180deg);
+        }
+
+        /* ============================================
            SECCIONES DE CATEGORÍA
            ============================================ */
         .menu-section {
@@ -907,6 +1028,49 @@
 
     </main>
 
+    <!-- Información del Restaurante -->
+    {% if restaurante.telefono or restaurante.direccion or restaurante.horario %}
+    <section class="restaurant-info-section">
+        <div class="info-container">
+            {% if restaurante.telefono %}
+            <a href="tel:{{ restaurante.telefono }}" class="info-item">
+                <i class="fas fa-phone"></i>
+                <span>{{ restaurante.telefono }}</span>
+            </a>
+            {% endif %}
+            
+            {% if restaurante.direccion %}
+            <div class="info-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>{{ restaurante.direccion }}</span>
+            </div>
+            {% endif %}
+            
+            {% if restaurante.horario %}
+            <div class="info-item horario-item" onclick="toggleHorarios()">
+                <i class="fas fa-clock"></i>
+                <span>Ver horarios <i class="fas fa-chevron-down" id="horarioChevron"></i></span>
+            </div>
+            {% endif %}
+            
+            {% if restaurante.whatsapp %}
+            <a href="https://wa.me/{{ restaurante.whatsapp|replace('+', '')|replace(' ', '') }}" class="info-item whatsapp-item" target="_blank">
+                <i class="fab fa-whatsapp"></i>
+                <span>WhatsApp</span>
+            </a>
+            {% endif %}
+        </div>
+        
+        {% if restaurante.horario %}
+        <div class="horarios-dropdown" id="horariosDropdown">
+            <div class="horarios-content" id="horariosContent">
+                <!-- Se llena con JavaScript -->
+            </div>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
     <!-- Botón flotante para descargar PDF -->
     <button type="button"
        class="pdf-download-btn" 
@@ -1267,6 +1431,61 @@
                 cerrarModal();
             }
         });
+
+        // ============================================
+        // HORARIOS DEL RESTAURANTE
+        // ============================================
+        const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+        const DIAS_NOMBRES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        
+        function toggleHorarios() {
+            const dropdown = document.getElementById('horariosDropdown');
+            const chevron = document.getElementById('horarioChevron');
+            const item = document.querySelector('.horario-item');
+            
+            if (dropdown) {
+                dropdown.classList.toggle('open');
+                if (item) item.classList.toggle('open');
+            }
+        }
+        
+        function cargarHorarios() {
+            const horarioStr = '{{ restaurante.horario | e | safe }}';
+            const container = document.getElementById('horariosContent');
+            if (!container || !horarioStr) return;
+            
+            try {
+                const horarios = JSON.parse(horarioStr);
+                const hoy = new Date().getDay(); // 0 = Domingo
+                
+                let html = '';
+                DIAS_SEMANA.forEach((dia, index) => {
+                    const esHoy = index === hoy;
+                    const info = horarios[dia];
+                    
+                    if (info) {
+                        const horasText = info.abierto !== false 
+                            ? `${info.apertura} - ${info.cierre}` 
+                            : '<span class="horario-cerrado">Cerrado</span>';
+                        
+                        html += `
+                            <div class="horario-row ${esHoy ? 'hoy' : ''}">
+                                <span class="horario-dia">${DIAS_NOMBRES[index]}${esHoy ? ' (Hoy)' : ''}</span>
+                                <span class="horario-horas">${horasText}</span>
+                            </div>
+                        `;
+                    }
+                });
+                
+                container.innerHTML = html;
+            } catch (e) {
+                // Formato antiguo (texto libre)
+                container.innerHTML = `<div class="horario-row"><span>${horarioStr}</span></div>`;
+            }
+        }
+        
+        // Cargar horarios al iniciar
+        document.addEventListener('DOMContentLoaded', cargarHorarios);
 
         // ============================================
         // EXPORTAR A PDF - DISEÑO PREMIUM

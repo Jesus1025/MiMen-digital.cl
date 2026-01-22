@@ -816,13 +816,13 @@
 
         <!-- Widget de Suscripción -->
         {% if subscription_info %}
-        <div class="subscription-widget {% if subscription_info.status == 'active' and subscription_info.days_remaining > 5 %}active{% elif subscription_info.status == 'active' and subscription_info.days_remaining <= 5 %}expiring-soon{% else %}expired{% endif %}">
+        <div class="subscription-widget {% if subscription_info.status == 'active' %}active{% elif subscription_info.status == 'expiring_soon' %}expiring-soon{% else %}expired{% endif %}">
             <div class="subscription-widget-header">
-                <div class="subscription-status {% if subscription_info.status == 'active' and subscription_info.days_remaining > 5 %}active{% elif subscription_info.status == 'active' and subscription_info.days_remaining <= 5 %}expiring-soon{% else %}expired{% endif %}">
-                    {% if subscription_info.status == 'active' and subscription_info.days_remaining > 5 %}
+                <div class="subscription-status {% if subscription_info.status == 'active' %}active{% elif subscription_info.status == 'expiring_soon' %}expiring-soon{% else %}expired{% endif %}">
+                    {% if subscription_info.status == 'active' %}
                         <i class="fas fa-check-circle"></i>
                         <span>Suscripción Activa</span>
-                    {% elif subscription_info.status == 'active' and subscription_info.days_remaining <= 5 %}
+                    {% elif subscription_info.status == 'expiring_soon' %}
                         <i class="fas fa-exclamation-triangle"></i>
                         <span>¡Vence Pronto!</span>
                     {% else %}
@@ -922,12 +922,12 @@
                 <!-- Indicador de Suscripción -->
                 {% if subscription_info %}
                 <div style="display: flex; align-items: center; gap: 1rem; padding-right: 1.5rem; border-right: 1px solid #ecf0f1;">
-                    {% if subscription_info.status == 'active' and subscription_info.days_remaining > 5 %}
+                    {% if subscription_info.status == 'active' %}
                         <div style="text-align: right; font-size: 0.85rem;">
                             <div style="color: #27ae60; font-weight: 600;">✓ Activa</div>
                             <div style="color: #7f8c8d; font-size: 0.75rem;">{{ subscription_info.days_remaining }} días</div>
                         </div>
-                    {% elif subscription_info.status == 'active' and subscription_info.days_remaining <= 5 %}
+                    {% elif subscription_info.status == 'expiring_soon' %}
                         <div style="text-align: right; font-size: 0.85rem;">
                             <div style="color: #f39c12; font-weight: 600;">⚠ ¡Vence Pronto!</div>
                             <div style="color: #7f8c8d; font-size: 0.75rem;">{{ subscription_info.days_remaining }} días</div>

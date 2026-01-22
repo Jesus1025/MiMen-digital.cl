@@ -1996,13 +1996,15 @@ def api_platos():
                                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
                             
                             # Subir a Cloudinary con transformaciones (eager for responsive sizes)
+                            # angle="auto" corrige la rotación según datos EXIF del celular
                             result = cloudinary_upload(
                                 file,
                                 folder=f"mimenudigital/platos/{restaurante_id}",
                                 quality="auto",
                                 fetch_format="auto",
                                 resource_type="auto",
-                                eager=get_cloudinary_eager()
+                                eager=get_cloudinary_eager(),
+                                transformation={"angle": "auto"}
                             )
                             imagen_url = result.get('secure_url')
                             imagen_public_id = result.get('public_id')
@@ -2120,11 +2122,13 @@ def api_upload_image():
         # Intentar subir a Cloudinary
         try:
             restaurante_id = session.get('restaurante_id') or 'anon'
+            # angle="auto" corrige la rotación según datos EXIF del celular
             result = cloudinary_upload(
                 file,
                 folder=f"mimenudigital/platos/{restaurante_id}",
                 quality='auto', fetch_format='auto', resource_type='auto',
-                eager=get_cloudinary_eager()
+                eager=get_cloudinary_eager(),
+                transformation={"angle": "auto"}
             )
             url = result.get('secure_url') or result.get('url')
             public_id = result.get('public_id')
@@ -2208,6 +2212,7 @@ def api_plato(plato_id):
                                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
                             
                             # Subir a Cloudinary con transformaciones
+                            # angle="auto" corrige la rotación según datos EXIF del celular
                             public_id_for_update = f"plato_{plato_id}"
                             result = cloudinary_upload(
                                 file,
@@ -2216,7 +2221,8 @@ def api_plato(plato_id):
                                 overwrite=True,
                                 quality="auto",
                                 fetch_format="auto",
-                                resource_type="auto"
+                                resource_type="auto",
+                                transformation={"angle": "auto"}
                             )
                             imagen_url = result.get('secure_url')
                             imagen_public_id = result.get('public_id') or public_id_for_update
@@ -2460,7 +2466,7 @@ def api_mi_restaurante():
                     UPDATE restaurantes SET 
                         nombre = %s, descripcion = %s, slogan = %s, telefono = %s, 
                         email = %s, direccion = %s, horario = %s, instagram = %s, 
-                        facebook = %s, whatsapp = %s, mostrar_precios = %s, 
+                        facebook = %s, whatsapp = %s, logo_url = %s, mostrar_precios = %s, 
                         mostrar_descripciones = %s, mostrar_imagenes = %s, moneda = %s
                     WHERE id = %s
                 ''', (
@@ -2474,6 +2480,7 @@ def api_mi_restaurante():
                     data.get('instagram', ''),
                     data.get('facebook', ''),
                     data.get('whatsapp', ''),
+                    data.get('logo_url', ''),
                     data.get('mostrar_precios', 1),
                     data.get('mostrar_descripciones', 1),
                     data.get('mostrar_imagenes', 1),
@@ -2547,13 +2554,15 @@ def api_subir_logo():
                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
             
             # Subir a Cloudinary (generar variantes para logo)
+            # angle="auto" corrige la rotación según datos EXIF del celular
             result = cloudinary_upload(
                 file,
                 folder=f"mimenudigital/logos",
                 public_id=f"logo_{session['restaurante_id']}",
                 overwrite=True,
                 resource_type="auto",
-                eager=get_cloudinary_eager()
+                eager=get_cloudinary_eager(),
+                transformation={"angle": "auto"}
             )
             
             logo_url = result['secure_url']
@@ -3304,7 +3313,8 @@ def admin_cloudinary_test_upload():
                 file,
                 folder=f"mimenudigital/test/{restaurante_id}",
                 quality='auto', fetch_format='auto', resource_type='image',
-                eager=get_cloudinary_eager()
+                eager=get_cloudinary_eager(),
+                transformation={"angle": "auto"}
             )
             return jsonify({'success': True, 'result': {'url': result.get('secure_url'), 'public_id': result.get('public_id')}})
         except Exception as e:
