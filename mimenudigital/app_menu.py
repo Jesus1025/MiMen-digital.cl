@@ -411,6 +411,16 @@ except ImportError as e:
 # Función now() para templates
 app.jinja_env.globals['now'] = lambda: datetime.utcnow()
 
+# Filtro para formato de precio chileno (con punto como separador de miles)
+def formato_precio_chileno(valor):
+    """Formatea un número como precio chileno: 14990 -> 14.990"""
+    try:
+        return "{:,.0f}".format(int(valor)).replace(",", ".")
+    except (ValueError, TypeError):
+        return valor
+
+app.jinja_env.filters['precio_cl'] = formato_precio_chileno
+
 # Registrar helpers de Cloudinary en Jinja si la app está inicializada
 try:
     app.jinja_env.globals['cloudinary_image_url'] = cloudinary_image_url
@@ -1026,6 +1036,48 @@ def dict_from_row(row):
 def list_from_rows(rows):
     """Convierte lista de filas a lista de diccionarios."""
     return [dict(row) for row in rows] if rows else []
+
+
+# --- Configuración Global ---
+def get_config_global():
+    """Obtiene todas las configuraciones globales como diccionario."""
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("SELECT clave, valor FROM configuracion_global")
+            rows = cur.fetchall()
+            return {row['clave']: row['valor'] for row in rows}
+    except Exception:
+        # Si la tabla no existe todavía, retornar valores por defecto
+        return {
+            'mercadopago_activo': 'false',
+            'deposito_activo': 'true',
+            'precio_mensual': '14990'
+        }
+
+
+def get_config_value(clave, default=None):
+    """Obtiene un valor específico de configuración."""
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("SELECT valor FROM configuracion_global WHERE clave = %s", (clave,))
+            row = cur.fetchone()
+            return row['valor'] if row else default
+    except Exception:
+        return default
+
+
+def set_config_value(clave, valor):
+    """Establece o actualiza un valor de configuración."""
+    db = get_db()
+    with db.cursor() as cur:
+        cur.execute("""
+            INSERT INTO configuracion_global (clave, valor) 
+            VALUES (%s, %s) 
+            ON DUPLICATE KEY UPDATE valor = VALUES(valor)
+        """, (clave, valor))
+        db.commit()
 
 
 def allowed_file(filename):
@@ -1970,10 +2022,14 @@ def gestion_pago_pendiente():
         restaurante = dict_from_row(cur.fetchone())
     
     dias_vencido = (date.today() - restaurante['fecha_vencimiento']).days if restaurante['fecha_vencimiento'] else 0
+    
+    # Obtener configuración de pagos
+    config_pagos = get_config_global()
 
     return render_template('gestion/pago_pendiente.html', 
                           restaurante=restaurante, 
                           dias_vencido=dias_vencido,
+                          config_pagos=config_pagos,
                           mercado_pago_public_key=os.environ.get('MERCADO_PAGO_PUBLIC_KEY', ''))
 
 
@@ -3692,6 +3748,68 @@ def superadmin_cambiar_estado_ticket():
     except Exception as e:
         logger.exception("Error al cambiar estado del ticket")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# CONFIGURACIÓN DE PAGOS (SUPERADMIN) - RUTAS
+# =============================================================================
+
+@app.route('/superadmin/config/pagos')
+@login_required
+@superadmin_required
+def superadmin_config_pagos():
+    """Página de configuración de métodos de pago."""
+    config = get_config_global()
+    return render_template('superadmin/config_pagos.html', config=config)
+
+
+@app.route('/api/superadmin/config', methods=['POST'])
+@login_required
+@superadmin_required
+def api_superadmin_config():
+    """API para guardar configuración global."""
+    data = request.get_json()
+    clave = data.get('clave')
+    valor = data.get('valor')
+    
+    if not clave:
+        return jsonify({'success': False, 'error': 'Clave requerida'}), 400
+    
+    # Lista de claves permitidas
+    claves_permitidas = [
+        'mercadopago_activo', 'deposito_activo',
+        'banco_nombre', 'banco_tipo_cuenta', 'banco_numero_cuenta',
+        'banco_rut', 'banco_titular', 'banco_email',
+        'precio_mensual'
+    ]
+    
+    if clave not in claves_permitidas:
+        return jsonify({'success': False, 'error': 'Clave no permitida'}), 400
+    
+    try:
+        set_config_value(clave, valor or '')
+        logger.info("Configuración actualizada: %s = %s", clave, valor)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.exception("Error al guardar configuración")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/config/pagos')
+def api_config_pagos_public():
+    """API pública para obtener configuración de pagos (para páginas de usuario)."""
+    config = get_config_global()
+    return jsonify({
+        'mercadopago_activo': config.get('mercadopago_activo') == 'true',
+        'deposito_activo': config.get('deposito_activo') == 'true',
+        'banco_nombre': config.get('banco_nombre', ''),
+        'banco_tipo_cuenta': config.get('banco_tipo_cuenta', ''),
+        'banco_numero_cuenta': config.get('banco_numero_cuenta', ''),
+        'banco_rut': config.get('banco_rut', ''),
+        'banco_titular': config.get('banco_titular', ''),
+        'banco_email': config.get('banco_email', ''),
+        'precio_mensual': int(config.get('precio_mensual', 14990))
+    })
 
 
 @app.route('/api/superadmin/stats')

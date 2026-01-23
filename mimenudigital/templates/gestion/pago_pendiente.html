@@ -35,10 +35,58 @@
             </ul>
         </div>
         
-        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-            <button id="btn-pagar-mercadopago" class="button" style="flex: 1; background: #009EE3; color: white; font-weight: bold; border: none; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
-                <i class="fas fa-credit-card"></i> Pagar con Mercado Pago
-            </button>
+        <!-- Precio dinámico -->
+        <div style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Suscripción mensual</p>
+            <p style="font-size: 32px; font-weight: bold; margin: 0;">${{ (config_pagos.precio_mensual|default(14990)|int)|precio_cl }}/mes</p>
+        </div>
+        
+        <!-- Botones de pago -->
+        <div id="metodos-pago" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+            <!-- Mercado Pago -->
+            <div id="seccion-mercadopago" style="{% if config_pagos.mercadopago_activo != 'true' %}display: none;{% endif %}">
+                <button id="btn-pagar-mercadopago" class="button" style="width: 100%; background: #009EE3; color: white; font-weight: bold; border: none; padding: 15px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Pagar con Tarjeta (Mercado Pago)
+                </button>
+                <p style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Tarjeta de crédito, débito o dinero en cuenta</p>
+            </div>
+            
+            <!-- Depósito Bancario -->
+            <div id="seccion-deposito" style="{% if config_pagos.deposito_activo != 'true' %}display: none;{% endif %}">
+                <button id="btn-mostrar-deposito" class="button" style="width: 100%; background: #27ae60; color: white; font-weight: bold; border: none; padding: 15px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-university" style="margin-right: 8px;"></i> Pagar por Transferencia Bancaria
+                </button>
+                
+                <!-- Datos bancarios (ocultos inicialmente) -->
+                <div id="datos-bancarios" style="display: none; background: rgba(255, 255, 255, 0.95); color: #333; padding: 20px; border-radius: 8px; margin-top: 15px; text-align: left;">
+                    <h4 style="margin-bottom: 15px; color: #27ae60;"><i class="fas fa-info-circle"></i> Datos para transferencia</h4>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-family: monospace;">
+                        <p><strong>Banco:</strong> <span id="banco-nombre">{{ config_pagos.banco_nombre }}</span></p>
+                        <p><strong>Tipo:</strong> <span id="banco-tipo">{{ config_pagos.banco_tipo_cuenta }}</span></p>
+                        <p><strong>N° Cuenta:</strong> <span id="banco-numero">{{ config_pagos.banco_numero_cuenta }}</span></p>
+                        <p><strong>RUT:</strong> <span id="banco-rut">{{ config_pagos.banco_rut }}</span></p>
+                        <p><strong>Titular:</strong> <span id="banco-titular">{{ config_pagos.banco_titular }}</span></p>
+                        <p><strong>Monto:</strong> <span style="color: #27ae60; font-weight: bold;">${{ (config_pagos.precio_mensual|default(14990)|int)|precio_cl }}</span></p>
+                    </div>
+                    <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">
+                        <p style="margin-bottom: 10px;"><strong><i class="fas fa-envelope"></i> Importante:</strong></p>
+                        <p style="font-size: 14px;">Después de transferir, envía el comprobante a:</p>
+                        <p style="font-weight: bold; color: #667eea;"><span id="banco-email">{{ config_pagos.banco_email }}</span></p>
+                        <p style="font-size: 13px; margin-top: 10px;">Incluye el nombre de tu restaurante: <strong>{{ restaurante.nombre }}</strong></p>
+                    </div>
+                    <a href="mailto:{{ config_pagos.banco_email }}?subject=Comprobante%20de%20pago%20-%20{{ restaurante.nombre }}&body=Adjunto%20comprobante%20de%20pago%20para%20suscripción%20mensual%20del%20restaurante%20{{ restaurante.nombre }}." class="button" style="width: 100%; margin-top: 15px; background: #667eea; color: white; font-weight: bold; border: none; padding: 12px; text-decoration: none; border-radius: 6px; display: inline-block; text-align: center;">
+                        <i class="fas fa-paper-plane"></i> Enviar comprobante por email
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Si no hay métodos activos -->
+            <div id="sin-metodos" style="{% if config_pagos.mercadopago_activo == 'true' or config_pagos.deposito_activo == 'true' %}display: none;{% endif %}">
+                <div style="background: rgba(255, 255, 255, 0.2); padding: 20px; border-radius: 8px;">
+                    <p><i class="fas fa-clock"></i> Los métodos de pago estarán disponibles pronto.</p>
+                    <p style="font-size: 14px; margin-top: 10px;">Contáctanos para más información.</p>
+                </div>
+            </div>
         </div>
         
         <div style="display: flex; gap: 15px;">
@@ -98,45 +146,72 @@
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
+    
+    #datos-bancarios p {
+        margin-bottom: 8px;
+    }
 </style>
 
 <script>
     // Expose Mercado Pago public key to client-side JS (may be empty if not configured)
     window.MERCADO_PAGO_PUBLIC_KEY = "{{ mercado_pago_public_key }}";
-    document.getElementById('btn-pagar-mercadopago').addEventListener('click', function() {
-    const btn = this;
-    const originalHTML = btn.innerHTML;
     
-    // Mostrar estado de carga
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    // Mostrar/ocultar datos bancarios
+    const btnDeposito = document.getElementById('btn-mostrar-deposito');
+    const datosBancarios = document.getElementById('datos-bancarios');
     
-    // Crear preferencia de pago
-    fetch('/api/pago/crear-preferencia', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            plan_type: 'mensual'
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Redirigir a Mercado Pago
-            window.location.href = data.init_point;
-        } else {
-            throw new Error(data.error || 'Error al crear preferencia de pago');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-        alert('Error: ' + error.message);
-    });
-});
+    if (btnDeposito) {
+        btnDeposito.addEventListener('click', function() {
+            if (datosBancarios.style.display === 'none') {
+                datosBancarios.style.display = 'block';
+                this.innerHTML = '<i class="fas fa-times" style="margin-right: 8px;"></i> Ocultar datos bancarios';
+                this.style.background = '#2c3e50';
+            } else {
+                datosBancarios.style.display = 'none';
+                this.innerHTML = '<i class="fas fa-university" style="margin-right: 8px;"></i> Pagar por Transferencia Bancaria';
+                this.style.background = '#27ae60';
+            }
+        });
+    }
+    
+    // Mercado Pago
+    const btnMercadoPago = document.getElementById('btn-pagar-mercadopago');
+    if (btnMercadoPago) {
+        btnMercadoPago.addEventListener('click', function() {
+            const btn = this;
+            const originalHTML = btn.innerHTML;
+            
+            // Mostrar estado de carga
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+            
+            // Crear preferencia de pago
+            fetch('/api/pago/crear-preferencia', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    plan_type: 'mensual'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Redirigir a Mercado Pago
+                    window.location.href = data.init_point;
+                } else {
+                    throw new Error(data.error || 'Error al crear preferencia de pago');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                alert('Error: ' + error.message);
+            });
+        });
+    }
 </script>
 {% endblock %}
 

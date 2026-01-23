@@ -539,6 +539,12 @@
                 Suscripciones
             </a>
             
+            <div class="menu-label">Configuración</div>
+            <a href="{{ url_for('superadmin_config_pagos') }}" class="menu-item{% if request.endpoint == 'superadmin_config_pagos' %} active{% endif %}">
+                <i class="fas fa-money-bill-wave"></i>
+                Métodos de Pago
+            </a>
+            
             <div class="menu-label">Soporte</div>
             <a href="{{ url_for('superadmin_tickets') }}" class="menu-item{% if request.endpoint == 'superadmin_tickets' %} active{% endif %}">
                 <i class="fas fa-headset"></i>
