@@ -74,15 +74,17 @@ import requests
 import hashlib
 import time
 
-# Credenciales de Cloudinary (se pueden sobrescribir con CLOUDINARY_URL)
-_cloudinary_config = {
-    'cloud_name': 'dtrjravmg',
-    'api_key': '211225241664362',
-    'api_secret': 'CV4Q_UfQR9A1GqKUmK02SzE4YiQ'
-}
+# ============================================================
+# CLOUDINARY - REQUIERE VARIABLE DE ENTORNO
+# ============================================================
+# NUNCA hardcodear credenciales aquí
+# Configura CLOUDINARY_URL en tus variables de entorno
+# Formato: cloudinary://api_key:api_secret@cloud_name
+# ============================================================
 
-# Parsear CLOUDINARY_URL si existe
+_cloudinary_config = None
 _cloudinary_url_env = os.environ.get('CLOUDINARY_URL', '')
+
 if _cloudinary_url_env and _cloudinary_url_env.startswith('cloudinary://'):
     try:
         # cloudinary://api_key:api_secret@cloud_name
@@ -96,9 +98,11 @@ if _cloudinary_url_env and _cloudinary_url_env.startswith('cloudinary://'):
                     'api_key': _cld_key,
                     'api_secret': _cld_secret
                 }
-                logging.getLogger(__name__).info("Cloudinary config cargado desde CLOUDINARY_URL: cloud=%s", _cld_cloud)
+                logging.getLogger(__name__).info("Cloudinary configurado desde CLOUDINARY_URL: cloud=%s", _cld_cloud)
     except Exception as e:
         logging.getLogger(__name__).warning("Error parseando CLOUDINARY_URL: %s", e)
+else:
+    logging.getLogger(__name__).warning("CLOUDINARY_URL no configurado - subida de imágenes deshabilitada")
 
 # Sesión de requests con proxy configurado
 _cloudinary_session = requests.Session()
@@ -131,7 +135,13 @@ def cloudinary_upload(file, **options):
     
     Returns:
         dict con la respuesta de Cloudinary (secure_url, public_id, etc.)
+    
+    Raises:
+        RuntimeError: Si CLOUDINARY_URL no está configurado
     """
+    if _cloudinary_config is None:
+        raise RuntimeError("CLOUDINARY_URL no está configurado. Configura la variable de entorno.")
+    
     config = _cloudinary_config
     cloud_name = config['cloud_name']
     api_key = config['api_key']
@@ -229,6 +239,10 @@ def cloudinary_image_url(public_id, width=None):
     if not public_id:
         return None
     
+    if _cloudinary_config is None:
+        logger.warning("CLOUDINARY_URL no configurado, no se puede generar URL de imagen")
+        return None
+    
     # Si tenemos el SDK de cloudinary, usarlo
     if cloudinary and hasattr(cloudinary, 'utils'):
         try:
@@ -246,7 +260,7 @@ def cloudinary_image_url(public_id, width=None):
             logger.exception('Error generating cloudinary URL for %s: %s', public_id, e)
     
     # Fallback: construir URL manualmente
-    cloud_name = _cloudinary_config.get('cloud_name', 'dtrjravmg')
+    cloud_name = _cloudinary_config.get('cloud_name')
     transformations = ['a_auto', 'q_auto', 'f_auto']
     if width:
         transformations.append(f'w_{width}')
@@ -3139,6 +3153,51 @@ def api_dashboard_stats():
 # RUTAS DE SUPERADMIN
 # ============================================================
 
+@app.route('/superadmin/cambiar-password', methods=['POST'])
+@login_required
+@superadmin_required
+def superadmin_cambiar_password():
+    """Cambiar contraseña del superadmin."""
+    try:
+        data = request.get_json()
+        password_actual = data.get('password_actual', '')
+        password_nuevo = data.get('password_nuevo', '')
+        password_confirmar = data.get('password_confirmar', '')
+        
+        # Validaciones
+        if not password_actual or not password_nuevo or not password_confirmar:
+            return jsonify({'success': False, 'error': 'Completa todos los campos'}), 400
+        
+        if password_nuevo != password_confirmar:
+            return jsonify({'success': False, 'error': 'Las contraseñas nuevas no coinciden'}), 400
+        
+        if len(password_nuevo) < 8:
+            return jsonify({'success': False, 'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+        
+        usuario_id = session['user_id']
+        
+        db = get_db()
+        with db.cursor() as cur:
+            # Verificar contraseña actual
+            cur.execute("SELECT password FROM usuarios_admin WHERE id = %s", (usuario_id,))
+            user = cur.fetchone()
+            
+            if not user or not check_password_hash(user['password'], password_actual):
+                return jsonify({'success': False, 'error': 'Contraseña actual incorrecta'}), 400
+            
+            # Actualizar contraseña
+            nuevo_hash = generate_password_hash(password_nuevo)
+            cur.execute("UPDATE usuarios_admin SET password = %s WHERE id = %s", (nuevo_hash, usuario_id))
+            db.commit()
+        
+        logger.info("SuperAdmin %s cambió su contraseña", usuario_id)
+        return jsonify({'success': True, 'message': 'Contraseña actualizada correctamente'})
+        
+    except Exception as e:
+        logger.exception("Error cambiando contraseña de superadmin")
+        return jsonify({'success': False, 'error': 'Error al cambiar la contraseña'}), 500
+
+
 @app.route('/superadmin/restaurantes')
 @login_required
 @superadmin_required
@@ -3279,6 +3338,97 @@ def superadmin_estadisticas():
 # ============================================================
 # RUTAS DE SOPORTE / TICKETS
 # ============================================================
+
+@app.route('/api/tickets', methods=['POST'])
+@login_required
+def api_crear_ticket():
+    """API para crear tickets desde el dashboard del usuario."""
+    try:
+        data = request.get_json()
+        
+        tipo = data.get('tipo', 'consulta')
+        asunto = data.get('asunto', '').strip()
+        mensaje = data.get('mensaje', '').strip()
+        
+        if not asunto or not mensaje:
+            return jsonify({'success': False, 'error': 'Completa todos los campos'}), 400
+        
+        if len(mensaje) < 10:
+            return jsonify({'success': False, 'error': 'El mensaje debe tener al menos 10 caracteres'}), 400
+        
+        usuario_id = session['user_id']
+        restaurante_id = session.get('restaurante_id')
+        
+        db = get_db()
+        with db.cursor() as cur:
+            # Obtener datos del usuario
+            cur.execute("SELECT nombre, email FROM usuarios_admin WHERE id = %s", (usuario_id,))
+            user = cur.fetchone()
+            
+            nombre = user['nombre'] if user else 'Usuario'
+            email = user['email'] if user else ''
+            
+            # Obtener nombre del restaurante
+            restaurante_nombre = None
+            if restaurante_id:
+                cur.execute("SELECT nombre FROM restaurantes WHERE id = %s", (restaurante_id,))
+                rest = cur.fetchone()
+                if rest:
+                    restaurante_nombre = rest['nombre']
+            
+            # Crear el ticket
+            cur.execute('''
+                INSERT INTO tickets_soporte 
+                (usuario_id, restaurante_id, nombre, email, asunto, mensaje, tipo, ip_address, user_agent, pagina_origen)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (
+                usuario_id,
+                restaurante_id,
+                nombre,
+                email,
+                asunto,
+                mensaje,
+                tipo,
+                get_client_ip(),
+                request.headers.get('User-Agent', '')[:500],
+                'Dashboard'
+            ))
+            db.commit()
+            ticket_id = cur.lastrowid
+        
+        # Preparar datos para emails
+        ticket_data = {
+            'id': ticket_id,
+            'nombre': nombre,
+            'email': email,
+            'asunto': asunto,
+            'mensaje': mensaje,
+            'tipo': tipo,
+            'prioridad': 'media',
+            'restaurante_nombre': restaurante_nombre
+        }
+        
+        # Enviar emails
+        if EMAIL_SERVICE_AVAILABLE:
+            try:
+                enviar_confirmacion_ticket(ticket_data)
+                admin_url = url_for('superadmin_tickets', _external=True)
+                notificar_nuevo_ticket_admin(ticket_data, admin_url)
+            except Exception as email_err:
+                logger.error("Error enviando emails de ticket: %s", email_err)
+        
+        logger.info("Ticket #%s creado desde dashboard por usuario %s", ticket_id, usuario_id)
+        
+        return jsonify({
+            'success': True, 
+            'ticket_id': ticket_id,
+            'message': f'Ticket #{ticket_id} creado exitosamente'
+        })
+        
+    except Exception as e:
+        logger.exception("Error al crear ticket via API")
+        return jsonify({'success': False, 'error': 'Error al crear el ticket'}), 500
+
 
 @app.route('/soporte', methods=['GET', 'POST'])
 def contactar_soporte():

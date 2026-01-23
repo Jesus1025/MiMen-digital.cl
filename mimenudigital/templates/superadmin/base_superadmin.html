@@ -549,9 +549,9 @@
             </a>
             
             <div class="menu-label">Sistema</div>
-            <a href="#" class="menu-item">
-                <i class="fas fa-cog"></i>
-                Configuración
+            <a href="#" class="menu-item" onclick="abrirModalPassword(); return false;">
+                <i class="fas fa-key"></i>
+                Cambiar Contraseña
             </a>
             <a href="{{ url_for('logout') }}" class="menu-item">
                 <i class="fas fa-sign-out-alt"></i>
@@ -559,6 +559,50 @@
             </a>
         </nav>
     </aside>
+
+    <!-- Modal Cambiar Contraseña -->
+    <div class="modal" id="modalPassword">
+        <div class="modal-background" onclick="cerrarModalPassword()"></div>
+        <div class="modal-card" style="max-width: 420px;">
+            <header class="modal-card-head" style="background: linear-gradient(135deg, #8e44ad, #7d3c98);">
+                <p class="modal-card-title" style="color: white;">
+                    <i class="fas fa-key" style="margin-right: 0.5rem;"></i>
+                    Cambiar Contraseña
+                </p>
+                <button class="delete" aria-label="close" onclick="cerrarModalPassword()"></button>
+            </header>
+            <section class="modal-card-body">
+                <div class="field">
+                    <label class="label">Contraseña actual</label>
+                    <div class="control has-icons-left">
+                        <input class="input" type="password" id="passwordActual" placeholder="Tu contraseña actual">
+                        <span class="icon is-left"><i class="fas fa-lock"></i></span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">Nueva contraseña</label>
+                    <div class="control has-icons-left">
+                        <input class="input" type="password" id="passwordNuevo" placeholder="Mínimo 8 caracteres">
+                        <span class="icon is-left"><i class="fas fa-key"></i></span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">Confirmar nueva contraseña</label>
+                    <div class="control has-icons-left">
+                        <input class="input" type="password" id="passwordConfirmar" placeholder="Repite la nueva contraseña">
+                        <span class="icon is-left"><i class="fas fa-check-double"></i></span>
+                    </div>
+                </div>
+            </section>
+            <footer class="modal-card-foot" style="justify-content: flex-end;">
+                <button class="button" onclick="cerrarModalPassword()">Cancelar</button>
+                <button class="button is-primary" id="btnCambiarPassword" onclick="cambiarPassword()" style="background: linear-gradient(135deg, #8e44ad, #7d3c98); border: none;">
+                    <i class="fas fa-save" style="margin-right: 0.5rem;"></i>
+                    Guardar
+                </button>
+            </footer>
+        </div>
+    </div>
 
     <!-- Main Content -->
     <div class="main-content">
@@ -815,6 +859,90 @@
             setTimeout(checkNewTickets, 5000);
             
         })();
+    </script>
+    
+    <!-- Script para cambiar contraseña -->
+    <script>
+        function abrirModalPassword() {
+            document.getElementById('passwordActual').value = '';
+            document.getElementById('passwordNuevo').value = '';
+            document.getElementById('passwordConfirmar').value = '';
+            document.getElementById('modalPassword').classList.add('is-active');
+            setTimeout(() => document.getElementById('passwordActual').focus(), 100);
+        }
+        
+        function cerrarModalPassword() {
+            document.getElementById('modalPassword').classList.remove('is-active');
+        }
+        
+        async function cambiarPassword() {
+            const passwordActual = document.getElementById('passwordActual').value;
+            const passwordNuevo = document.getElementById('passwordNuevo').value;
+            const passwordConfirmar = document.getElementById('passwordConfirmar').value;
+            
+            if (!passwordActual || !passwordNuevo || !passwordConfirmar) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+            
+            if (passwordNuevo !== passwordConfirmar) {
+                alert('Las contraseñas nuevas no coinciden');
+                document.getElementById('passwordConfirmar').focus();
+                return;
+            }
+            
+            if (passwordNuevo.length < 8) {
+                alert('La nueva contraseña debe tener al menos 8 caracteres');
+                document.getElementById('passwordNuevo').focus();
+                return;
+            }
+            
+            const btn = document.getElementById('btnCambiarPassword');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+            
+            try {
+                const response = await fetch('/superadmin/cambiar-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        password_actual: passwordActual,
+                        password_nuevo: passwordNuevo,
+                        password_confirmar: passwordConfirmar
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    cerrarModalPassword();
+                    
+                    // Mostrar mensaje de éxito
+                    const successDiv = document.createElement('div');
+                    successDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 1rem 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; display: flex; align-items: center; gap: 0.75rem;';
+                    successDiv.innerHTML = '<i class="fas fa-check-circle"></i> Contraseña actualizada correctamente';
+                    document.body.appendChild(successDiv);
+                    
+                    setTimeout(() => successDiv.remove(), 4000);
+                } else {
+                    alert(result.error || 'Error al cambiar la contraseña');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error de conexión');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
+        
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('modalPassword').classList.contains('is-active')) {
+                cerrarModalPassword();
+            }
+        });
     </script>
 
     {% block extra_js %}{% endblock %}

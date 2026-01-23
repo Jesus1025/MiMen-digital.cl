@@ -345,12 +345,17 @@
                 
                 <div class="form-group">
                     <label class="form-label">Categoría *</label>
-                    <select class="form-input" id="platoCategoria" required>
-                        <option value="">Seleccionar categoría</option>
-                        {% for cat in categorias %}
-                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
-                        {% endfor %}
-                    </select>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <select class="form-input" id="platoCategoria" required style="flex: 1;">
+                            <option value="">Seleccionar categoría</option>
+                            {% for cat in categorias %}
+                                <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn-secondary" onclick="abrirModalCategoria()" style="white-space: nowrap; padding: 0.5rem 0.75rem;" title="Crear nueva categoría">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -503,7 +508,7 @@
                         ${plato.descripcion ? `<br><small style="color: #7f8c8d;">${plato.descripcion.substring(0, 50)}${plato.descripcion.length > 50 ? '...' : ''}</small>` : ''}
                     </td>
                     <td data-label="Categoría">${categoria ? categoria.nombre : '-'}</td>
-                    <td data-label="Precio"><strong style="color: #27ae60;">$${Number(plato.precio).toLocaleString()}</strong></td>
+                    <td data-label="Precio"><strong style="color: #27ae60;">$${Number(plato.precio).toLocaleString('es-CL')}</strong></td>
                     <td data-label="Estado">
                         <span class="tag ${plato.activo ? 'is-success' : 'is-warning'}" style="cursor: pointer;" onclick="toggleEstado(${plato.id}, ${plato.activo})">
                             ${plato.activo ? 'Activo' : 'Inactivo'}
@@ -759,6 +764,7 @@
     function abrirModalCategoria() {
         document.getElementById('formCategoria').reset();
         document.getElementById('modalCategoria').classList.add('active');
+        setTimeout(() => document.getElementById('categoriaNombre').focus(), 100);
     }
 
     function cerrarModalCategoria() {
@@ -766,7 +772,7 @@
     }
 
     async function guardarCategoria() {
-        const nombre = document.getElementById('categoriaNombre').value;
+        const nombre = document.getElementById('categoriaNombre').value.trim();
         
         if (!nombre) {
             alert('Por favor ingresa un nombre');
@@ -783,8 +789,37 @@
             const result = await res.json();
             
             if (result.success) {
+                // Agregar la nueva categoría al array local
+                const nuevaCategoria = {
+                    id: result.id,
+                    nombre: nombre,
+                    activo: true
+                };
+                categorias.push(nuevaCategoria);
+                
+                // Actualizar el select de categorías dinámicamente
+                const selectCategoria = document.getElementById('platoCategoria');
+                const filtroCategoria = document.getElementById('filtroCategoria');
+                
+                // Agregar opción al select del formulario
+                const nuevaOpcion = document.createElement('option');
+                nuevaOpcion.value = result.id;
+                nuevaOpcion.textContent = nombre;
+                selectCategoria.appendChild(nuevaOpcion);
+                
+                // Seleccionar automáticamente la nueva categoría
+                selectCategoria.value = result.id;
+                
+                // También agregar al filtro si existe
+                if (filtroCategoria) {
+                    const opcionFiltro = document.createElement('option');
+                    opcionFiltro.value = result.id;
+                    opcionFiltro.textContent = nombre;
+                    filtroCategoria.appendChild(opcionFiltro);
+                }
+                
                 cerrarModalCategoria();
-                location.reload();
+                mostrarExito(`Categoría "${nombre}" creada correctamente`);
             } else {
                 alert(result.error || 'Error al guardar');
             }

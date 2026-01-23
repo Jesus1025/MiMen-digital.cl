@@ -1,9 +1,20 @@
 # ============================================================
-# WSGI CONFIGURATION FOR PYTHONANYWHERE
+# WSGI CONFIGURATION FOR PYTHONANYWHERE (PLAN GRATUITO)
 # ============================================================
-# IMPORTANTE: Las credenciales sensibles deben configurarse en:
-# PythonAnywhere → Web → WSGI configuration file (al inicio)
-# O en un archivo .env que NO se suba a Git
+# INSTRUCCIONES PARA PLAN GRATUITO (sin variables de entorno):
+# 
+# 1. En PythonAnywhere ve a: Web → Código → WSGI configuration file
+# 2. Al INICIO del archivo (antes de todo), pega estas líneas
+#    con TUS valores reales:
+# 
+# import os
+# os.environ['MYSQL_PASSWORD'] = '19101810Aa'
+# os.environ['SECRET_KEY'] = 'a3f8c2e9d4b7a1f6c8e3d2b5a9f7c4e1d8b6a3f9c2e5d7b4a1f8c3e6d9b2a5f7'
+# os.environ['CLOUDINARY_URL'] = 'cloudinary://211225241664362:CV4Q_UfQR9A1GqKUmK02SzE4YiQ@dtrjravmg'
+# os.environ['MERCADO_PAGO_ACCESS_TOKEN'] = 'APP_USR-130838446303286-122321-7a32fce25e8565b16490762a1b0f2254-3090066666'
+# os.environ['MERCADO_PAGO_PUBLIC_KEY'] = 'APP_USR-56d00f49-c4e2-4b01-8670-d17bf4b841ad'
+#
+# 3. Guarda y recarga la aplicación
 # ============================================================
 
 import sys
@@ -31,17 +42,10 @@ os.environ['ALL_PROXY'] = _api_proxy
 os.environ['no_proxy'] = ''  # No excluir ningún dominio del proxy
 
 # ============================================================
-# ⚠️ CREDENCIALES SENSIBLES - NO SUBIR A GIT
+# ⚠️ CREDENCIALES - VER INSTRUCCIONES ARRIBA
 # ============================================================
-# Configura estas variables en PythonAnywhere:
-# Web → Files → Edita el archivo wsgi que está en /var/www/
-# Y añade ANTES de este archivo:
-#
-# os.environ['MYSQL_PASSWORD'] = 'tu_password_mysql'
-# os.environ['SECRET_KEY'] = 'genera_con_secrets.token_hex(32)'
-# os.environ['MERCADO_PAGO_ACCESS_TOKEN'] = 'APP_USR-xxx'
-# os.environ['MERCADO_PAGO_PUBLIC_KEY'] = 'APP_USR-xxx'
-# os.environ['CLOUDINARY_URL'] = 'cloudinary://api_key:api_secret@cloud_name'
+# Las credenciales se configuran AL INICIO del archivo WSGI
+# en PythonAnywhere (Web → WSGI configuration file)
 # ============================================================
 
 # Verificar que las credenciales críticas estén configuradas
