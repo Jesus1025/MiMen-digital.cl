@@ -295,14 +295,25 @@ def init_cloudinary():
         try:
             # Construir un diccionario de configuración
             config_options = {}
+            
+            # Configurar proxy ANTES de cualquier conexión
             if api_proxy:
                 config_options['api_proxy'] = api_proxy
-                # También configurar variables de entorno HTTP para que urllib3/requests usen el proxy
+                # Forzar variables de entorno para urllib3/requests
                 os.environ['HTTP_PROXY'] = api_proxy
                 os.environ['HTTPS_PROXY'] = api_proxy
                 os.environ['http_proxy'] = api_proxy
                 os.environ['https_proxy'] = api_proxy
-                logger.info("Usando proxy para Cloudinary y HTTP/HTTPS: %s", api_proxy)
+                os.environ['ALL_PROXY'] = api_proxy
+                
+                # Forzar proxy en urllib3 (para PythonAnywhere free tier)
+                try:
+                    import urllib3
+                    urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT:@SECLEVEL=1'
+                except Exception:
+                    pass
+                
+                logger.info("Usando proxy para Cloudinary: %s", api_proxy)
 
             # Extraer credenciales de la URL
             from urllib.parse import urlparse
@@ -324,7 +335,7 @@ def init_cloudinary():
                 })
                 
                 cloudinary.config(**config_options)
-                logger.info("Cloudinary config() llamado con cloud_name: %s", cloud_name)
+                logger.info("Cloudinary config() llamado con cloud_name: %s, api_proxy: %s", cloud_name, bool(api_proxy))
             else:
                 raise ValueError('Invalid CLOUDINARY_URL format - missing @')
 

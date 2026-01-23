@@ -2,42 +2,43 @@
 -- MIGRACIÓN 006: Índices de Performance Adicionales
 -- ============================================================
 -- Mejora el rendimiento de consultas frecuentes
+-- Compatible con MySQL 5.7+
 -- ============================================================
 
 -- Índice compuesto para búsqueda de platos por restaurante y categoría
--- Usado en: api_platos GET con filtro de categoría
-CREATE INDEX IF NOT EXISTS idx_platos_rest_cat_activo 
-ON platos(restaurante_id, categoria_id, activo);
+-- DROP INDEX si existe, luego crear (ignorar errores si no existe)
+DROP INDEX idx_platos_rest_cat_activo ON platos;
+CREATE INDEX idx_platos_rest_cat_activo ON platos(restaurante_id, categoria_id, activo);
 
 -- Índice para ordenamiento de platos
-CREATE INDEX IF NOT EXISTS idx_platos_orden 
-ON platos(restaurante_id, orden, nombre);
+DROP INDEX idx_platos_orden ON platos;
+CREATE INDEX idx_platos_orden ON platos(restaurante_id, orden, nombre(50));
 
 -- Índice para estadísticas diarias (muy consultado en dashboard)
-CREATE INDEX IF NOT EXISTS idx_estadisticas_rest_fecha 
-ON estadisticas_diarias(restaurante_id, fecha DESC);
+DROP INDEX idx_estadisticas_rest_fecha ON estadisticas_diarias;
+CREATE INDEX idx_estadisticas_rest_fecha ON estadisticas_diarias(restaurante_id, fecha);
 
 -- Índice para visitas recientes
-CREATE INDEX IF NOT EXISTS idx_visitas_fecha 
-ON visitas(restaurante_id, fecha DESC);
+DROP INDEX idx_visitas_fecha ON visitas;
+CREATE INDEX idx_visitas_fecha ON visitas(restaurante_id, fecha);
 
 -- Índice para usuarios por restaurante (login y listados)
-CREATE INDEX IF NOT EXISTS idx_usuarios_rest_activo 
-ON usuarios_admin(restaurante_id, activo, username);
+DROP INDEX idx_usuarios_rest_activo ON usuarios_admin;
+CREATE INDEX idx_usuarios_rest_activo ON usuarios_admin(restaurante_id, activo, username);
 
 -- Índice para categorías ordenadas
-CREATE INDEX IF NOT EXISTS idx_categorias_orden 
-ON categorias(restaurante_id, activo, orden);
+DROP INDEX idx_categorias_orden ON categorias;
+CREATE INDEX idx_categorias_orden ON categorias(restaurante_id, activo, orden);
 
 -- Índice para password_resets (recuperación de contraseña)
-CREATE INDEX IF NOT EXISTS idx_password_resets_token 
-ON password_resets(token, utilizado, fecha_expiracion);
+DROP INDEX idx_password_resets_token ON password_resets;
+CREATE INDEX idx_password_resets_token ON password_resets(token, utilizado);
 
 -- Índice para suscripciones próximas a vencer (superadmin)
-CREATE INDEX IF NOT EXISTS idx_restaurantes_vencimiento 
-ON restaurantes(fecha_vencimiento, activo);
+DROP INDEX idx_restaurantes_vencimiento ON restaurantes;
+CREATE INDEX idx_restaurantes_vencimiento ON restaurantes(fecha_vencimiento, activo);
 
 -- ============================================================
--- NOTA: Ejecutar estos índices en horario de bajo tráfico
--- ya que pueden bloquear la tabla temporalmente en tablas grandes
+-- NOTA: Los DROP INDEX pueden dar error si el índice no existe,
+-- eso está bien, simplemente continúa con el siguiente.
 -- ============================================================
