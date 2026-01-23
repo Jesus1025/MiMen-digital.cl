@@ -64,90 +64,205 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import logging
 
-# Cloudinary is optional; handle missing dependency gracefully
-# ESTRATEGIA BLINDAJE TOTAL: Retirar la variable del entorno ANTES de importar
-# Esto evita que cloudinary intente auto-configurarse y crashee al importar si la URL está mal.
-_temp_cloudinary_url = os.environ.get('CLOUDINARY_URL')
-if _temp_cloudinary_url:
-    del os.environ['CLOUDINARY_URL']
+# ============================================================
+# CLOUDINARY - IMPLEMENTACIÓN DIRECTA CON REQUESTS Y PROXY
+# ============================================================
+# El SDK de Cloudinary no respeta bien el proxy en PythonAnywhere.
+# Usamos requests directamente que SÍ funciona con proxy.
 
-# ============================================================
-# PARCHE PARA FORZAR PROXY EN PYTHONANYWHERE
-# ============================================================
-if _api_proxy:
-    # Parchear requests.Session para APIs que usen requests
+import requests
+import hashlib
+import time
+
+# Credenciales de Cloudinary (se pueden sobrescribir con CLOUDINARY_URL)
+_cloudinary_config = {
+    'cloud_name': 'dtrjravmg',
+    'api_key': '211225241664362',
+    'api_secret': 'CV4Q_UfQR9A1GqKUmK02SzE4YiQ'
+}
+
+# Parsear CLOUDINARY_URL si existe
+_cloudinary_url_env = os.environ.get('CLOUDINARY_URL', '')
+if _cloudinary_url_env and _cloudinary_url_env.startswith('cloudinary://'):
     try:
-        import requests
-        _original_request = requests.Session.request
-        
-        def _proxied_request(self, method, url, **kwargs):
-            if 'proxies' not in kwargs or not kwargs['proxies']:
-                kwargs['proxies'] = {'http': _api_proxy, 'https': _api_proxy}
-            return _original_request(self, method, url, **kwargs)
-        
-        requests.Session.request = _proxied_request
-        logging.getLogger(__name__).info("requests.Session parcheado con proxy: %s", _api_proxy)
+        # cloudinary://api_key:api_secret@cloud_name
+        _cld_parts = _cloudinary_url_env.replace('cloudinary://', '')
+        if '@' in _cld_parts:
+            _cld_auth, _cld_cloud = _cld_parts.split('@', 1)
+            if ':' in _cld_auth:
+                _cld_key, _cld_secret = _cld_auth.split(':', 1)
+                _cloudinary_config = {
+                    'cloud_name': _cld_cloud,
+                    'api_key': _cld_key,
+                    'api_secret': _cld_secret
+                }
+                logging.getLogger(__name__).info("Cloudinary config cargado desde CLOUDINARY_URL: cloud=%s", _cld_cloud)
     except Exception as e:
-        logging.getLogger(__name__).warning("Error parcheando requests: %s", e)
+        logging.getLogger(__name__).warning("Error parseando CLOUDINARY_URL: %s", e)
 
+# Sesión de requests con proxy configurado
+_cloudinary_session = requests.Session()
+if _api_proxy:
+    _cloudinary_session.proxies = {
+        'http': _api_proxy,
+        'https': _api_proxy
+    }
+    logging.getLogger(__name__).info("Cloudinary session configurada con proxy: %s", _api_proxy)
+
+
+def _cloudinary_sign(params_to_sign, api_secret):
+    """Genera la firma para la API de Cloudinary."""
+    # Ordenar parámetros alfabéticamente y crear string
+    sorted_params = sorted(params_to_sign.items())
+    to_sign = '&'.join([f"{k}={v}" for k, v in sorted_params if v is not None and v != ''])
+    to_sign += api_secret
+    return hashlib.sha1(to_sign.encode('utf-8')).hexdigest()
+
+
+def cloudinary_upload(file, **options):
+    """
+    Sube una imagen a Cloudinary usando requests directamente.
+    Compatible con la API del SDK de Cloudinary.
+    
+    Args:
+        file: Archivo (file-like object, path string, o URL)
+        **options: Opciones de upload (folder, transformation, eager, etc.)
+    
+    Returns:
+        dict con la respuesta de Cloudinary (secure_url, public_id, etc.)
+    """
+    config = _cloudinary_config
+    cloud_name = config['cloud_name']
+    api_key = config['api_key']
+    api_secret = config['api_secret']
+    
+    # URL del API
+    resource_type = options.pop('resource_type', 'image')
+    upload_url = f"https://api.cloudinary.com/v1_1/{cloud_name}/{resource_type}/upload"
+    
+    # Timestamp
+    timestamp = str(int(time.time()))
+    
+    # Preparar parámetros
+    params = {
+        'timestamp': timestamp,
+    }
+    
+    # Agregar opciones permitidas
+    allowed_params = ['folder', 'public_id', 'overwrite', 'tags', 'context', 
+                      'faces', 'colors', 'exif', 'image_metadata', 'phash',
+                      'invalidate', 'quality', 'format']
+    
+    for key in allowed_params:
+        if key in options and options[key] is not None:
+            params[key] = options[key]
+    
+    # Manejar transformation
+    if 'transformation' in options:
+        trans = options['transformation']
+        if isinstance(trans, dict):
+            # Convertir dict a string: {angle: 'auto'} -> 'a_auto'
+            trans_parts = []
+            trans_map = {'angle': 'a', 'width': 'w', 'height': 'h', 'crop': 'c', 
+                        'quality': 'q', 'fetch_format': 'f'}
+            for k, v in trans.items():
+                prefix = trans_map.get(k, k[0])
+                trans_parts.append(f"{prefix}_{v}")
+            params['transformation'] = '/'.join(trans_parts)
+        else:
+            params['transformation'] = str(trans)
+    
+    # Manejar eager transformations
+    if 'eager' in options:
+        eager_list = options['eager']
+        if isinstance(eager_list, list):
+            eager_strs = []
+            for e in eager_list:
+                if isinstance(e, dict):
+                    parts = []
+                    if 'width' in e: parts.append(f"w_{e['width']}")
+                    if 'height' in e: parts.append(f"h_{e['height']}")
+                    if 'crop' in e: parts.append(f"c_{e['crop']}")
+                    if 'quality' in e: parts.append(f"q_{e['quality']}")
+                    if 'fetch_format' in e: parts.append(f"f_{e['fetch_format']}")
+                    eager_strs.append(','.join(parts))
+                else:
+                    eager_strs.append(str(e))
+            params['eager'] = '|'.join(eager_strs)
+    
+    # Generar firma (solo con los parámetros que van firmados)
+    params_to_sign = {k: v for k, v in params.items() if k != 'api_key' and k != 'file'}
+    signature = _cloudinary_sign(params_to_sign, api_secret)
+    
+    # Agregar credenciales
+    params['api_key'] = api_key
+    params['signature'] = signature
+    
+    # Preparar archivo
+    files = None
+    if isinstance(file, str):
+        if file.startswith(('http://', 'https://', 'ftp://', 's3://', 'data:')):
+            # URL o data URI
+            params['file'] = file
+        else:
+            # Path a archivo local
+            files = {'file': open(file, 'rb')}
+    else:
+        # File-like object (ej: request.files['imagen'])
+        files = {'file': (getattr(file, 'filename', 'upload'), file, getattr(file, 'content_type', 'application/octet-stream'))}
+    
+    try:
+        # Hacer la petición
+        response = _cloudinary_session.post(
+            upload_url,
+            data=params,
+            files=files,
+            timeout=120
+        )
+        
+        result = response.json()
+        
+        if 'error' in result:
+            error_msg = result['error'].get('message', str(result['error']))
+            raise Exception(f"Cloudinary error: {error_msg}")
+        
+        return result
+        
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Error de conexión con Cloudinary: {str(e)}")
+    finally:
+        # Cerrar archivo si lo abrimos nosotros
+        if files and 'file' in files:
+            f = files['file']
+            if isinstance(f, tuple) and len(f) > 1:
+                pass  # Es un file-like object del usuario, no cerrar
+            elif hasattr(f, 'close'):
+                try:
+                    f.close()
+                except:
+                    pass
+
+
+# También importar cloudinary para funciones auxiliares (URLs, etc.)
 try:
     import cloudinary
-    import cloudinary.uploader
-    import cloudinary.api
+    import cloudinary.utils
     
-    # Configurar proxy en cloudinary config
+    # Configurar cloudinary para funciones de URL
+    cloudinary.config(
+        cloud_name=_cloudinary_config['cloud_name'],
+        api_key=_cloudinary_config['api_key'],
+        api_secret=_cloudinary_config['api_secret']
+    )
     if _api_proxy:
         cloudinary.config(api_proxy=_api_proxy)
-        
-        # PARCHE DEFINITIVO: Reemplazar el HttpClient de Cloudinary
-        try:
-            import urllib3
-            
-            # Crear un ProxyManager configurado
-            _cloudinary_proxy_mgr = urllib3.ProxyManager(
-                _api_proxy,
-                num_pools=10,
-                maxsize=10
-            )
-            
-            # Parchear cloudinary.http_client para usar el proxy
-            import cloudinary.http_client as _cld_http
-            
-            if hasattr(_cld_http, 'HttpClient'):
-                _OrigHttpClient = _cld_http.HttpClient
-                
-                class _ProxiedHttpClient(_OrigHttpClient):
-                    def __init__(self):
-                        super().__init__()
-                        # Reemplazar el pool manager con el proxy manager
-                        self._http = _cloudinary_proxy_mgr
-                
-                _cld_http.HttpClient = _ProxiedHttpClient
-                logging.getLogger(__name__).info("Cloudinary HttpClient parcheado con ProxyManager")
-            else:
-                # Versión antigua de cloudinary - parchear de otra forma
-                logging.getLogger(__name__).warning("Cloudinary HttpClient no encontrado, usando api_proxy config")
-                
-        except Exception as patch_err:
-            logging.getLogger(__name__).warning("Error parcheando Cloudinary HttpClient: %s", patch_err)
-    
-    # Usar la función upload original
-    cloudinary_upload = cloudinary.uploader.upload
     
     CLOUDINARY_AVAILABLE = True
-except (ImportError, ValueError, Exception) as e:
+    logging.getLogger(__name__).info("Cloudinary configurado: cloud_name=%s (upload directo con requests)", _cloudinary_config['cloud_name'])
+except ImportError:
     cloudinary = None
-    cloudinary_upload = None
-    CLOUDINARY_AVAILABLE = False
-    logging.getLogger(__name__).warning("Cloudinary SDK error during import: %s. Image uploads disabled.", e)
-
-# Restaurar la variable limpia y saneada para que init_cloudinary la use después de forma segura
-if _temp_cloudinary_url:
-    # Limpieza agresiva de basura común (comillas, prefijos repetidos)
-    clean_url = _temp_cloudinary_url.strip().strip("'").strip('"')
-    if clean_url.startswith('CLOUDINARY_URL='):
-        clean_url = clean_url.split('=', 1)[1]
-    os.environ['CLOUDINARY_URL'] = clean_url
+    CLOUDINARY_AVAILABLE = True  # Aún podemos usar cloudinary_upload directo
+    logging.getLogger(__name__).info("Cloudinary SDK no instalado, usando implementación directa")
 
 
 # --- Cloudinary helpers: build eager transforms, generate URLs and srcsets for responsive images ---
@@ -162,22 +277,34 @@ def get_cloudinary_eager():
 def cloudinary_image_url(public_id, width=None):
     """Construye una URL de Cloudinary para `public_id` con transformación opcional de ancho.
     IMPORTANTE: Incluye angle='auto' para corregir rotación EXIF de fotos de celular."""
-    if not CLOUDINARY_AVAILABLE or not public_id:
+    if not public_id:
         return None
-    try:
-        opts = {
-            'quality': app.config.get('CLOUDINARY_IMAGE_QUALITY', 'auto'), 
-            'fetch_format': 'auto', 
-            'resource_type': 'image',
-            'angle': 'auto'  # CRÍTICO: Corrige rotación EXIF de fotos tomadas con celular
-        }
-        if width:
-            opts.update({'width': width, 'crop': 'limit'})
-        url, _ = cloudinary.utils.cloudinary_url(public_id, **opts)
-        return url
-    except Exception as e:
-        logger.exception('Error generating cloudinary URL for %s: %s', public_id, e)
-        return None
+    
+    # Si tenemos el SDK de cloudinary, usarlo
+    if cloudinary and hasattr(cloudinary, 'utils'):
+        try:
+            opts = {
+                'quality': app.config.get('CLOUDINARY_IMAGE_QUALITY', 'auto'), 
+                'fetch_format': 'auto', 
+                'resource_type': 'image',
+                'angle': 'auto'  # CRÍTICO: Corrige rotación EXIF de fotos tomadas con celular
+            }
+            if width:
+                opts.update({'width': width, 'crop': 'limit'})
+            url, _ = cloudinary.utils.cloudinary_url(public_id, **opts)
+            return url
+        except Exception as e:
+            logger.exception('Error generating cloudinary URL for %s: %s', public_id, e)
+    
+    # Fallback: construir URL manualmente
+    cloud_name = _cloudinary_config.get('cloud_name', 'dtrjravmg')
+    transformations = ['a_auto', 'q_auto', 'f_auto']
+    if width:
+        transformations.append(f'w_{width}')
+        transformations.append('c_limit')
+    
+    trans_str = ','.join(transformations)
+    return f"https://res.cloudinary.com/{cloud_name}/image/upload/{trans_str}/{public_id}"
 
 
 def cloudinary_srcset(public_id, widths=None):
@@ -339,100 +466,47 @@ CLOUDINARY_CONFIGURED = False
 def init_cloudinary():
     """
     Inicializa la configuración de Cloudinary.
-    Se llama después de que Flask está completamente cargado.
-    Requiere la librería `cloudinary` y la variable de entorno `CLOUDINARY_URL`.
-    Opcionalmente, usa `API_PROXY` para entornos que lo requieran (PythonAnywhere free tier).
+    Con la nueva implementación directa, solo verifica que las credenciales estén disponibles.
     """
-    global CLOUDINARY_CONFIGURED
-
-    if not CLOUDINARY_AVAILABLE:
-        logger.warning("Cloudinary SDK no está instalado. Instala con: pip install cloudinary")
-        CLOUDINARY_CONFIGURED = False
-        return False
-
-    cloudinary_url = os.environ.get('CLOUDINARY_URL')
+    global CLOUDINARY_CONFIGURED, _cloudinary_config, _cloudinary_session
+    
     api_proxy = os.environ.get('API_PROXY')
     
-    logger.info("init_cloudinary() - CLOUDINARY_URL presente: %s", bool(cloudinary_url))
+    logger.info("init_cloudinary() - cloud_name: %s", _cloudinary_config.get('cloud_name'))
     logger.info("init_cloudinary() - API_PROXY presente: %s", bool(api_proxy))
-
-    if cloudinary_url:
-        try:
-            # Construir un diccionario de configuración
-            config_options = {}
-            
-            # Configurar proxy ANTES de cualquier conexión
-            if api_proxy:
-                config_options['api_proxy'] = api_proxy
-                # Forzar variables de entorno para urllib3/requests
-                os.environ['HTTP_PROXY'] = api_proxy
-                os.environ['HTTPS_PROXY'] = api_proxy
-                os.environ['http_proxy'] = api_proxy
-                os.environ['https_proxy'] = api_proxy
-                os.environ['ALL_PROXY'] = api_proxy
-                
-                # CRÍTICO: Parchear requests.Session para que SIEMPRE use proxy
-                try:
-                    import requests
-                    _original_session_init = requests.Session.__init__
-                    
-                    def _patched_session_init(self, *args, **kwargs):
-                        _original_session_init(self, *args, **kwargs)
-                        self.proxies = {
-                            'http': api_proxy,
-                            'https': api_proxy
-                        }
-                        self.trust_env = True
-                    
-                    requests.Session.__init__ = _patched_session_init
-                    logger.info("requests.Session parcheado con proxy: %s", api_proxy)
-                except Exception as req_err:
-                    logger.warning("No se pudo parchear requests.Session: %s", req_err)
-                
-                # Forzar proxy en urllib3
-                try:
-                    import urllib3
-                    urllib3.util.ssl_.DEFAULT_CIPHERS = 'DEFAULT:@SECLEVEL=1'
-                except Exception:
-                    pass
-                
-                logger.info("Usando proxy para Cloudinary: %s", api_proxy)
-
-            # Extraer credenciales de la URL
-            from urllib.parse import urlparse
-            u = urlparse(cloudinary_url)
-            logger.info("Cloudinary URL scheme: %s, netloc: %s", u.scheme, u.netloc[:20] + '...' if len(u.netloc) > 20 else u.netloc)
-            
-            if u.scheme != 'cloudinary':
-                raise ValueError(f'Invalid CLOUDINARY_URL scheme: {u.scheme}')
-            
-            creds = u.netloc
-            if '@' in creds:
-                userinfo, cloud_name = creds.split('@', 1)
-                api_key, api_secret = userinfo.split(':', 1)
-                
-                config_options.update({
-                    'cloud_name': cloud_name,
-                    'api_key': api_key,
-                    'api_secret': api_secret
-                })
-                
-                cloudinary.config(**config_options)
-                logger.info("Cloudinary config() llamado con cloud_name: %s, api_proxy: %s", cloud_name, bool(api_proxy))
-            else:
-                raise ValueError('Invalid CLOUDINARY_URL format - missing @')
-
-            logger.info("Cloudinary configurado correctamente - CLOUDINARY_CONFIGURED = True")
-            CLOUDINARY_CONFIGURED = True
-            return True
-        except Exception as e:
-            logger.exception("Error configurando Cloudinary: %s", str(e))
-            CLOUDINARY_CONFIGURED = False
-            return False
-    else:
-        logger.warning("CLOUDINARY_URL no está configurada. Las subidas de imágenes no funcionarán.")
+    
+    # Verificar que tenemos credenciales
+    if not all([_cloudinary_config.get('cloud_name'), 
+                _cloudinary_config.get('api_key'), 
+                _cloudinary_config.get('api_secret')]):
+        logger.warning("Credenciales de Cloudinary incompletas")
         CLOUDINARY_CONFIGURED = False
         return False
+    
+    # Asegurar que la sesión tiene el proxy configurado
+    if api_proxy and _cloudinary_session:
+        _cloudinary_session.proxies = {
+            'http': api_proxy,
+            'https': api_proxy
+        }
+        logger.info("Cloudinary session proxy actualizado: %s", api_proxy)
+    
+    # Configurar también el SDK si está disponible (para URLs)
+    if cloudinary:
+        try:
+            cloudinary.config(
+                cloud_name=_cloudinary_config['cloud_name'],
+                api_key=_cloudinary_config['api_key'],
+                api_secret=_cloudinary_config['api_secret']
+            )
+            if api_proxy:
+                cloudinary.config(api_proxy=api_proxy)
+        except Exception as e:
+            logger.warning("Error configurando cloudinary SDK: %s", e)
+    
+    logger.info("Cloudinary configurado correctamente (implementación directa con requests)")
+    CLOUDINARY_CONFIGURED = True
+    return True
 
 
 def is_cloudinary_ready():
@@ -441,7 +515,7 @@ def is_cloudinary_ready():
     if CLOUDINARY_CONFIGURED:
         return True
     # Intentar inicializar si aún no está configurado
-    if CLOUDINARY_AVAILABLE and os.environ.get('CLOUDINARY_URL'):
+    if CLOUDINARY_AVAILABLE:
         logger.info("is_cloudinary_ready() - Intentando re-inicializar Cloudinary...")
         return init_cloudinary()
     return False
