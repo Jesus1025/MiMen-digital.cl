@@ -3160,9 +3160,12 @@ def superadmin_cambiar_password():
     """Cambiar contraseña del superadmin."""
     try:
         data = request.get_json()
-        password_actual = data.get('password_actual', '')
-        password_nuevo = data.get('password_nuevo', '')
-        password_confirmar = data.get('password_confirmar', '')
+        if not data:
+            return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
+            
+        password_actual = data.get('password_actual', '').strip()
+        password_nuevo = data.get('password_nuevo', '').strip()
+        password_confirmar = data.get('password_confirmar', '').strip()
         
         # Validaciones
         if not password_actual or not password_nuevo or not password_confirmar:
@@ -3174,7 +3177,9 @@ def superadmin_cambiar_password():
         if len(password_nuevo) < 8:
             return jsonify({'success': False, 'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
         
-        usuario_id = session['user_id']
+        usuario_id = session.get('user_id')
+        if not usuario_id:
+            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
         
         db = get_db()
         with db.cursor() as cur:
@@ -3182,7 +3187,15 @@ def superadmin_cambiar_password():
             cur.execute("SELECT password FROM usuarios_admin WHERE id = %s", (usuario_id,))
             user = cur.fetchone()
             
-            if not user or not check_password_hash(user['password'], password_actual):
+            if not user:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+            
+            # Verificar contraseña actual
+            password_hash_actual = user.get('password') or user.get('PASSWORD')
+            if not password_hash_actual:
+                return jsonify({'success': False, 'error': 'Error al obtener datos del usuario'}), 500
+                
+            if not check_password_hash(password_hash_actual, password_actual):
                 return jsonify({'success': False, 'error': 'Contraseña actual incorrecta'}), 400
             
             # Actualizar contraseña
@@ -3194,8 +3207,8 @@ def superadmin_cambiar_password():
         return jsonify({'success': True, 'message': 'Contraseña actualizada correctamente'})
         
     except Exception as e:
-        logger.exception("Error cambiando contraseña de superadmin")
-        return jsonify({'success': False, 'error': 'Error al cambiar la contraseña'}), 500
+        logger.exception("Error cambiando contraseña de superadmin: %s", str(e))
+        return jsonify({'success': False, 'error': f'Error: {str(e)}'}), 500
 
 
 @app.route('/superadmin/restaurantes')
