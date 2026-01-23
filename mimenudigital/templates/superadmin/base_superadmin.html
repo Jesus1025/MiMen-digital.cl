@@ -572,12 +572,8 @@
                 <button class="delete" aria-label="close" onclick="cerrarModalPassword()"></button>
             </header>
             <section class="modal-card-body">
-                <div class="field">
-                    <label class="label">Contraseña actual</label>
-                    <div class="control has-icons-left">
-                        <input class="input" type="password" id="passwordActual" placeholder="Tu contraseña actual">
-                        <span class="icon is-left"><i class="fas fa-lock"></i></span>
-                    </div>
+                <div class="notification is-info is-light" style="margin-bottom: 1rem;">
+                    <i class="fas fa-info-circle"></i> Ingresa tu nueva contraseña
                 </div>
                 <div class="field">
                     <label class="label">Nueva contraseña</label>
@@ -587,9 +583,9 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label class="label">Confirmar nueva contraseña</label>
+                    <label class="label">Confirmar contraseña</label>
                     <div class="control has-icons-left">
-                        <input class="input" type="password" id="passwordConfirmar" placeholder="Repite la nueva contraseña">
+                        <input class="input" type="password" id="passwordConfirmar" placeholder="Repite la contraseña">
                         <span class="icon is-left"><i class="fas fa-check-double"></i></span>
                     </div>
                 </div>
@@ -864,11 +860,10 @@
     <!-- Script para cambiar contraseña -->
     <script>
         function abrirModalPassword() {
-            document.getElementById('passwordActual').value = '';
             document.getElementById('passwordNuevo').value = '';
             document.getElementById('passwordConfirmar').value = '';
             document.getElementById('modalPassword').classList.add('is-active');
-            setTimeout(() => document.getElementById('passwordActual').focus(), 100);
+            setTimeout(() => document.getElementById('passwordNuevo').focus(), 100);
         }
         
         function cerrarModalPassword() {
@@ -876,23 +871,22 @@
         }
         
         async function cambiarPassword() {
-            const passwordActual = document.getElementById('passwordActual').value;
             const passwordNuevo = document.getElementById('passwordNuevo').value;
             const passwordConfirmar = document.getElementById('passwordConfirmar').value;
             
-            if (!passwordActual || !passwordNuevo || !passwordConfirmar) {
+            if (!passwordNuevo || !passwordConfirmar) {
                 alert('Por favor completa todos los campos');
                 return;
             }
             
             if (passwordNuevo !== passwordConfirmar) {
-                alert('Las contraseñas nuevas no coinciden');
+                alert('Las contraseñas no coinciden');
                 document.getElementById('passwordConfirmar').focus();
                 return;
             }
             
             if (passwordNuevo.length < 8) {
-                alert('La nueva contraseña debe tener al menos 8 caracteres');
+                alert('La contraseña debe tener al menos 8 caracteres');
                 document.getElementById('passwordNuevo').focus();
                 return;
             }
@@ -907,7 +901,6 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        password_actual: passwordActual,
                         password_nuevo: passwordNuevo,
                         password_confirmar: passwordConfirmar
                     })
