@@ -3,412 +3,617 @@
 {% block title %}Tickets de Soporte - SuperAdmin{% endblock %}
 
 {% block page_title %}
-<i class="fas fa-headset"></i> Tickets de Soporte
+<i class="fas fa-headset"></i> Centro de Soporte
 {% endblock %}
 
 {% block extra_css %}
 <style>
-    .tickets-stats {
+    :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-400: #9ca3af;
+        --gray-500: #6b7280;
+        --gray-600: #4b5563;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+    }
+    
+    /* ===== ESTADÍSTICAS ===== */
+    .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
         margin-bottom: 2rem;
     }
     
+    @media (max-width: 1024px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
+    
     .stat-card {
         background: white;
-        border-radius: 12px;
-        padding: 1.25rem;
-        text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        border-left: 4px solid;
+        border-radius: 16px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
     }
     
-    .stat-card.abiertos { border-color: #e74c3c; }
-    .stat-card.en-proceso { border-color: #f39c12; }
-    .stat-card.respondidos { border-color: #27ae60; }
-    .stat-card.total { border-color: #3498db; }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
     
-    .stat-number {
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .stat-icon.red { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #dc2626; }
+    .stat-icon.yellow { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; }
+    .stat-icon.green { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #059669; }
+    .stat-icon.blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #2563eb; }
+    
+    .stat-info h3 {
         font-size: 2rem;
         font-weight: 700;
-        color: #2c3e50;
+        color: var(--gray-800);
+        line-height: 1;
+        margin: 0;
     }
     
-    .stat-label {
-        font-size: 0.85rem;
-        color: #7f8c8d;
-        margin-top: 0.25rem;
+    .stat-info p {
+        font-size: 0.875rem;
+        color: var(--gray-500);
+        margin: 0.25rem 0 0;
+    }
+    
+    /* ===== FILTROS ===== */
+    .filters-section {
+        background: white;
+        border-radius: 16px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .filter-label {
+        font-weight: 600;
+        color: var(--gray-600);
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .filter-pills {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        flex: 1;
+    }
+    
+    .filter-pill {
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: 2px solid var(--gray-200);
+        background: white;
+        color: var(--gray-600);
+        transition: all 0.2s ease;
+    }
+    
+    .filter-pill:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+    
+    .filter-pill.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: white;
+    }
+    
+    .filter-pill.active.red { background: var(--danger); border-color: var(--danger); }
+    .filter-pill.active.yellow { background: var(--warning); border-color: var(--warning); }
+    .filter-pill.active.green { background: var(--success); border-color: var(--success); }
+    
+    /* ===== TICKETS ===== */
+    .tickets-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
     }
     
     .ticket-card {
         background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         transition: all 0.3s ease;
-        border-left: 4px solid #ddd;
     }
     
     .ticket-card:hover {
-        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     }
     
-    .ticket-card.prioridad-urgente { border-color: #e74c3c; }
-    .ticket-card.prioridad-alta { border-color: #f39c12; }
-    .ticket-card.prioridad-media { border-color: #3498db; }
-    .ticket-card.prioridad-baja { border-color: #95a5a6; }
+    .ticket-priority-bar {
+        height: 4px;
+        width: 100%;
+    }
     
-    .ticket-header {
+    .ticket-priority-bar.urgente { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .ticket-priority-bar.alta { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .ticket-priority-bar.media { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    .ticket-priority-bar.baja { background: linear-gradient(90deg, #9ca3af, #d1d5db); }
+    
+    .ticket-content {
+        padding: 1.5rem;
+    }
+    
+    .ticket-top {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         margin-bottom: 1rem;
-        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .ticket-id {
+        display: inline-flex;
+        align-items: center;
         gap: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--gray-400);
+        background: var(--gray-100);
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
     }
     
     .ticket-title {
-        font-size: 1.1rem;
+        font-size: 1.125rem;
         font-weight: 600;
-        color: #2c3e50;
+        color: var(--gray-800);
         margin: 0;
+        line-height: 1.4;
     }
     
     .ticket-badges {
         display: flex;
         gap: 0.5rem;
-        flex-wrap: wrap;
+        flex-shrink: 0;
     }
     
     .badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 8px;
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
+        letter-spacing: 0.025em;
     }
     
-    .badge-estado-abierto { background: #fef0f0; color: #e74c3c; }
-    .badge-estado-en_proceso { background: #fef9e7; color: #f39c12; }
-    .badge-estado-respondido { background: #e8f8f0; color: #27ae60; }
-    .badge-estado-cerrado { background: #f0f0f0; color: #7f8c8d; }
+    .badge i { font-size: 0.625rem; }
     
-    .badge-tipo-consulta { background: #e8f4fc; color: #3498db; }
-    .badge-tipo-problema_tecnico { background: #fef0f0; color: #e74c3c; }
-    .badge-tipo-facturacion { background: #f5f0fe; color: #9b59b6; }
-    .badge-tipo-otro { background: #f0f0f0; color: #7f8c8d; }
+    .badge-abierto { background: #fef2f2; color: #dc2626; }
+    .badge-en_proceso { background: #fffbeb; color: #d97706; }
+    .badge-respondido { background: #ecfdf5; color: #059669; }
+    .badge-cerrado { background: var(--gray-100); color: var(--gray-500); }
     
-    .badge-prioridad-urgente { background: #e74c3c; color: white; }
-    .badge-prioridad-alta { background: #f39c12; color: white; }
-    .badge-prioridad-media { background: #3498db; color: white; }
-    .badge-prioridad-baja { background: #95a5a6; color: white; }
+    .badge-urgente { background: #dc2626; color: white; }
+    .badge-alta { background: #f59e0b; color: white; }
+    .badge-media { background: #3b82f6; color: white; }
+    .badge-baja { background: #9ca3af; color: white; }
     
-    .ticket-meta {
+    .ticket-user {
         display: flex;
-        gap: 1.5rem;
-        font-size: 0.85rem;
-        color: #7f8c8d;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: var(--gray-50);
+        border-radius: 12px;
         margin-bottom: 1rem;
-        flex-wrap: wrap;
     }
     
-    .ticket-meta i { margin-right: 0.35rem; }
+    .user-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.125rem;
+        flex-shrink: 0;
+    }
     
-    .ticket-message {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        color: #2c3e50;
-        line-height: 1.6;
+    .user-info { flex: 1; min-width: 0; }
+    
+    .user-name {
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0;
+    }
+    
+    .user-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        font-size: 0.875rem;
+        color: var(--gray-500);
+        margin-top: 0.25rem;
+    }
+    
+    .user-meta a { color: var(--primary); text-decoration: none; }
+    .user-meta a:hover { text-decoration: underline; }
+    
+    .ticket-message-box {
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
         margin-bottom: 1rem;
-        max-height: 100px;
-        overflow: hidden;
         position: relative;
     }
     
-    .ticket-message.expanded {
-        max-height: none;
-    }
-    
-    .ticket-message::after {
-        content: '';
+    .ticket-message-box::before {
+        content: '"';
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 40px;
-        background: linear-gradient(transparent, #f8f9fa);
+        top: -5px;
+        left: 15px;
+        font-size: 3rem;
+        color: var(--gray-200);
+        font-family: Georgia, serif;
+        line-height: 1;
     }
     
-    .ticket-message.expanded::after {
-        display: none;
+    .ticket-message {
+        color: var(--gray-700);
+        line-height: 1.7;
+        padding-left: 1.5rem;
+        max-height: 80px;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
     }
     
-    .ticket-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
+    .ticket-message.expanded { max-height: 500px; }
     
-    .btn-sm {
-        padding: 0.4rem 0.75rem;
-        font-size: 0.85rem;
-        border-radius: 6px;
-        border: none;
-        cursor: pointer;
+    .expand-btn {
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
-        transition: all 0.2s ease;
-    }
-    
-    .btn-primary {
-        background: #3498db;
-        color: white;
-    }
-    
-    .btn-primary:hover { background: #2980b9; }
-    
-    .btn-success {
-        background: #27ae60;
-        color: white;
-    }
-    
-    .btn-success:hover { background: #1e8449; }
-    
-    .btn-warning {
-        background: #f39c12;
-        color: white;
-    }
-    
-    .btn-warning:hover { background: #d68910; }
-    
-    .btn-secondary {
-        background: #ecf0f1;
-        color: #2c3e50;
-    }
-    
-    .btn-secondary:hover { background: #d5dbdb; }
-    
-    /* Filtros */
-    .filters-bar {
-        background: white;
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        margin-bottom: 1.5rem;
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-        align-items: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    }
-    
-    .filter-group {
-        display: flex;
-        align-items: center;
         gap: 0.5rem;
-    }
-    
-    .filter-group label {
-        font-size: 0.85rem;
-        color: #7f8c8d;
+        padding: 0.5rem 0;
+        font-size: 0.875rem;
+        color: var(--primary);
+        cursor: pointer;
+        border: none;
+        background: none;
         font-weight: 500;
     }
     
-    .filter-group select {
-        padding: 0.5rem 0.75rem;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 0.9rem;
+    .expand-btn:hover { text-decoration: underline; }
+    
+    .ticket-response {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid var(--success);
     }
     
-    /* Modal de respuesta */
+    .response-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #059669;
+        margin-bottom: 0.5rem;
+    }
+    
+    .response-text { color: #065f46; line-height: 1.6; }
+    
+    .ticket-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding-top: 1rem;
+        border-top: 1px solid var(--gray-200);
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        border-radius: 10px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+    
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #059669; transform: translateY(-1px); }
+    
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-warning:hover { background: #d97706; transform: translateY(-1px); }
+    
+    .btn-outline { background: white; color: var(--gray-600); border: 2px solid var(--gray-200); }
+    .btn-outline:hover { border-color: var(--gray-400); background: var(--gray-50); }
+    
+    .btn-ghost { background: var(--gray-100); color: var(--gray-600); }
+    .btn-ghost:hover { background: var(--gray-200); }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2rem;
+        color: var(--gray-400);
+    }
+    
+    .empty-state h3 { font-size: 1.25rem; color: var(--gray-800); margin: 0 0 0.5rem; }
+    .empty-state p { color: var(--gray-500); margin: 0; }
+    
+    /* ===== MODAL ===== */
     .modal-card {
-        max-width: 700px;
-        margin: 0 auto;
+        max-width: 600px;
+        border-radius: 20px;
+        overflow: hidden;
     }
     
     .modal-card-head {
-        background: #3498db;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
         border: none;
+        padding: 1.5rem;
     }
     
-    .modal-card-title {
-        color: white;
+    .modal-card-title { color: white; font-weight: 600; }
+    .modal-card-head .delete { background: rgba(255,255,255,0.2); }
+    .modal-card-body { padding: 1.5rem; }
+    
+    .modal-card-foot {
+        background: var(--gray-50);
+        border-top: 1px solid var(--gray-200);
+        padding: 1rem 1.5rem;
+        justify-content: flex-end;
+        gap: 0.75rem;
     }
     
-    .response-preview {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        border-left: 4px solid #3498db;
+    .form-group { margin-bottom: 1.25rem; }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: var(--gray-700);
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
     }
     
-    .response-preview strong {
-        color: #2c3e50;
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--gray-200);
+        border-radius: 10px;
+        font-size: 0.9375rem;
+        transition: all 0.2s ease;
     }
     
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
-        color: #7f8c8d;
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
     }
     
-    .empty-state i {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
+    .form-input[readonly] { background: var(--gray-50); color: var(--gray-500); }
+    textarea.form-input { resize: vertical; min-height: 120px; }
+    
+    .checkbox-group { display: flex; flex-direction: column; gap: 0.75rem; }
+    
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: var(--gray-50);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
     }
     
-    /* Responsive */
+    .checkbox-item:hover { background: var(--gray-100); }
+    .checkbox-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
+    .checkbox-item span { font-size: 0.9375rem; color: var(--gray-700); }
+    
     @media (max-width: 768px) {
-        .ticket-header {
-            flex-direction: column;
-        }
-        
-        .ticket-meta {
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        
-        .filters-bar {
-            flex-direction: column;
-            align-items: stretch;
-        }
+        .ticket-top { flex-direction: column; }
+        .ticket-badges { flex-wrap: wrap; }
+        .user-meta { flex-direction: column; gap: 0.25rem; }
+        .ticket-actions { flex-direction: column; }
+        .btn { width: 100%; justify-content: center; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <!-- Estadísticas -->
-<div class="tickets-stats">
-    <div class="stat-card abiertos">
-        <div class="stat-number">{{ stats.abiertos or 0 }}</div>
-        <div class="stat-label">Abiertos</div>
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-exclamation-circle"></i></div>
+        <div class="stat-info">
+            <h3>{{ stats.abiertos or 0 }}</h3>
+            <p>Tickets Abiertos</p>
+        </div>
     </div>
-    <div class="stat-card en-proceso">
-        <div class="stat-number">{{ stats.en_proceso or 0 }}</div>
-        <div class="stat-label">En Proceso</div>
+    <div class="stat-card">
+        <div class="stat-icon yellow"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+            <h3>{{ stats.en_proceso or 0 }}</h3>
+            <p>En Proceso</p>
+        </div>
     </div>
-    <div class="stat-card respondidos">
-        <div class="stat-number">{{ stats.respondidos or 0 }}</div>
-        <div class="stat-label">Respondidos</div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <h3>{{ stats.respondidos or 0 }}</h3>
+            <p>Respondidos</p>
+        </div>
     </div>
-    <div class="stat-card total">
-        <div class="stat-number">{{ stats.total or 0 }}</div>
-        <div class="stat-label">Total</div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-ticket-alt"></i></div>
+        <div class="stat-info">
+            <h3>{{ stats.total or 0 }}</h3>
+            <p>Total Tickets</p>
+        </div>
     </div>
 </div>
 
 <!-- Filtros -->
-<div class="filters-bar">
-    <div class="filter-group">
-        <label>Estado:</label>
-        <select id="filtroEstado" onchange="aplicarFiltros()">
-            <option value="">Todos</option>
-            <option value="abierto" {{ 'selected' if filtro_estado == 'abierto' }}>Abiertos</option>
-            <option value="en_proceso" {{ 'selected' if filtro_estado == 'en_proceso' }}>En proceso</option>
-            <option value="respondido" {{ 'selected' if filtro_estado == 'respondido' }}>Respondidos</option>
-            <option value="cerrado" {{ 'selected' if filtro_estado == 'cerrado' }}>Cerrados</option>
-        </select>
-    </div>
-    <div class="filter-group">
-        <label>Tipo:</label>
-        <select id="filtroTipo" onchange="aplicarFiltros()">
-            <option value="">Todos</option>
-            <option value="consulta" {{ 'selected' if filtro_tipo == 'consulta' }}>Consulta</option>
-            <option value="problema_tecnico" {{ 'selected' if filtro_tipo == 'problema_tecnico' }}>Problema técnico</option>
-            <option value="facturacion" {{ 'selected' if filtro_tipo == 'facturacion' }}>Facturación</option>
-            <option value="otro" {{ 'selected' if filtro_tipo == 'otro' }}>Otro</option>
-        </select>
-    </div>
-    <div class="filter-group">
-        <label>Prioridad:</label>
-        <select id="filtroPrioridad" onchange="aplicarFiltros()">
-            <option value="">Todas</option>
-            <option value="urgente" {{ 'selected' if filtro_prioridad == 'urgente' }}>Urgente</option>
-            <option value="alta" {{ 'selected' if filtro_prioridad == 'alta' }}>Alta</option>
-            <option value="media" {{ 'selected' if filtro_prioridad == 'media' }}>Media</option>
-            <option value="baja" {{ 'selected' if filtro_prioridad == 'baja' }}>Baja</option>
-        </select>
+<div class="filters-section">
+    <span class="filter-label"><i class="fas fa-filter"></i> Filtrar:</span>
+    <div class="filter-pills">
+        <button class="filter-pill {% if not filtro_estado %}active{% endif %}" onclick="filtrar('estado', '')">Todos</button>
+        <button class="filter-pill {% if filtro_estado == 'abierto' %}active red{% endif %}" onclick="filtrar('estado', 'abierto')">Abiertos</button>
+        <button class="filter-pill {% if filtro_estado == 'en_proceso' %}active yellow{% endif %}" onclick="filtrar('estado', 'en_proceso')">En proceso</button>
+        <button class="filter-pill {% if filtro_estado == 'respondido' %}active green{% endif %}" onclick="filtrar('estado', 'respondido')">Respondidos</button>
+        <button class="filter-pill {% if filtro_estado == 'cerrado' %}active{% endif %}" onclick="filtrar('estado', 'cerrado')">Cerrados</button>
     </div>
 </div>
 
 <!-- Lista de tickets -->
-{% if tickets %}
-    {% for ticket in tickets %}
-    <div class="ticket-card prioridad-{{ ticket.prioridad }}" id="ticket-{{ ticket.id }}">
-        <div class="ticket-header">
-            <h3 class="ticket-title">
-                #{{ ticket.id }} - {{ ticket.asunto }}
-            </h3>
-            <div class="ticket-badges">
-                <span class="badge badge-estado-{{ ticket.estado }}">{{ ticket.estado|replace('_', ' ')|title }}</span>
-                <span class="badge badge-tipo-{{ ticket.tipo }}">{{ ticket.tipo|replace('_', ' ')|title }}</span>
-                <span class="badge badge-prioridad-{{ ticket.prioridad }}">{{ ticket.prioridad|title }}</span>
-            </div>
-        </div>
-        
-        <div class="ticket-meta">
-            <span><i class="fas fa-user"></i> {{ ticket.nombre }}</span>
-            <span><i class="fas fa-envelope"></i> <a href="mailto:{{ ticket.email }}">{{ ticket.email }}</a></span>
-            {% if ticket.telefono %}
-            <span><i class="fas fa-phone"></i> {{ ticket.telefono }}</span>
-            {% endif %}
-            <span><i class="fas fa-clock"></i> {{ ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</span>
-            {% if ticket.restaurante_nombre %}
-            <span><i class="fas fa-store"></i> {{ ticket.restaurante_nombre }}</span>
-            {% endif %}
-        </div>
-        
-        <div class="ticket-message" id="msg-{{ ticket.id }}">
-            {{ ticket.mensaje }}
-        </div>
-        
-        {% if ticket.respuesta %}
-        <div class="response-preview">
-            <strong><i class="fas fa-reply"></i> Respuesta ({{ ticket.fecha_respuesta.strftime('%d/%m/%Y %H:%M') if ticket.fecha_respuesta else 'N/A' }}):</strong><br>
-            {{ ticket.respuesta }}
-        </div>
-        {% endif %}
-        
-        <div class="ticket-actions">
-            <button class="btn-sm btn-secondary" onclick="toggleMessage({{ ticket.id }})">
-                <i class="fas fa-expand"></i> Expandir
-            </button>
-            
-            {% if ticket.estado != 'cerrado' %}
-                <button class="btn-sm btn-primary" onclick="abrirModalResponder({{ ticket.id }}, '{{ ticket.email }}', '{{ ticket.asunto|e }}')">
-                    <i class="fas fa-reply"></i> Responder
-                </button>
+<div class="tickets-container">
+    {% if tickets %}
+        {% for ticket in tickets %}
+        <div class="ticket-card" id="ticket-{{ ticket.id }}">
+            <div class="ticket-priority-bar {{ ticket.prioridad }}"></div>
+            <div class="ticket-content">
+                <div class="ticket-top">
+                    <div>
+                        <div class="ticket-id">
+                            <i class="fas fa-hashtag"></i> {{ ticket.id }}
+                            <span style="color: var(--gray-300);">|</span>
+                            <i class="fas fa-clock"></i> {{ ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}
+                        </div>
+                        <h3 class="ticket-title">{{ ticket.asunto }}</h3>
+                    </div>
+                    <div class="ticket-badges">
+                        <span class="badge badge-{{ ticket.estado }}">
+                            {% if ticket.estado == 'abierto' %}<i class="fas fa-circle"></i>{% elif ticket.estado == 'en_proceso' %}<i class="fas fa-spinner"></i>{% elif ticket.estado == 'respondido' %}<i class="fas fa-check"></i>{% else %}<i class="fas fa-lock"></i>{% endif %}
+                            {{ ticket.estado|replace('_', ' ')|title }}
+                        </span>
+                        <span class="badge badge-{{ ticket.prioridad }}">{{ ticket.prioridad|title }}</span>
+                    </div>
+                </div>
                 
-                {% if ticket.estado == 'abierto' %}
-                <button class="btn-sm btn-warning" onclick="cambiarEstado({{ ticket.id }}, 'en_proceso')">
-                    <i class="fas fa-spinner"></i> En proceso
-                </button>
+                <div class="ticket-user">
+                    <div class="user-avatar">{{ ticket.nombre[0]|upper if ticket.nombre else '?' }}</div>
+                    <div class="user-info">
+                        <p class="user-name">{{ ticket.nombre }}</p>
+                        <div class="user-meta">
+                            <span><i class="fas fa-envelope"></i> <a href="mailto:{{ ticket.email }}">{{ ticket.email }}</a></span>
+                            {% if ticket.telefono %}<span><i class="fas fa-phone"></i> {{ ticket.telefono }}</span>{% endif %}
+                            {% if ticket.restaurante_nombre %}<span><i class="fas fa-store"></i> {{ ticket.restaurante_nombre }}</span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ticket-message-box">
+                    <div class="ticket-message" id="msg-{{ ticket.id }}">{{ ticket.mensaje }}</div>
+                    {% if ticket.mensaje|length > 150 %}
+                    <button class="expand-btn" onclick="toggleMessage({{ ticket.id }}, this)">
+                        <i class="fas fa-chevron-down"></i> Ver completo
+                    </button>
+                    {% endif %}
+                </div>
+                
+                {% if ticket.respuesta %}
+                <div class="ticket-response">
+                    <div class="response-header">
+                        <i class="fas fa-reply"></i> Tu respuesta
+                        {% if ticket.fecha_respuesta %}<span style="font-weight: 400; margin-left: auto;">{{ ticket.fecha_respuesta.strftime('%d/%m/%Y %H:%M') }}</span>{% endif %}
+                    </div>
+                    <div class="response-text">{{ ticket.respuesta }}</div>
+                </div>
                 {% endif %}
                 
-                <button class="btn-sm btn-success" onclick="cambiarEstado({{ ticket.id }}, 'cerrado')">
-                    <i class="fas fa-check"></i> Cerrar
-                </button>
-            {% else %}
-                <button class="btn-sm btn-secondary" onclick="cambiarEstado({{ ticket.id }}, 'abierto')">
-                    <i class="fas fa-redo"></i> Reabrir
-                </button>
-            {% endif %}
+                <div class="ticket-actions">
+                    {% if ticket.estado != 'cerrado' %}
+                        <button class="btn btn-primary" onclick="abrirModalResponder({{ ticket.id }}, '{{ ticket.email }}', '{{ ticket.asunto|e }}')">
+                            <i class="fas fa-reply"></i> Responder
+                        </button>
+                        {% if ticket.estado == 'abierto' %}
+                        <button class="btn btn-warning" onclick="cambiarEstado({{ ticket.id }}, 'en_proceso')">
+                            <i class="fas fa-spinner"></i> En proceso
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-success" onclick="cambiarEstado({{ ticket.id }}, 'cerrado')">
+                            <i class="fas fa-check"></i> Cerrar
+                        </button>
+                    {% else %}
+                        <button class="btn btn-ghost" onclick="cambiarEstado({{ ticket.id }}, 'abierto')">
+                            <i class="fas fa-redo"></i> Reabrir
+                        </button>
+                    {% endif %}
+                    <a href="mailto:{{ ticket.email }}" class="btn btn-outline" style="margin-left: auto;">
+                        <i class="fas fa-envelope"></i> Email directo
+                    </a>
+                </div>
+            </div>
         </div>
-    </div>
-    {% endfor %}
-{% else %}
-    <div class="empty-state">
-        <i class="fas fa-inbox"></i>
-        <h3>No hay tickets</h3>
-        <p>No se encontraron tickets con los filtros seleccionados</p>
-    </div>
-{% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+            <h3>No hay tickets</h3>
+            <p>No se encontraron tickets con los filtros seleccionados</p>
+        </div>
+    {% endif %}
+</div>
 
 <!-- Modal de respuesta -->
 <div class="modal" id="modalResponder">
@@ -422,47 +627,38 @@
             <form id="formResponder" method="POST" action="{{ url_for('superadmin_responder_ticket') }}">
                 <input type="hidden" name="ticket_id" id="ticketIdInput">
                 
-                <div class="field">
-                    <label class="label">Destinatario</label>
-                    <div class="control">
-                        <input class="input" type="email" id="emailDestino" readonly>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Destinatario</label>
+                    <input class="form-input" type="email" id="emailDestino" readonly>
                 </div>
                 
-                <div class="field">
-                    <label class="label">Asunto original</label>
-                    <div class="control">
-                        <input class="input" type="text" id="asuntoOriginal" readonly>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Asunto</label>
+                    <input class="form-input" type="text" id="asuntoOriginal" readonly>
                 </div>
                 
-                <div class="field">
-                    <label class="label">Respuesta</label>
-                    <div class="control">
-                        <textarea class="textarea" name="respuesta" rows="6" required placeholder="Escribe tu respuesta aquí..."></textarea>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Tu respuesta</label>
+                    <textarea class="form-input" name="respuesta" rows="5" required placeholder="Escribe tu respuesta aquí..."></textarea>
                 </div>
                 
-                <div class="field">
-                    <label class="checkbox">
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
                         <input type="checkbox" name="enviar_email" checked>
-                        Enviar respuesta por email al usuario
+                        <span>Enviar respuesta por email al usuario</span>
                     </label>
-                </div>
-                
-                <div class="field">
-                    <label class="checkbox">
+                    <label class="checkbox-item">
                         <input type="checkbox" name="cerrar_ticket">
-                        Marcar ticket como cerrado después de responder
+                        <span>Cerrar ticket después de responder</span>
                     </label>
                 </div>
             </form>
         </section>
         <footer class="modal-card-foot">
-            <button class="button is-primary" onclick="enviarRespuesta()">
-                <i class="fas fa-paper-plane"></i>&nbsp; Enviar respuesta
-            </button>
             <button class="button" onclick="cerrarModal()">Cancelar</button>
+            <button class="button is-primary" onclick="enviarRespuesta()">
+                <i class="fas fa-paper-plane"></i>&nbsp; Enviar
+            </button>
         </footer>
     </div>
 </div>
@@ -470,28 +666,24 @@
 
 {% block extra_js %}
 <script>
-function aplicarFiltros() {
-    const estado = document.getElementById('filtroEstado').value;
-    const tipo = document.getElementById('filtroTipo').value;
-    const prioridad = document.getElementById('filtroPrioridad').value;
-    
-    let url = '{{ url_for("superadmin_tickets") }}?';
-    if (estado) url += `estado=${estado}&`;
-    if (tipo) url += `tipo=${tipo}&`;
-    if (prioridad) url += `prioridad=${prioridad}&`;
-    
-    window.location.href = url;
+function filtrar(tipo, valor) {
+    const params = new URLSearchParams(window.location.search);
+    valor ? params.set(tipo, valor) : params.delete(tipo);
+    window.location.href = '{{ url_for("superadmin_tickets") }}?' + params.toString();
 }
 
-function toggleMessage(id) {
+function toggleMessage(id, btn) {
     const msg = document.getElementById(`msg-${id}`);
-    msg.classList.toggle('expanded');
+    const isExpanded = msg.classList.toggle('expanded');
+    btn.innerHTML = isExpanded 
+        ? '<i class="fas fa-chevron-up"></i> Ocultar' 
+        : '<i class="fas fa-chevron-down"></i> Ver completo';
 }
 
 function abrirModalResponder(ticketId, email, asunto) {
     document.getElementById('ticketIdInput').value = ticketId;
     document.getElementById('emailDestino').value = email;
-    document.getElementById('asuntoOriginal').value = asunto;
+    document.getElementById('asuntoOriginal').value = 'RE: ' + asunto;
     document.getElementById('modalResponder').classList.add('is-active');
 }
 
@@ -500,13 +692,15 @@ function cerrarModal() {
 }
 
 function enviarRespuesta() {
+    event.target.disabled = true;
+    event.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i>&nbsp; Enviando...';
     document.getElementById('formResponder').submit();
 }
 
 function cambiarEstado(ticketId, nuevoEstado) {
-    if (nuevoEstado === 'cerrado' && !confirm('¿Seguro que deseas cerrar este ticket?')) {
-        return;
-    }
+    if (nuevoEstado === 'cerrado' && !confirm('¿Cerrar este ticket?')) return;
+    
+    document.getElementById(`ticket-${ticketId}`).style.opacity = '0.5';
     
     fetch('{{ url_for("superadmin_cambiar_estado_ticket") }}', {
         method: 'POST',
@@ -514,14 +708,8 @@ function cambiarEstado(ticketId, nuevoEstado) {
         body: JSON.stringify({ ticket_id: ticketId, estado: nuevoEstado })
     })
     .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(err => alert('Error de conexión'));
+    .then(data => data.success ? location.reload() : alert('Error: ' + data.error))
+    .catch(() => alert('Error de conexión'));
 }
 </script>
 {% endblock %}
