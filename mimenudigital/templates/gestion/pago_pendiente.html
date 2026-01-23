@@ -63,7 +63,7 @@
                     <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-family: monospace;">
                         <p><strong>Banco:</strong> <span id="banco-nombre">{{ config_pagos.banco_nombre }}</span></p>
                         <p><strong>Tipo:</strong> <span id="banco-tipo">{{ config_pagos.banco_tipo_cuenta }}</span></p>
-                        <p><strong>N° Cuenta:</strong> <span id="banco-numero">{{ config_pagos.banco_numero_cuenta }}</span></p>
+                        <p><strong>N° Cuenta:</strong> <span id="banco-numero">{{ config_pagos.banco_numero }}</span></p>
                         <p><strong>RUT:</strong> <span id="banco-rut">{{ config_pagos.banco_rut }}</span></p>
                         <p><strong>Titular:</strong> <span id="banco-titular">{{ config_pagos.banco_titular }}</span></p>
                         <p><strong>Monto:</strong> <span style="color: #27ae60; font-weight: bold;">${{ (config_pagos.precio_mensual|default(14990)|int)|precio_cl }}</span></p>

@@ -3759,11 +3759,36 @@ def superadmin_cambiar_estado_ticket():
 # CONFIGURACIÓN DE PAGOS (SUPERADMIN) - RUTAS
 # =============================================================================
 
-@app.route('/superadmin/config/pagos')
+@app.route('/superadmin/config/pagos', methods=['GET', 'POST'])
 @login_required
 @superadmin_required
 def superadmin_config_pagos():
     """Página de configuración de métodos de pago."""
+    if request.method == 'POST':
+        # Guardar configuración desde el formulario
+        campos = [
+            ('mercadopago_activo', 'true' if request.form.get('mercadopago_activo') else 'false'),
+            ('deposito_activo', 'true' if request.form.get('deposito_activo') else 'false'),
+            ('banco_nombre', request.form.get('banco_nombre', '')),
+            ('banco_tipo_cuenta', request.form.get('banco_tipo_cuenta', '')),
+            ('banco_numero', request.form.get('banco_numero', '')),
+            ('banco_rut', request.form.get('banco_rut', '')),
+            ('banco_titular', request.form.get('banco_titular', '')),
+            ('banco_email', request.form.get('banco_email', '')),
+            ('precio_mensual', request.form.get('precio_mensual', '14990'))
+        ]
+        
+        try:
+            for clave, valor in campos:
+                set_config_value(clave, valor)
+            flash('Configuración guardada correctamente', 'success')
+            logger.info("Configuración de pagos actualizada por superadmin")
+        except Exception as e:
+            flash(f'Error al guardar: {str(e)}', 'danger')
+            logger.exception("Error guardando configuración de pagos")
+        
+        return redirect(url_for('superadmin_config_pagos'))
+    
     config = get_config_global()
     return render_template('superadmin/config_pagos.html', config=config)
 
@@ -3783,7 +3808,7 @@ def api_superadmin_config():
     # Lista de claves permitidas
     claves_permitidas = [
         'mercadopago_activo', 'deposito_activo',
-        'banco_nombre', 'banco_tipo_cuenta', 'banco_numero_cuenta',
+        'banco_nombre', 'banco_tipo_cuenta', 'banco_numero',
         'banco_rut', 'banco_titular', 'banco_email',
         'precio_mensual'
     ]
@@ -3809,7 +3834,7 @@ def api_config_pagos_public():
         'deposito_activo': config.get('deposito_activo') == 'true',
         'banco_nombre': config.get('banco_nombre', ''),
         'banco_tipo_cuenta': config.get('banco_tipo_cuenta', ''),
-        'banco_numero_cuenta': config.get('banco_numero_cuenta', ''),
+        'banco_numero': config.get('banco_numero', ''),
         'banco_rut': config.get('banco_rut', ''),
         'banco_titular': config.get('banco_titular', ''),
         'banco_email': config.get('banco_email', ''),
