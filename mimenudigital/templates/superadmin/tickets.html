@@ -4,137 +4,136 @@
 
 {% block extra_css %}
 <style>
-    /* === VARIABLES === */
-    :root {
-        --primary: #6366f1;
-        --primary-dark: #4f46e5;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-        --info: #3b82f6;
-        --bg-dark: #0f172a;
-        --bg-card: #1e293b;
-        --bg-input: #334155;
-        --text-primary: #f8fafc;
-        --text-secondary: #94a3b8;
-        --text-muted: #64748b;
-        --border: #475569;
-    }
-
-    /* === LAYOUT === */
-    .support-container {
-        max-width: 1400px;
-        margin: 0 auto;
+    * { box-sizing: border-box; }
+    
+    .page-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #0c0f1a 0%, #1a1f35 50%, #0c0f1a 100%);
         padding: 2rem;
     }
-
-    /* === HEADER === */
-    .support-header {
+    
+    .page-header {
+        max-width: 1200px;
+        margin: 0 auto 2rem;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 2rem;
+        justify-content: space-between;
         flex-wrap: wrap;
         gap: 1rem;
     }
-
-    .support-title {
+    
+    .header-title {
         display: flex;
         align-items: center;
         gap: 1rem;
     }
-
-    .support-title i {
-        font-size: 2.5rem;
-        background: linear-gradient(135deg, var(--primary), #8b5cf6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    .support-title h1 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0;
-    }
-
-    .support-title p {
-        color: var(--text-secondary);
-        margin: 0;
-        font-size: 0.9rem;
-    }
-
-    /* === STATS GRID === */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .stat-card {
-        background: var(--bg-card);
+    
+    .header-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: 16px;
-        padding: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        border: 1px solid var(--border);
-        transition: all 0.3s ease;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-2px);
-        border-color: var(--primary);
-    }
-
-    .stat-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.5rem;
+        color: white;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
     }
-
-    .stat-icon.total { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; }
-    .stat-icon.open { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: white; }
-    .stat-icon.progress { background: linear-gradient(135deg, #3b82f6, #60a5fa); color: white; }
-    .stat-icon.closed { background: linear-gradient(135deg, #10b981, #34d399); color: white; }
-
-    .stat-info h3 {
+    
+    .header-text h1 {
         font-size: 1.75rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: #fff;
         margin: 0;
     }
-
+    
+    .header-text p {
+        color: #8892b0;
+        margin: 0.25rem 0 0;
+        font-size: 0.9rem;
+    }
+    
+    /* Stats Cards */
+    .stats-row {
+        max-width: 1200px;
+        margin: 0 auto 2rem;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+    
+    @media (max-width: 900px) {
+        .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 500px) {
+        .stats-row { grid-template-columns: 1fr; }
+    }
+    
+    .stat-card {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(102, 126, 234, 0.3);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+    }
+    
+    .stat-icon.purple { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .stat-icon.yellow { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .stat-icon.blue { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .stat-icon.green { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+    
+    .stat-info h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #fff;
+        margin: 0;
+        line-height: 1;
+    }
+    
     .stat-info p {
-        color: var(--text-secondary);
-        margin: 0;
-        font-size: 0.85rem;
+        color: #8892b0;
+        margin: 0.25rem 0 0;
+        font-size: 0.8rem;
     }
-
-    /* === FILTERS === */
-    .filters-bar {
+    
+    /* Filters */
+    .filters-section {
+        max-width: 1200px;
+        margin: 0 auto 1.5rem;
         display: flex;
         gap: 0.5rem;
         flex-wrap: wrap;
-        margin-bottom: 1.5rem;
-        background: var(--bg-card);
-        padding: 1rem;
-        border-radius: 12px;
-        border: 1px solid var(--border);
     }
-
-    .filter-btn {
-        padding: 0.6rem 1.2rem;
+    
+    .filter-pill {
+        padding: 0.5rem 1rem;
         border-radius: 50px;
-        border: 1px solid var(--border);
-        background: transparent;
-        color: var(--text-secondary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+        color: #8892b0;
         font-size: 0.85rem;
         font-weight: 500;
         cursor: pointer;
@@ -143,243 +142,231 @@
         align-items: center;
         gap: 0.5rem;
     }
-
-    .filter-btn:hover {
-        background: var(--bg-input);
-        color: var(--text-primary);
+    
+    .filter-pill:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
     }
-
-    .filter-btn.active {
-        background: var(--primary);
-        border-color: var(--primary);
-        color: white;
+    
+    .filter-pill.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-color: transparent;
+        color: #fff;
     }
-
-    .filter-btn .count {
-        background: rgba(255,255,255,0.2);
+    
+    .filter-pill .badge {
+        background: rgba(255, 255, 255, 0.2);
         padding: 0.15rem 0.5rem;
         border-radius: 50px;
         font-size: 0.75rem;
     }
-
-    .filter-btn.active .count {
-        background: rgba(255,255,255,0.3);
-    }
-
-    /* === TICKETS LIST === */
-    .tickets-list {
+    
+    /* Tickets Container */
+    .tickets-container {
+        max-width: 1200px;
+        margin: 0 auto;
         display: flex;
         flex-direction: column;
         gap: 1rem;
     }
-
-    .ticket-card {
-        background: var(--bg-card);
+    
+    /* Ticket Card */
+    .ticket {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
-        border: 1px solid var(--border);
         overflow: hidden;
         transition: all 0.3s ease;
     }
-
-    .ticket-card:hover {
-        border-color: var(--primary);
-        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+    
+    .ticket:hover {
+        border-color: rgba(102, 126, 234, 0.3);
     }
-
+    
     .ticket-header {
         display: flex;
         align-items: center;
         padding: 1.25rem;
         gap: 1rem;
         cursor: pointer;
-        transition: background 0.2s;
+        position: relative;
     }
-
-    .ticket-header:hover {
-        background: rgba(99, 102, 241, 0.05);
-    }
-
-    .priority-indicator {
+    
+    .ticket-header::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
         width: 4px;
-        height: 50px;
-        border-radius: 2px;
-        flex-shrink: 0;
     }
-
-    .priority-indicator.alta { background: linear-gradient(180deg, #ef4444, #dc2626); }
-    .priority-indicator.media { background: linear-gradient(180deg, #f59e0b, #d97706); }
-    .priority-indicator.baja { background: linear-gradient(180deg, #10b981, #059669); }
-
+    
+    .ticket[data-prioridad="alta"] .ticket-header::before {
+        background: linear-gradient(180deg, #f5576c, #f093fb);
+    }
+    
+    .ticket[data-prioridad="media"] .ticket-header::before {
+        background: linear-gradient(180deg, #fa709a, #fee140);
+    }
+    
+    .ticket[data-prioridad="baja"] .ticket-header::before {
+        background: linear-gradient(180deg, #43e97b, #38f9d7);
+    }
+    
     .ticket-avatar {
         width: 48px;
         height: 48px;
         border-radius: 12px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 600;
-        font-size: 1.1rem;
-        flex-shrink: 0;
-        background: linear-gradient(135deg, var(--primary), #8b5cf6);
+        font-size: 1rem;
         color: white;
+        flex-shrink: 0;
     }
-
-    .ticket-main {
+    
+    .ticket-info {
         flex: 1;
         min-width: 0;
     }
-
-    .ticket-top {
+    
+    .ticket-row-top {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        margin-bottom: 0.3rem;
-        flex-wrap: wrap;
+        margin-bottom: 0.35rem;
     }
-
+    
     .ticket-id {
-        font-size: 0.8rem;
-        color: var(--primary);
-        font-weight: 600;
-        background: rgba(99, 102, 241, 0.15);
+        background: rgba(102, 126, 234, 0.2);
+        color: #a5b4fc;
         padding: 0.2rem 0.6rem;
         border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
     }
-
+    
     .ticket-subject {
         font-weight: 600;
-        color: var(--text-primary);
+        color: #fff;
         font-size: 1rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
-
+    
     .ticket-meta {
         display: flex;
         gap: 1rem;
         flex-wrap: wrap;
     }
-
+    
     .ticket-meta span {
         font-size: 0.8rem;
-        color: var(--text-muted);
+        color: #64748b;
         display: flex;
         align-items: center;
         gap: 0.35rem;
     }
-
-    .ticket-meta span i {
-        font-size: 0.9rem;
-        opacity: 0.7;
-    }
-
+    
     .ticket-badges {
         display: flex;
         gap: 0.5rem;
         flex-shrink: 0;
     }
-
-    .badge {
-        padding: 0.35rem 0.8rem;
+    
+    .status-badge {
+        padding: 0.35rem 0.75rem;
         border-radius: 50px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.5px;
     }
-
-    .badge-status {
-        border: 1px solid;
-    }
-
-    .badge-status.abierto {
-        background: rgba(245, 158, 11, 0.15);
+    
+    .status-badge.abierto {
+        background: rgba(251, 191, 36, 0.15);
         color: #fbbf24;
-        border-color: rgba(245, 158, 11, 0.3);
     }
-
-    .badge-status.en_proceso {
+    
+    .status-badge.en_proceso {
         background: rgba(59, 130, 246, 0.15);
         color: #60a5fa;
-        border-color: rgba(59, 130, 246, 0.3);
     }
-
-    .badge-status.cerrado {
-        background: rgba(16, 185, 129, 0.15);
-        color: #34d399;
-        border-color: rgba(16, 185, 129, 0.3);
+    
+    .status-badge.cerrado {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
     }
-
-    .badge-priority {
-        background: transparent;
+    
+    .priority-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.7rem;
+        font-weight: 600;
     }
-
-    .badge-priority.alta {
-        color: #f87171;
-    }
-
-    .badge-priority.media {
-        color: #fbbf24;
-    }
-
-    .badge-priority.baja {
-        color: #34d399;
-    }
-
+    
+    .priority-badge.alta { color: #f87171; }
+    .priority-badge.media { color: #fbbf24; }
+    .priority-badge.baja { color: #4ade80; }
+    
     .ticket-toggle {
         width: 36px;
         height: 36px;
         border-radius: 50%;
+        background: rgba(255, 255, 255, 0.05);
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--bg-input);
-        color: var(--text-secondary);
+        color: #8892b0;
         transition: all 0.3s ease;
         flex-shrink: 0;
     }
-
-    .ticket-card.expanded .ticket-toggle {
-        background: var(--primary);
+    
+    .ticket.open .ticket-toggle {
+        background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
         transform: rotate(180deg);
     }
-
-    /* === TICKET CONTENT === */
-    .ticket-content {
+    
+    /* Ticket Body */
+    .ticket-body {
         max-height: 0;
         overflow: hidden;
         transition: max-height 0.4s ease;
     }
-
-    .ticket-card.expanded .ticket-content {
-        max-height: 800px;
+    
+    .ticket.open .ticket-body {
+        max-height: 1000px;
     }
-
-    .ticket-body {
+    
+    .ticket-content {
         padding: 0 1.25rem 1.25rem;
-        border-top: 1px solid var(--border);
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
     }
-
-    .message-thread {
-        margin-top: 1rem;
+    
+    /* Messages */
+    .messages-list {
+        padding-top: 1rem;
     }
-
+    
     .message {
         display: flex;
         gap: 1rem;
-        margin-bottom: 1rem;
         padding: 1rem;
         border-radius: 12px;
-        background: var(--bg-input);
+        margin-bottom: 0.75rem;
+        background: rgba(255, 255, 255, 0.03);
     }
-
-    .message.admin {
-        background: rgba(99, 102, 241, 0.1);
-        border-left: 3px solid var(--primary);
+    
+    .message.admin-message {
+        background: rgba(102, 126, 234, 0.1);
+        border-left: 3px solid #667eea;
     }
-
+    
     .message-avatar {
         width: 40px;
         height: 40px;
@@ -387,76 +374,80 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 0.85rem;
         font-weight: 600;
-        font-size: 0.9rem;
         flex-shrink: 0;
     }
-
-    .message:not(.admin) .message-avatar {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    
+    .message:not(.admin-message) .message-avatar {
+        background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
     }
-
-    .message.admin .message-avatar {
-        background: linear-gradient(135deg, #10b981, #34d399);
-        color: white;
+    
+    .message.admin-message .message-avatar {
+        background: linear-gradient(135deg, #43e97b, #38f9d7);
+        color: #0c0f1a;
     }
-
-    .message-content {
+    
+    .message-body {
         flex: 1;
     }
-
+    
     .message-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
         margin-bottom: 0.5rem;
     }
-
+    
     .message-author {
         font-weight: 600;
-        color: var(--text-primary);
+        color: #fff;
         font-size: 0.9rem;
     }
-
+    
     .message-time {
         font-size: 0.75rem;
-        color: var(--text-muted);
+        color: #64748b;
     }
-
+    
     .message-text {
-        color: var(--text-secondary);
+        color: #a5b4fc;
         font-size: 0.9rem;
         line-height: 1.6;
     }
-
-    /* === REPLY FORM === */
-    .reply-form {
+    
+    /* Reply Form */
+    .reply-section {
         margin-top: 1rem;
         padding-top: 1rem;
-        border-top: 1px dashed var(--border);
+        border-top: 1px dashed rgba(255, 255, 255, 0.1);
     }
-
-    .reply-input {
+    
+    .reply-textarea {
         width: 100%;
         padding: 1rem;
         border-radius: 12px;
-        border: 1px solid var(--border);
-        background: var(--bg-input);
-        color: var(--text-primary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+        color: #fff;
         font-size: 0.9rem;
         resize: vertical;
         min-height: 100px;
         margin-bottom: 1rem;
         font-family: inherit;
+        transition: all 0.2s ease;
     }
-
-    .reply-input:focus {
+    
+    .reply-textarea:focus {
         outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
     }
-
+    
+    .reply-textarea::placeholder {
+        color: #64748b;
+    }
+    
     .reply-actions {
         display: flex;
         justify-content: space-between;
@@ -464,32 +455,34 @@
         flex-wrap: wrap;
         gap: 1rem;
     }
-
-    .status-select {
+    
+    .status-selector {
         display: flex;
         align-items: center;
         gap: 0.75rem;
     }
-
-    .status-select label {
-        color: var(--text-secondary);
+    
+    .status-selector label {
+        color: #8892b0;
         font-size: 0.85rem;
     }
-
-    .status-select select {
-        padding: 0.6rem 1rem;
+    
+    .status-selector select {
+        padding: 0.5rem 1rem;
         border-radius: 8px;
-        border: 1px solid var(--border);
-        background: var(--bg-input);
-        color: var(--text-primary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+        color: #fff;
         font-size: 0.85rem;
         cursor: pointer;
     }
-
-    .btn-reply {
+    
+    .btn-send {
         padding: 0.75rem 1.5rem;
         border-radius: 10px;
         border: none;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
         font-weight: 600;
         font-size: 0.9rem;
         cursor: pointer;
@@ -497,74 +490,57 @@
         align-items: center;
         gap: 0.5rem;
         transition: all 0.3s ease;
-        background: linear-gradient(135deg, var(--primary), #8b5cf6);
-        color: white;
     }
-
-    .btn-reply:hover {
+    
+    .btn-send:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
     }
-
-    /* === EMPTY STATE === */
+    
+    /* Empty State */
     .empty-state {
         text-align: center;
         padding: 4rem 2rem;
-        background: var(--bg-card);
+        background: rgba(255, 255, 255, 0.03);
         border-radius: 16px;
-        border: 1px solid var(--border);
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
-
-    .empty-icon {
+    
+    .empty-state i {
         font-size: 4rem;
+        color: #667eea;
         margin-bottom: 1rem;
-        opacity: 0.3;
+        opacity: 0.5;
     }
-
+    
     .empty-state h3 {
-        color: var(--text-primary);
-        margin-bottom: 0.5rem;
+        color: #fff;
+        margin: 0 0 0.5rem;
     }
-
+    
     .empty-state p {
-        color: var(--text-muted);
+        color: #64748b;
+        margin: 0;
     }
-
-    /* === RESPONSIVE === */
+    
     @media (max-width: 768px) {
-        .support-container {
-            padding: 1rem;
-        }
-
-        .ticket-header {
-            flex-wrap: wrap;
-        }
-
-        .ticket-badges {
-            order: 5;
-            width: 100%;
-            margin-top: 0.5rem;
-        }
-
-        .reply-actions {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .status-select {
-            justify-content: space-between;
-        }
+        .page-wrapper { padding: 1rem; }
+        .ticket-header { flex-wrap: wrap; }
+        .ticket-badges { width: 100%; margin-top: 0.5rem; }
+        .reply-actions { flex-direction: column; align-items: stretch; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="support-container">
+<div class="page-wrapper">
     <!-- Header -->
-    <div class="support-header">
-        <div class="support-title">
-            <i class="bi bi-headset"></i>
-            <div>
+    <div class="page-header">
+        <div class="header-title">
+            <div class="header-icon">
+                <i class="bi bi-headset"></i>
+            </div>
+            <div class="header-text">
                 <h1>Centro de Soporte</h1>
                 <p>Gestiona los tickets de ayuda de tus usuarios</p>
             </div>
@@ -572,38 +548,30 @@
     </div>
 
     <!-- Stats -->
-    <div class="stats-grid">
+    <div class="stats-row">
         <div class="stat-card">
-            <div class="stat-icon total">
-                <i class="bi bi-ticket-detailed"></i>
-            </div>
+            <div class="stat-icon purple"><i class="bi bi-ticket-detailed"></i></div>
             <div class="stat-info">
                 <h3>{{ tickets|length }}</h3>
                 <p>Total Tickets</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon open">
-                <i class="bi bi-envelope-open"></i>
-            </div>
+            <div class="stat-icon yellow"><i class="bi bi-envelope-open"></i></div>
             <div class="stat-info">
                 <h3>{{ tickets|selectattr('estado', 'eq', 'abierto')|list|length }}</h3>
                 <p>Abiertos</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon progress">
-                <i class="bi bi-arrow-repeat"></i>
-            </div>
+            <div class="stat-icon blue"><i class="bi bi-arrow-repeat"></i></div>
             <div class="stat-info">
                 <h3>{{ tickets|selectattr('estado', 'eq', 'en_proceso')|list|length }}</h3>
                 <p>En Proceso</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon closed">
-                <i class="bi bi-check-circle"></i>
-            </div>
+            <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
             <div class="stat-info">
                 <h3>{{ tickets|selectattr('estado', 'eq', 'cerrado')|list|length }}</h3>
                 <p>Cerrados</p>
@@ -612,47 +580,39 @@
     </div>
 
     <!-- Filters -->
-    <div class="filters-bar">
-        <button class="filter-btn active" data-filter="todos">
-            <i class="bi bi-grid-3x3"></i>
-            Todos
-            <span class="count">{{ tickets|length }}</span>
+    <div class="filters-section">
+        <button class="filter-pill active" data-filter="todos">
+            <i class="bi bi-grid-3x3-gap"></i> Todos
+            <span class="badge">{{ tickets|length }}</span>
         </button>
-        <button class="filter-btn" data-filter="abierto">
-            <i class="bi bi-envelope-open"></i>
-            Abiertos
-            <span class="count">{{ tickets|selectattr('estado', 'eq', 'abierto')|list|length }}</span>
+        <button class="filter-pill" data-filter="abierto">
+            <i class="bi bi-envelope-open"></i> Abiertos
+            <span class="badge">{{ tickets|selectattr('estado', 'eq', 'abierto')|list|length }}</span>
         </button>
-        <button class="filter-btn" data-filter="en_proceso">
-            <i class="bi bi-arrow-repeat"></i>
-            En Proceso
-            <span class="count">{{ tickets|selectattr('estado', 'eq', 'en_proceso')|list|length }}</span>
+        <button class="filter-pill" data-filter="en_proceso">
+            <i class="bi bi-arrow-repeat"></i> En Proceso
+            <span class="badge">{{ tickets|selectattr('estado', 'eq', 'en_proceso')|list|length }}</span>
         </button>
-        <button class="filter-btn" data-filter="cerrado">
-            <i class="bi bi-check-circle"></i>
-            Cerrados
-            <span class="count">{{ tickets|selectattr('estado', 'eq', 'cerrado')|list|length }}</span>
+        <button class="filter-pill" data-filter="cerrado">
+            <i class="bi bi-check-circle"></i> Cerrados
+            <span class="badge">{{ tickets|selectattr('estado', 'eq', 'cerrado')|list|length }}</span>
         </button>
-        <button class="filter-btn" data-filter="alta">
-            <i class="bi bi-exclamation-triangle"></i>
-            Prioridad Alta
+        <button class="filter-pill" data-filter="alta">
+            <i class="bi bi-exclamation-triangle"></i> Urgentes
         </button>
     </div>
 
     <!-- Tickets List -->
-    <div class="tickets-list">
+    <div class="tickets-container">
         {% if tickets %}
             {% for ticket in tickets %}
-            <div class="ticket-card" data-estado="{{ ticket.estado }}" data-prioridad="{{ ticket.prioridad }}">
-                <div class="ticket-header" onclick="toggleTicket(this)">
-                    <div class="priority-indicator {{ ticket.prioridad }}"></div>
-                    
+            <div class="ticket" data-estado="{{ ticket.estado }}" data-prioridad="{{ ticket.prioridad }}">
+                <div class="ticket-header" onclick="this.parentElement.classList.toggle('open')">
                     <div class="ticket-avatar">
                         {{ ticket.usuario_nombre[:2]|upper if ticket.usuario_nombre else 'US' }}
                     </div>
-                    
-                    <div class="ticket-main">
-                        <div class="ticket-top">
+                    <div class="ticket-info">
+                        <div class="ticket-row-top">
                             <span class="ticket-id">#{{ ticket.id }}</span>
                             <span class="ticket-subject">{{ ticket.asunto }}</span>
                         </div>
@@ -662,80 +622,66 @@
                             <span><i class="bi bi-clock"></i> {{ ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M') if ticket.fecha_creacion else 'N/A' }}</span>
                         </div>
                     </div>
-                    
                     <div class="ticket-badges">
-                        <span class="badge badge-status {{ ticket.estado }}">
-                            {% if ticket.estado == 'abierto' %}Abierto
-                            {% elif ticket.estado == 'en_proceso' %}En Proceso
-                            {% else %}Cerrado{% endif %}
+                        <span class="status-badge {{ ticket.estado }}">
+                            {% if ticket.estado == 'abierto' %}Abierto{% elif ticket.estado == 'en_proceso' %}En Proceso{% else %}Cerrado{% endif %}
                         </span>
-                        <span class="badge badge-priority {{ ticket.prioridad }}">
+                        <span class="priority-badge {{ ticket.prioridad }}">
                             <i class="bi bi-flag-fill"></i> {{ ticket.prioridad|capitalize }}
                         </span>
                     </div>
-                    
                     <div class="ticket-toggle">
                         <i class="bi bi-chevron-down"></i>
                     </div>
                 </div>
                 
-                <div class="ticket-content">
-                    <div class="ticket-body">
-                        <div class="message-thread">
-                            <!-- Mensaje original -->
+                <div class="ticket-body">
+                    <div class="ticket-content">
+                        <div class="messages-list">
                             <div class="message">
                                 <div class="message-avatar">
                                     {{ ticket.usuario_nombre[:2]|upper if ticket.usuario_nombre else 'US' }}
                                 </div>
-                                <div class="message-content">
+                                <div class="message-body">
                                     <div class="message-header">
                                         <span class="message-author">{{ ticket.usuario_nombre or 'Usuario' }}</span>
-                                        <span class="message-time">{{ ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M') if ticket.fecha_creacion else 'N/A' }}</span>
+                                        <span class="message-time">{{ ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M') if ticket.fecha_creacion else '' }}</span>
                                     </div>
                                     <p class="message-text">{{ ticket.mensaje }}</p>
                                 </div>
                             </div>
                             
-                            <!-- Respuestas -->
                             {% if ticket.respuestas %}
-                                {% for respuesta in ticket.respuestas %}
-                                <div class="message {% if respuesta.es_admin %}admin{% endif %}">
+                                {% for resp in ticket.respuestas %}
+                                <div class="message {% if resp.es_admin %}admin-message{% endif %}">
                                     <div class="message-avatar">
-                                        {% if respuesta.es_admin %}
-                                            <i class="bi bi-shield-check"></i>
-                                        {% else %}
-                                            {{ ticket.usuario_nombre[:2]|upper if ticket.usuario_nombre else 'US' }}
-                                        {% endif %}
+                                        {% if resp.es_admin %}<i class="bi bi-shield-check"></i>{% else %}{{ ticket.usuario_nombre[:2]|upper if ticket.usuario_nombre else 'US' }}{% endif %}
                                     </div>
-                                    <div class="message-content">
+                                    <div class="message-body">
                                         <div class="message-header">
-                                            <span class="message-author">
-                                                {% if respuesta.es_admin %}Soporte{% else %}{{ ticket.usuario_nombre or 'Usuario' }}{% endif %}
-                                            </span>
-                                            <span class="message-time">{{ respuesta.fecha_respuesta.strftime('%d/%m/%Y %H:%M') if respuesta.fecha_respuesta else 'N/A' }}</span>
+                                            <span class="message-author">{% if resp.es_admin %}Soporte{% else %}{{ ticket.usuario_nombre or 'Usuario' }}{% endif %}</span>
+                                            <span class="message-time">{{ resp.fecha_respuesta.strftime('%d/%m/%Y %H:%M') if resp.fecha_respuesta else '' }}</span>
                                         </div>
-                                        <p class="message-text">{{ respuesta.mensaje }}</p>
+                                        <p class="message-text">{{ resp.mensaje }}</p>
                                     </div>
                                 </div>
                                 {% endfor %}
                             {% endif %}
                         </div>
                         
-                        <!-- Reply Form -->
-                        <form class="reply-form" action="{{ url_for('superadmin_responder_ticket', ticket_id=ticket.id) }}" method="POST">
-                            <textarea name="respuesta" class="reply-input" placeholder="Escribe tu respuesta aquí..." required></textarea>
+                        <form class="reply-section" action="{{ url_for('superadmin_responder_ticket', ticket_id=ticket.id) }}" method="POST">
+                            <textarea name="respuesta" class="reply-textarea" placeholder="Escribe tu respuesta..." required></textarea>
                             <div class="reply-actions">
-                                <div class="status-select">
-                                    <label for="estado_{{ ticket.id }}">Cambiar estado:</label>
-                                    <select name="nuevo_estado" id="estado_{{ ticket.id }}">
+                                <div class="status-selector">
+                                    <label>Estado:</label>
+                                    <select name="nuevo_estado">
                                         <option value="abierto" {% if ticket.estado == 'abierto' %}selected{% endif %}>Abierto</option>
                                         <option value="en_proceso" {% if ticket.estado == 'en_proceso' %}selected{% endif %}>En Proceso</option>
                                         <option value="cerrado" {% if ticket.estado == 'cerrado' %}selected{% endif %}>Cerrado</option>
                                     </select>
                                 </div>
-                                <button type="submit" class="btn-reply">
-                                    <i class="bi bi-send"></i>
-                                    Enviar Respuesta
+                                <button type="submit" class="btn-send">
+                                    <i class="bi bi-send"></i> Enviar
                                 </button>
                             </div>
                         </form>
@@ -745,9 +691,9 @@
             {% endfor %}
         {% else %}
             <div class="empty-state">
-                <div class="empty-icon">🎉</div>
-                <h3>¡No hay tickets pendientes!</h3>
-                <p>Todos los usuarios están felices. Vuelve más tarde.</p>
+                <i class="bi bi-emoji-smile"></i>
+                <h3>¡Sin tickets pendientes!</h3>
+                <p>Todos los usuarios están felices</p>
             </div>
         {% endif %}
     </div>
@@ -756,29 +702,17 @@
 
 {% block extra_js %}
 <script>
-    function toggleTicket(header) {
-        const card = header.closest('.ticket-card');
-        card.classList.toggle('expanded');
-    }
-
-    // Filtros
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            
-            const filter = this.dataset.filter;
-            
-            document.querySelectorAll('.ticket-card').forEach(card => {
-                if (filter === 'todos') {
-                    card.style.display = 'block';
-                } else if (filter === 'alta') {
-                    card.style.display = card.dataset.prioridad === 'alta' ? 'block' : 'none';
-                } else {
-                    card.style.display = card.dataset.estado === filter ? 'block' : 'none';
-                }
-            });
+document.querySelectorAll('.filter-pill').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const filter = this.dataset.filter;
+        document.querySelectorAll('.ticket').forEach(t => {
+            if (filter === 'todos') t.style.display = '';
+            else if (filter === 'alta') t.style.display = t.dataset.prioridad === 'alta' ? '' : 'none';
+            else t.style.display = t.dataset.estado === filter ? '' : 'none';
         });
     });
+});
 </script>
 {% endblock %}
