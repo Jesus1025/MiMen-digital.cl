@@ -1,0 +1,429 @@
+{% extends "superadmin/base_superadmin.html" %}
+
+{% block title %}Configuración de Pagos - SuperAdmin{% endblock %}
+{% block page_title %}Métodos de Pago{% endblock %}
+
+{% block content %}
+<div class="columns is-multiline">
+    <!-- Estado de Mercado Pago -->
+    <div class="column is-6">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-credit-card" style="color: #00bcff; margin-right: 0.5rem;"></i>
+                    Mercado Pago
+                </h2>
+                <label class="switch">
+                    <input type="checkbox" id="toggleMercadoPago" {% if config.mercadopago_activo == 'true' %}checked{% endif %}>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="content">
+                <p style="color: #666; margin-bottom: 1rem;">
+                    Cuando está <strong>activado</strong>, los clientes pueden pagar directamente con tarjeta de crédito/débito.
+                </p>
+                <div id="estadoMercadoPago" class="notification {% if config.mercadopago_activo == 'true' %}is-success{% else %}is-warning{% endif %} is-light">
+                    {% if config.mercadopago_activo == 'true' %}
+                        <i class="fas fa-check-circle"></i> <strong>Activo</strong> - Los clientes ven el botón de Mercado Pago
+                    {% else %}
+                        <i class="fas fa-pause-circle"></i> <strong>Pausado</strong> - Mercado Pago no se muestra a los clientes
+                    {% endif %}
+                </div>
+                <p style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
+                    <i class="fas fa-info-circle"></i> Ideal cuando ya tienes empresa constituida y quieres facturar formalmente.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado de Depósito Bancario -->
+    <div class="column is-6">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-university" style="color: #27ae60; margin-right: 0.5rem;"></i>
+                    Depósito Bancario
+                </h2>
+                <label class="switch">
+                    <input type="checkbox" id="toggleDeposito" {% if config.deposito_activo == 'true' %}checked{% endif %}>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="content">
+                <p style="color: #666; margin-bottom: 1rem;">
+                    Cuando está <strong>activado</strong>, los clientes ven la opción de pagar por transferencia bancaria.
+                </p>
+                <div id="estadoDeposito" class="notification {% if config.deposito_activo == 'true' %}is-success{% else %}is-warning{% endif %} is-light">
+                    {% if config.deposito_activo == 'true' %}
+                        <i class="fas fa-check-circle"></i> <strong>Activo</strong> - Los clientes ven datos bancarios
+                    {% else %}
+                        <i class="fas fa-pause-circle"></i> <strong>Pausado</strong> - Depósito no disponible
+                    {% endif %}
+                </div>
+                <p style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
+                    <i class="fas fa-info-circle"></i> Ideal mientras no tienes empresa o prefieres recibir transferencias directas.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Datos Bancarios -->
+    <div class="column is-12">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-piggy-bank" style="color: #9b59b6; margin-right: 0.5rem;"></i>
+                    Datos Bancarios para Depósito
+                </h2>
+            </div>
+            <div class="content">
+                <p style="color: #666; margin-bottom: 1.5rem;">
+                    Estos datos se mostrarán a los clientes cuando elijan pagar por transferencia bancaria.
+                </p>
+                
+                <div class="columns">
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Banco</label>
+                            <div class="control">
+                                <input class="input" type="text" id="bancoNombre" value="{{ config.banco_nombre or '' }}" placeholder="Ej: Banco Estado, Banco Chile">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Tipo de Cuenta</label>
+                            <div class="control">
+                                <div class="select is-fullwidth">
+                                    <select id="bancoTipoCuenta">
+                                        <option value="Cuenta Vista" {% if config.banco_tipo_cuenta == 'Cuenta Vista' %}selected{% endif %}>Cuenta Vista</option>
+                                        <option value="Cuenta Corriente" {% if config.banco_tipo_cuenta == 'Cuenta Corriente' %}selected{% endif %}>Cuenta Corriente</option>
+                                        <option value="Cuenta de Ahorro" {% if config.banco_tipo_cuenta == 'Cuenta de Ahorro' %}selected{% endif %}>Cuenta de Ahorro</option>
+                                        <option value="Cuenta RUT" {% if config.banco_tipo_cuenta == 'Cuenta RUT' %}selected{% endif %}>Cuenta RUT</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Número de Cuenta</label>
+                            <div class="control">
+                                <input class="input" type="text" id="bancoNumeroCuenta" value="{{ config.banco_numero_cuenta or '' }}" placeholder="Ej: 12345678">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">RUT del Titular</label>
+                            <div class="control">
+                                <input class="input" type="text" id="bancoRut" value="{{ config.banco_rut or '' }}" placeholder="Ej: 12.345.678-9">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Nombre del Titular</label>
+                            <div class="control">
+                                <input class="input" type="text" id="bancoTitular" value="{{ config.banco_titular or '' }}" placeholder="Ej: Juan Pérez">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Email para Confirmación</label>
+                            <div class="control">
+                                <input class="input" type="email" id="bancoEmail" value="{{ config.banco_email or '' }}" placeholder="Ej: pagos@tuempresa.cl">
+                            </div>
+                            <p class="help">Los clientes enviarán comprobante a este email</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="field" style="margin-top: 1rem;">
+                    <button class="button is-primary" onclick="guardarDatosBancarios()" id="btnGuardarBanco">
+                        <i class="fas fa-save" style="margin-right: 0.5rem;"></i>
+                        Guardar Datos Bancarios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Precio de Suscripción -->
+    <div class="column is-12">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-tag" style="color: #e74c3c; margin-right: 0.5rem;"></i>
+                    Precio de Suscripción
+                </h2>
+            </div>
+            <div class="content">
+                <div class="columns is-vcentered">
+                    <div class="column is-4">
+                        <div class="field">
+                            <label class="label">Precio Mensual (CLP)</label>
+                            <div class="control has-icons-left">
+                                <input class="input is-large" type="number" id="precioMensual" value="{{ config.precio_mensual or '14990' }}" style="font-weight: bold;">
+                                <span class="icon is-left">$</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="column is-4">
+                        <p style="color: #666;">
+                            Este es el precio que se mostrará a los clientes para la suscripción mensual.
+                        </p>
+                    </div>
+                    <div class="column is-4">
+                        <button class="button is-primary is-fullwidth" onclick="guardarPrecio()">
+                            <i class="fas fa-save" style="margin-right: 0.5rem;"></i>
+                            Guardar Precio
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vista Previa -->
+    <div class="column is-12">
+        <div class="dashboard-card" style="background: #f8f9fa;">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-eye" style="color: #3498db; margin-right: 0.5rem;"></i>
+                    Vista Previa - Lo que verán los clientes
+                </h2>
+            </div>
+            <div class="content">
+                <div class="box" style="max-width: 500px; margin: 0 auto;">
+                    <h4 class="title is-5 has-text-centered">Suscríbete por solo</h4>
+                    <p class="has-text-centered" style="font-size: 2.5rem; font-weight: bold; color: #27ae60;">
+                        $<span id="precioPreview">{{ config.precio_mensual or '14990' }}</span>/mes
+                    </p>
+                    
+                    <hr>
+                    
+                    <div id="previewMercadoPago" style="{% if config.mercadopago_activo != 'true' %}display: none;{% endif %}">
+                        <button class="button is-info is-fullwidth" style="margin-bottom: 0.5rem;" disabled>
+                            <i class="fas fa-credit-card" style="margin-right: 0.5rem;"></i>
+                            Pagar con Mercado Pago
+                        </button>
+                    </div>
+                    
+                    <div id="previewDeposito" style="{% if config.deposito_activo != 'true' %}display: none;{% endif %}">
+                        <button class="button is-success is-fullwidth" disabled>
+                            <i class="fas fa-university" style="margin-right: 0.5rem;"></i>
+                            Pagar por Transferencia
+                        </button>
+                        <div class="notification is-light" style="margin-top: 1rem; font-size: 0.85rem;">
+                            <p><strong>Datos para transferencia:</strong></p>
+                            <p>Banco: <span id="previewBanco">{{ config.banco_nombre or 'No configurado' }}</span></p>
+                            <p>Cuenta: <span id="previewCuenta">{{ config.banco_tipo_cuenta or '' }} <span id="previewNumeroCuenta">{{ config.banco_numero_cuenta or '' }}</span></span></p>
+                            <p>RUT: <span id="previewRut">{{ config.banco_rut or '' }}</span></p>
+                            <p>Titular: <span id="previewTitular">{{ config.banco_titular or '' }}</span></p>
+                            <p>Enviar comprobante a: <span id="previewEmail">{{ config.banco_email or '' }}</span></p>
+                        </div>
+                    </div>
+                    
+                    <div id="previewNinguno" style="{% if config.mercadopago_activo == 'true' or config.deposito_activo == 'true' %}display: none;{% endif %}">
+                        <div class="notification is-warning">
+                            <i class="fas fa-exclamation-triangle"></i> No hay métodos de pago activos
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Switch toggle */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+    }
+    input:checked + .slider {
+        background-color: #27ae60;
+    }
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+    .slider.round {
+        border-radius: 34px;
+    }
+    .slider.round:before {
+        border-radius: 50%;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Toggle Mercado Pago
+    document.getElementById('toggleMercadoPago').addEventListener('change', async function() {
+        const activo = this.checked;
+        await guardarConfig('mercadopago_activo', activo ? 'true' : 'false');
+        
+        const estado = document.getElementById('estadoMercadoPago');
+        const preview = document.getElementById('previewMercadoPago');
+        
+        if (activo) {
+            estado.className = 'notification is-success is-light';
+            estado.innerHTML = '<i class="fas fa-check-circle"></i> <strong>Activo</strong> - Los clientes ven el botón de Mercado Pago';
+            preview.style.display = 'block';
+        } else {
+            estado.className = 'notification is-warning is-light';
+            estado.innerHTML = '<i class="fas fa-pause-circle"></i> <strong>Pausado</strong> - Mercado Pago no se muestra a los clientes';
+            preview.style.display = 'none';
+        }
+        actualizarPreviewNinguno();
+    });
+
+    // Toggle Depósito
+    document.getElementById('toggleDeposito').addEventListener('change', async function() {
+        const activo = this.checked;
+        await guardarConfig('deposito_activo', activo ? 'true' : 'false');
+        
+        const estado = document.getElementById('estadoDeposito');
+        const preview = document.getElementById('previewDeposito');
+        
+        if (activo) {
+            estado.className = 'notification is-success is-light';
+            estado.innerHTML = '<i class="fas fa-check-circle"></i> <strong>Activo</strong> - Los clientes ven datos bancarios';
+            preview.style.display = 'block';
+        } else {
+            estado.className = 'notification is-warning is-light';
+            estado.innerHTML = '<i class="fas fa-pause-circle"></i> <strong>Pausado</strong> - Depósito no disponible';
+            preview.style.display = 'none';
+        }
+        actualizarPreviewNinguno();
+    });
+
+    function actualizarPreviewNinguno() {
+        const mp = document.getElementById('toggleMercadoPago').checked;
+        const dep = document.getElementById('toggleDeposito').checked;
+        document.getElementById('previewNinguno').style.display = (mp || dep) ? 'none' : 'block';
+    }
+
+    async function guardarConfig(clave, valor) {
+        try {
+            const response = await fetch('/api/superadmin/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clave, valor })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                alert('Error: ' + (result.error || 'No se pudo guardar'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        }
+    }
+
+    async function guardarDatosBancarios() {
+        const btn = document.getElementById('btnGuardarBanco');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        
+        try {
+            const datos = {
+                banco_nombre: document.getElementById('bancoNombre').value,
+                banco_tipo_cuenta: document.getElementById('bancoTipoCuenta').value,
+                banco_numero_cuenta: document.getElementById('bancoNumeroCuenta').value,
+                banco_rut: document.getElementById('bancoRut').value,
+                banco_titular: document.getElementById('bancoTitular').value,
+                banco_email: document.getElementById('bancoEmail').value
+            };
+            
+            for (const [clave, valor] of Object.entries(datos)) {
+                await guardarConfig(clave, valor);
+            }
+            
+            // Actualizar preview
+            document.getElementById('previewBanco').textContent = datos.banco_nombre;
+            document.getElementById('previewCuenta').textContent = datos.banco_tipo_cuenta;
+            document.getElementById('previewNumeroCuenta').textContent = datos.banco_numero_cuenta;
+            document.getElementById('previewRut').textContent = datos.banco_rut;
+            document.getElementById('previewTitular').textContent = datos.banco_titular;
+            document.getElementById('previewEmail').textContent = datos.banco_email;
+            
+            // Mostrar éxito
+            btn.innerHTML = '<i class="fas fa-check"></i> ¡Guardado!';
+            btn.classList.remove('is-primary');
+            btn.classList.add('is-success');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('is-success');
+                btn.classList.add('is-primary');
+                btn.disabled = false;
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error al guardar');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+    }
+
+    async function guardarPrecio() {
+        const precio = document.getElementById('precioMensual').value;
+        await guardarConfig('precio_mensual', precio);
+        document.getElementById('precioPreview').textContent = Number(precio).toLocaleString('es-CL');
+        
+        // Feedback visual
+        const input = document.getElementById('precioMensual');
+        input.style.borderColor = '#27ae60';
+        setTimeout(() => input.style.borderColor = '', 2000);
+    }
+
+    // Actualizar preview de precio en tiempo real
+    document.getElementById('precioMensual').addEventListener('input', function() {
+        document.getElementById('precioPreview').textContent = Number(this.value || 0).toLocaleString('es-CL');
+    });
+
+    // Actualizar preview de datos bancarios en tiempo real
+    ['bancoNombre', 'bancoTipoCuenta', 'bancoNumeroCuenta', 'bancoRut', 'bancoTitular', 'bancoEmail'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', function() {
+                const previewId = 'preview' + id.replace('banco', '');
+                const previewEl = document.getElementById(previewId);
+                if (previewEl) previewEl.textContent = this.value;
+            });
+        }
+    });
+</script>
+{% endblock %}
