@@ -4,219 +4,230 @@
 
 {% block extra_css %}
 <style>
-    /* === VARIABLES === */
-    :root {
-        --primary: #6366f1;
-        --primary-dark: #4f46e5;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-        --bg-dark: #0f172a;
-        --bg-card: #1e293b;
-        --bg-input: #334155;
-        --text-primary: #f8fafc;
-        --text-secondary: #94a3b8;
-        --text-muted: #64748b;
-        --border: #475569;
-    }
-
-    /* === LAYOUT === */
-    .config-container {
-        max-width: 1200px;
-        margin: 0 auto;
+    * { box-sizing: border-box; }
+    
+    .page-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #0c0f1a 0%, #1a1f35 50%, #0c0f1a 100%);
         padding: 2rem;
     }
-
-    /* === HEADER === */
-    .config-header {
+    
+    .page-header {
+        max-width: 1000px;
+        margin: 0 auto 2.5rem;
         text-align: center;
-        margin-bottom: 3rem;
     }
-
-    .config-header i {
-        font-size: 3rem;
-        background: linear-gradient(135deg, var(--success), #34d399);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 1rem;
-        display: block;
+    
+    .header-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #0c0f1a;
+        margin: 0 auto 1.25rem;
+        box-shadow: 0 15px 40px rgba(67, 233, 123, 0.3);
     }
-
-    .config-header h1 {
+    
+    .page-header h1 {
         font-size: 2rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: #fff;
         margin: 0 0 0.5rem;
     }
-
-    .config-header p {
-        color: var(--text-secondary);
+    
+    .page-header p {
+        color: #8892b0;
         margin: 0;
+        font-size: 1rem;
     }
-
-    /* === GRID LAYOUT === */
+    
+    /* Alert Messages */
+    .alert {
+        max-width: 1000px;
+        margin: 0 auto 1.5rem;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .alert-success {
+        background: rgba(67, 233, 123, 0.15);
+        border: 1px solid rgba(67, 233, 123, 0.3);
+        color: #43e97b;
+    }
+    
+    .alert-danger {
+        background: rgba(245, 87, 108, 0.15);
+        border: 1px solid rgba(245, 87, 108, 0.3);
+        color: #f5576c;
+    }
+    
+    /* Main Grid */
     .config-grid {
+        max-width: 1000px;
+        margin: 0 auto;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 2rem;
+        gap: 1.5rem;
     }
-
-    @media (max-width: 1024px) {
-        .config-grid {
-            grid-template-columns: 1fr;
-        }
+    
+    @media (max-width: 900px) {
+        .config-grid { grid-template-columns: 1fr; }
     }
-
-    /* === CARDS === */
+    
+    /* Cards */
     .config-card {
-        background: var(--bg-card);
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 20px;
-        border: 1px solid var(--border);
         overflow: hidden;
         transition: all 0.3s ease;
     }
-
+    
     .config-card:hover {
-        border-color: var(--primary);
+        border-color: rgba(102, 126, 234, 0.3);
     }
-
+    
+    .config-card.full-width {
+        grid-column: 1 / -1;
+    }
+    
     .card-header {
         padding: 1.5rem;
         display: flex;
         align-items: center;
         gap: 1rem;
-        border-bottom: 1px solid var(--border);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
-
+    
     .card-icon {
-        width: 56px;
-        height: 56px;
+        width: 52px;
+        height: 52px;
         border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
-    }
-
-    .card-icon.mercadopago {
-        background: linear-gradient(135deg, #009ee3, #00b1ea);
+        font-size: 1.4rem;
         color: white;
+        flex-shrink: 0;
     }
-
-    .card-icon.bank {
-        background: linear-gradient(135deg, #10b981, #34d399);
-        color: white;
-    }
-
-    .card-icon.price {
-        background: linear-gradient(135deg, #f59e0b, #fbbf24);
-        color: white;
-    }
-
+    
+    .card-icon.mp { background: linear-gradient(135deg, #00b1ea, #009ee3); }
+    .card-icon.bank { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+    .card-icon.price { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .card-icon.preview { background: linear-gradient(135deg, #667eea, #764ba2); }
+    
     .card-title h3 {
         font-size: 1.1rem;
         font-weight: 600;
-        color: var(--text-primary);
-        margin: 0 0 0.25rem;
+        color: #fff;
+        margin: 0 0 0.2rem;
     }
-
+    
     .card-title p {
-        font-size: 0.85rem;
-        color: var(--text-muted);
+        font-size: 0.8rem;
+        color: #64748b;
         margin: 0;
     }
-
-    .card-toggle {
+    
+    .card-action {
         margin-left: auto;
     }
-
+    
     .card-body {
         padding: 1.5rem;
     }
-
-    /* === TOGGLE SWITCH === */
-    .toggle-switch {
+    
+    /* Toggle Switch */
+    .toggle-wrapper {
         position: relative;
-        width: 60px;
-        height: 32px;
+        width: 56px;
+        height: 30px;
     }
-
-    .toggle-switch input {
+    
+    .toggle-wrapper input {
         opacity: 0;
         width: 0;
         height: 0;
     }
-
-    .toggle-slider {
+    
+    .toggle-track {
         position: absolute;
         cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--bg-input);
-        border-radius: 32px;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 30px;
         transition: 0.3s;
-        border: 2px solid var(--border);
     }
-
-    .toggle-slider:before {
-        position: absolute;
+    
+    .toggle-track::before {
         content: "";
-        height: 22px;
-        width: 22px;
+        position: absolute;
+        height: 24px;
+        width: 24px;
         left: 3px;
         bottom: 3px;
         background: white;
         border-radius: 50%;
         transition: 0.3s;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
-
-    input:checked + .toggle-slider {
-        background: linear-gradient(135deg, var(--success), #34d399);
-        border-color: var(--success);
+    
+    input:checked + .toggle-track {
+        background: linear-gradient(135deg, #43e97b, #38f9d7);
     }
-
-    input:checked + .toggle-slider:before {
-        transform: translateX(28px);
+    
+    input:checked + .toggle-track::before {
+        transform: translateX(26px);
     }
-
-    /* === STATUS BADGE === */
-    .status-badge {
+    
+    /* Status Indicator */
+    .status-pill {
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
         padding: 0.4rem 0.8rem;
         border-radius: 50px;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         font-weight: 600;
     }
-
-    .status-badge.active {
-        background: rgba(16, 185, 129, 0.15);
-        color: #34d399;
+    
+    .status-pill.active {
+        background: rgba(67, 233, 123, 0.15);
+        color: #43e97b;
     }
-
-    .status-badge.inactive {
-        background: rgba(239, 68, 68, 0.15);
+    
+    .status-pill.inactive {
+        background: rgba(245, 87, 108, 0.15);
         color: #f87171;
     }
-
-    /* === FORM GROUPS === */
+    
+    /* Form Elements */
     .form-section {
         margin-bottom: 1.5rem;
     }
-
+    
     .form-section:last-child {
         margin-bottom: 0;
     }
-
+    
     .form-section-title {
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         font-weight: 600;
-        color: var(--text-secondary);
+        color: #8892b0;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 1rem;
@@ -224,343 +235,279 @@
         align-items: center;
         gap: 0.5rem;
     }
-
+    
     .form-section-title i {
-        color: var(--primary);
+        color: #667eea;
     }
-
+    
     .form-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1rem;
     }
-
+    
     .form-group {
         margin-bottom: 1rem;
     }
-
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
     .form-group label {
         display: block;
         font-size: 0.85rem;
         font-weight: 500;
-        color: var(--text-secondary);
+        color: #a5b4fc;
         margin-bottom: 0.5rem;
     }
-
-    .form-group label .required {
-        color: var(--danger);
+    
+    .form-group label .req {
+        color: #f5576c;
     }
-
-    .form-control {
+    
+    .form-input {
         width: 100%;
-        padding: 0.8rem 1rem;
+        padding: 0.85rem 1rem;
         border-radius: 10px;
-        border: 1px solid var(--border);
-        background: var(--bg-input);
-        color: var(--text-primary);
-        font-size: 0.95rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+        color: #fff;
+        font-size: 0.9rem;
         transition: all 0.2s ease;
     }
-
-    .form-control:focus {
+    
+    .form-input:focus {
         outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
     }
-
-    .form-control::placeholder {
-        color: var(--text-muted);
+    
+    .form-input::placeholder {
+        color: #4a5568;
     }
-
-    select.form-control {
+    
+    select.form-input {
         cursor: pointer;
         appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238892b0' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
         background-position: right 1rem center;
         padding-right: 2.5rem;
     }
-
-    .form-hint {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        margin-top: 0.4rem;
+    
+    .bank-fields {
+        transition: all 0.3s ease;
     }
-
-    /* === PRICE INPUT === */
-    .price-input-group {
+    
+    .bank-fields.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+    
+    /* Price Card */
+    .price-input-wrapper {
         position: relative;
+        max-width: 300px;
     }
-
+    
     .price-prefix {
         position: absolute;
         left: 1rem;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--text-muted);
-        font-weight: 500;
-    }
-
-    .price-input-group .form-control {
-        padding-left: 2.5rem;
-        font-size: 1.25rem;
+        color: #8892b0;
         font-weight: 600;
+        font-size: 1.1rem;
     }
-
-    /* === PRICE PREVIEW === */
-    .price-preview {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        border-radius: 12px;
+    
+    .price-input-wrapper .form-input {
+        padding-left: 2.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .price-display {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 14px;
         padding: 1.25rem;
         text-align: center;
-        margin-top: 1rem;
+        margin-top: 1.25rem;
     }
-
-    .price-preview-label {
-        font-size: 0.8rem;
-        color: var(--text-muted);
+    
+    .price-display-label {
+        font-size: 0.75rem;
+        color: #8892b0;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.4rem;
     }
-
-    .price-preview-value {
-        font-size: 2rem;
+    
+    .price-display-value {
+        font-size: 2.25rem;
         font-weight: 700;
-        background: linear-gradient(135deg, var(--primary), #8b5cf6);
+        background: linear-gradient(135deg, #667eea, #764ba2);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
     }
-
-    .price-preview-period {
+    
+    .price-display-period {
         font-size: 0.9rem;
-        color: var(--text-secondary);
+        color: #64748b;
     }
-
-    /* === PREVIEW PANEL === */
-    .preview-section {
-        grid-column: 1 / -1;
-    }
-
-    .preview-card {
-        background: var(--bg-card);
-        border-radius: 20px;
-        border: 1px solid var(--border);
-        overflow: hidden;
-    }
-
-    .preview-header {
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .preview-header i {
-        font-size: 1.5rem;
-        color: var(--primary);
-    }
-
-    .preview-header h3 {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-    }
-
-    .preview-body {
-        padding: 2rem;
-    }
-
-    .preview-options {
+    
+    /* Preview Section */
+    .preview-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
     }
-
+    
+    @media (max-width: 600px) {
+        .preview-grid { grid-template-columns: 1fr; }
+        .form-row { grid-template-columns: 1fr; }
+    }
+    
     .preview-option {
-        background: var(--bg-input);
-        border: 2px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
         padding: 1.5rem;
         text-align: center;
         transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
     }
-
+    
+    .preview-option:hover {
+        border-color: rgba(102, 126, 234, 0.3);
+        transform: translateY(-2px);
+    }
+    
     .preview-option.hidden {
         display: none;
     }
-
-    .preview-option:hover {
-        border-color: var(--primary);
-        transform: translateY(-2px);
-    }
-
-    .preview-option-icon {
-        width: 64px;
-        height: 64px;
+    
+    .preview-icon {
+        width: 60px;
+        height: 60px;
         border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0 auto 1rem;
-        font-size: 1.75rem;
-    }
-
-    .preview-option-icon.mp {
-        background: linear-gradient(135deg, #009ee3, #00b1ea);
+        font-size: 1.5rem;
         color: white;
     }
-
-    .preview-option-icon.bank {
-        background: linear-gradient(135deg, #10b981, #34d399);
-        color: white;
-    }
-
+    
+    .preview-icon.mp { background: linear-gradient(135deg, #00b1ea, #009ee3); }
+    .preview-icon.bank { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+    
     .preview-option h4 {
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 600;
-        color: var(--text-primary);
-        margin: 0 0 0.5rem;
+        color: #fff;
+        margin: 0 0 0.35rem;
     }
-
+    
     .preview-option p {
-        font-size: 0.85rem;
-        color: var(--text-muted);
+        font-size: 0.8rem;
+        color: #64748b;
         margin: 0 0 1rem;
     }
-
+    
     .preview-price {
-        font-size: 1.75rem;
+        font-size: 1.5rem;
         font-weight: 700;
-        color: var(--success);
+        color: #43e97b;
     }
-
+    
     .preview-price small {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 400;
-        color: var(--text-muted);
+        color: #64748b;
     }
-
-    .preview-bank-details {
+    
+    .preview-bank-info {
         margin-top: 1rem;
         padding-top: 1rem;
-        border-top: 1px dashed var(--border);
+        border-top: 1px dashed rgba(255, 255, 255, 0.1);
         text-align: left;
     }
-
-    .bank-detail-row {
+    
+    .bank-row {
         display: flex;
         justify-content: space-between;
-        padding: 0.4rem 0;
-        font-size: 0.85rem;
+        padding: 0.35rem 0;
+        font-size: 0.8rem;
     }
-
-    .bank-detail-row span:first-child {
-        color: var(--text-muted);
+    
+    .bank-row .label {
+        color: #64748b;
     }
-
-    .bank-detail-row span:last-child {
-        color: var(--text-primary);
+    
+    .bank-row .value {
+        color: #fff;
         font-weight: 500;
     }
-
-    .no-options-message {
+    
+    .no-methods {
         text-align: center;
-        padding: 3rem;
-        color: var(--text-muted);
+        padding: 2rem;
+        color: #64748b;
+        grid-column: 1 / -1;
     }
-
-    .no-options-message i {
-        font-size: 3rem;
-        opacity: 0.3;
-        margin-bottom: 1rem;
+    
+    .no-methods i {
+        font-size: 2.5rem;
+        margin-bottom: 0.75rem;
+        opacity: 0.5;
     }
-
-    /* === SAVE BUTTON === */
+    
+    /* Save Button */
     .save-section {
         grid-column: 1 / -1;
         display: flex;
         justify-content: center;
-        padding-top: 1rem;
+        padding-top: 0.5rem;
     }
-
+    
     .btn-save {
         padding: 1rem 3rem;
         border-radius: 12px;
         border: none;
-        font-weight: 600;
+        background: linear-gradient(135deg, #43e97b, #38f9d7);
+        color: #0c0f1a;
+        font-weight: 700;
         font-size: 1rem;
         cursor: pointer;
         display: flex;
         align-items: center;
         gap: 0.75rem;
         transition: all 0.3s ease;
-        background: linear-gradient(135deg, var(--success), #34d399);
-        color: white;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        box-shadow: 0 10px 30px rgba(67, 233, 123, 0.3);
     }
-
+    
     .btn-save:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 25px rgba(16, 185, 129, 0.4);
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px rgba(67, 233, 123, 0.4);
     }
-
+    
     .btn-save:active {
-        transform: translateY(0);
-    }
-
-    /* === RESPONSIVE === */
-    @media (max-width: 768px) {
-        .config-container {
-            padding: 1rem;
-        }
-
-        .form-row {
-            grid-template-columns: 1fr;
-        }
-
-        .preview-options {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    /* === ALERTS === */
-    .alert {
-        padding: 1rem 1.25rem;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .alert-success {
-        background: rgba(16, 185, 129, 0.15);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        color: #34d399;
-    }
-
-    .alert-danger {
-        background: rgba(239, 68, 68, 0.15);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        color: #f87171;
+        transform: translateY(-1px);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="config-container">
+<div class="page-wrapper">
     <!-- Header -->
-    <div class="config-header">
-        <i class="bi bi-credit-card-2-front"></i>
+    <div class="page-header">
+        <div class="header-icon">
+            <i class="bi bi-credit-card-2-front"></i>
+        </div>
         <h1>Configuración de Pagos</h1>
-        <p>Administra los métodos de pago disponibles para tus clientes</p>
+        <p>Administra los métodos de pago para tus clientes</p>
     </div>
 
     <!-- Alerts -->
@@ -578,134 +525,114 @@
     <form method="POST" action="{{ url_for('superadmin_config_pagos') }}">
         <div class="config-grid">
             
-            <!-- Mercado Pago Card -->
+            <!-- Mercado Pago -->
             <div class="config-card">
                 <div class="card-header">
-                    <div class="card-icon mercadopago">
-                        <i class="bi bi-credit-card"></i>
-                    </div>
+                    <div class="card-icon mp"><i class="bi bi-credit-card"></i></div>
                     <div class="card-title">
                         <h3>Mercado Pago</h3>
-                        <p>Pagos con tarjeta y transferencia</p>
+                        <p>Tarjetas y transferencias</p>
                     </div>
-                    <div class="card-toggle">
-                        <label class="toggle-switch">
-                            <input type="checkbox" name="mercadopago_activo" id="mp_toggle" 
-                                   {% if config.mercadopago_activo %}checked{% endif %}
-                                   onchange="updatePreview()">
-                            <span class="toggle-slider"></span>
+                    <div class="card-action">
+                        <label class="toggle-wrapper">
+                            <input type="checkbox" name="mercadopago_activo" id="mp_toggle"
+                                   {% if config.mercadopago_activo == 'true' %}checked{% endif %}
+                                   onchange="updateAll()">
+                            <span class="toggle-track"></span>
                         </label>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="status-badge {% if config.mercadopago_activo %}active{% else %}inactive{% endif %}" id="mp_status">
-                        <i class="bi bi-{% if config.mercadopago_activo %}check-circle{% else %}x-circle{% endif %}"></i>
-                        <span>{% if config.mercadopago_activo %}Activo{% else %}Inactivo{% endif %}</span>
+                    <div class="status-pill {% if config.mercadopago_activo == 'true' %}active{% else %}inactive{% endif %}" id="mp_status">
+                        <i class="bi bi-{% if config.mercadopago_activo == 'true' %}check-circle{% else %}x-circle{% endif %}"></i>
+                        <span>{% if config.mercadopago_activo == 'true' %}Activo{% else %}Inactivo{% endif %}</span>
                     </div>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem;">
-                        Permite a los clientes pagar con tarjetas de crédito/débito y otros métodos de Mercado Pago.
+                    <p style="color: #64748b; font-size: 0.85rem; margin-top: 1rem; line-height: 1.5;">
+                        Permite pagos con tarjetas de crédito, débito y dinero en cuenta de Mercado Pago.
                     </p>
                 </div>
             </div>
 
-            <!-- Depósito Bancario Card -->
+            <!-- Transferencia Bancaria -->
             <div class="config-card">
                 <div class="card-header">
-                    <div class="card-icon bank">
-                        <i class="bi bi-bank"></i>
-                    </div>
+                    <div class="card-icon bank"><i class="bi bi-bank"></i></div>
                     <div class="card-title">
-                        <h3>Depósito Bancario</h3>
-                        <p>Transferencia directa a cuenta</p>
+                        <h3>Transferencia Bancaria</h3>
+                        <p>Depósito directo</p>
                     </div>
-                    <div class="card-toggle">
-                        <label class="toggle-switch">
+                    <div class="card-action">
+                        <label class="toggle-wrapper">
                             <input type="checkbox" name="deposito_activo" id="bank_toggle"
-                                   {% if config.deposito_activo %}checked{% endif %}
-                                   onchange="updatePreview(); toggleBankFields()">
-                            <span class="toggle-slider"></span>
+                                   {% if config.deposito_activo == 'true' %}checked{% endif %}
+                                   onchange="updateAll()">
+                            <span class="toggle-track"></span>
                         </label>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="status-badge {% if config.deposito_activo %}active{% else %}inactive{% endif %}" id="bank_status">
-                        <i class="bi bi-{% if config.deposito_activo %}check-circle{% else %}x-circle{% endif %}"></i>
-                        <span>{% if config.deposito_activo %}Activo{% else %}Inactivo{% endif %}</span>
+                    <div class="status-pill {% if config.deposito_activo == 'true' %}active{% else %}inactive{% endif %}" id="bank_status">
+                        <i class="bi bi-{% if config.deposito_activo == 'true' %}check-circle{% else %}x-circle{% endif %}"></i>
+                        <span>{% if config.deposito_activo == 'true' %}Activo{% else %}Inactivo{% endif %}</span>
                     </div>
                     
-                    <div id="bank_fields" style="{% if not config.deposito_activo %}opacity: 0.5; pointer-events: none;{% endif %} margin-top: 1.5rem;">
-                        <div class="form-section">
+                    <div class="bank-fields {% if config.deposito_activo != 'true' %}disabled{% endif %}" id="bank_fields">
+                        <div class="form-section" style="margin-top: 1.25rem;">
                             <div class="form-section-title">
-                                <i class="bi bi-building"></i>
-                                Datos Bancarios
+                                <i class="bi bi-building"></i> Datos Bancarios
                             </div>
                             
                             <div class="form-group">
-                                <label>Banco <span class="required">*</span></label>
-                                <select name="banco_nombre" class="form-control" id="banco_nombre">
-                                    <option value="">Selecciona un banco...</option>
-                                    <option value="Banco Estado" {% if config.banco_nombre == 'Banco Estado' %}selected{% endif %}>Banco Estado</option>
-                                    <option value="Banco de Chile" {% if config.banco_nombre == 'Banco de Chile' %}selected{% endif %}>Banco de Chile</option>
-                                    <option value="Banco Santander" {% if config.banco_nombre == 'Banco Santander' %}selected{% endif %}>Banco Santander</option>
-                                    <option value="BCI" {% if config.banco_nombre == 'BCI' %}selected{% endif %}>BCI</option>
-                                    <option value="Banco Itaú" {% if config.banco_nombre == 'Banco Itaú' %}selected{% endif %}>Banco Itaú</option>
-                                    <option value="Scotiabank" {% if config.banco_nombre == 'Scotiabank' %}selected{% endif %}>Scotiabank</option>
-                                    <option value="Banco BICE" {% if config.banco_nombre == 'Banco BICE' %}selected{% endif %}>Banco BICE</option>
-                                    <option value="Banco Security" {% if config.banco_nombre == 'Banco Security' %}selected{% endif %}>Banco Security</option>
-                                    <option value="Banco Falabella" {% if config.banco_nombre == 'Banco Falabella' %}selected{% endif %}>Banco Falabella</option>
-                                    <option value="Banco Ripley" {% if config.banco_nombre == 'Banco Ripley' %}selected{% endif %}>Banco Ripley</option>
-                                    <option value="Banco Consorcio" {% if config.banco_nombre == 'Banco Consorcio' %}selected{% endif %}>Banco Consorcio</option>
-                                    <option value="Banco Internacional" {% if config.banco_nombre == 'Banco Internacional' %}selected{% endif %}>Banco Internacional</option>
-                                    <option value="HSBC" {% if config.banco_nombre == 'HSBC' %}selected{% endif %}>HSBC</option>
-                                    <option value="Coopeuch" {% if config.banco_nombre == 'Coopeuch' %}selected{% endif %}>Coopeuch</option>
-                                    <option value="Tenpo" {% if config.banco_nombre == 'Tenpo' %}selected{% endif %}>Tenpo</option>
-                                    <option value="MACH" {% if config.banco_nombre == 'MACH' %}selected{% endif %}>MACH</option>
-                                    <option value="Mercado Pago" {% if config.banco_nombre == 'Mercado Pago' %}selected{% endif %}>Mercado Pago</option>
+                                <label>Banco <span class="req">*</span></label>
+                                <select name="banco_nombre" class="form-input" id="banco_nombre" onchange="updatePreview()">
+                                    <option value="">Selecciona...</option>
+                                    {% set bancos = ['Banco Estado', 'Banco de Chile', 'Banco Santander', 'BCI', 'Banco Itaú', 'Scotiabank', 'Banco BICE', 'Banco Security', 'Banco Falabella', 'Banco Ripley', 'Banco Consorcio', 'Coopeuch', 'Tenpo', 'MACH', 'Mercado Pago'] %}
+                                    {% for banco in bancos %}
+                                    <option value="{{ banco }}" {% if config.banco_nombre == banco %}selected{% endif %}>{{ banco }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>Tipo de Cuenta <span class="required">*</span></label>
-                                    <select name="banco_tipo_cuenta" class="form-control" id="banco_tipo_cuenta">
+                                    <label>Tipo Cuenta <span class="req">*</span></label>
+                                    <select name="banco_tipo_cuenta" class="form-input" id="banco_tipo_cuenta" onchange="updatePreview()">
                                         <option value="">Selecciona...</option>
-                                        <option value="Cuenta Corriente" {% if config.banco_tipo_cuenta == 'Cuenta Corriente' %}selected{% endif %}>Cuenta Corriente</option>
-                                        <option value="Cuenta Vista" {% if config.banco_tipo_cuenta == 'Cuenta Vista' %}selected{% endif %}>Cuenta Vista</option>
-                                        <option value="Cuenta de Ahorro" {% if config.banco_tipo_cuenta == 'Cuenta de Ahorro' %}selected{% endif %}>Cuenta de Ahorro</option>
-                                        <option value="Cuenta RUT" {% if config.banco_tipo_cuenta == 'Cuenta RUT' %}selected{% endif %}>Cuenta RUT</option>
-                                        <option value="Chequera Electrónica" {% if config.banco_tipo_cuenta == 'Chequera Electrónica' %}selected{% endif %}>Chequera Electrónica</option>
+                                        {% set tipos = ['Cuenta Corriente', 'Cuenta Vista', 'Cuenta de Ahorro', 'Cuenta RUT', 'Chequera Electrónica'] %}
+                                        {% for tipo in tipos %}
+                                        <option value="{{ tipo }}" {% if config.banco_tipo_cuenta == tipo %}selected{% endif %}>{{ tipo }}</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>Número de Cuenta <span class="required">*</span></label>
-                                    <input type="text" name="banco_numero" class="form-control" id="banco_numero"
-                                           value="{{ config.banco_numero or '' }}" placeholder="Ej: 12345678">
+                                    <label>N° Cuenta <span class="req">*</span></label>
+                                    <input type="text" name="banco_numero" class="form-input" id="banco_numero"
+                                           value="{{ config.banco_numero or '' }}" placeholder="12345678" oninput="updatePreview()">
                                 </div>
                             </div>
                         </div>
                         
                         <div class="form-section">
                             <div class="form-section-title">
-                                <i class="bi bi-person"></i>
-                                Titular de la Cuenta
+                                <i class="bi bi-person"></i> Titular
                             </div>
                             
                             <div class="form-group">
-                                <label>Nombre del Titular <span class="required">*</span></label>
-                                <input type="text" name="banco_titular" class="form-control" id="banco_titular"
-                                       value="{{ config.banco_titular or '' }}" placeholder="Nombre completo">
+                                <label>Nombre Completo <span class="req">*</span></label>
+                                <input type="text" name="banco_titular" class="form-input" id="banco_titular"
+                                       value="{{ config.banco_titular or '' }}" placeholder="Juan Pérez González" oninput="updatePreview()">
                             </div>
                             
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>RUT <span class="required">*</span></label>
-                                    <input type="text" name="banco_rut" class="form-control" id="banco_rut"
-                                           value="{{ config.banco_rut or '' }}" placeholder="12.345.678-9">
+                                    <label>RUT <span class="req">*</span></label>
+                                    <input type="text" name="banco_rut" class="form-input" id="banco_rut"
+                                           value="{{ config.banco_rut or '' }}" placeholder="12.345.678-9" oninput="updatePreview()">
                                 </div>
                                 <div class="form-group">
-                                    <label>Email de Notificación <span class="required">*</span></label>
-                                    <input type="email" name="banco_email" class="form-control" id="banco_email"
-                                           value="{{ config.banco_email or '' }}" placeholder="pagos@empresa.cl">
+                                    <label>Email <span class="req">*</span></label>
+                                    <input type="email" name="banco_email" class="form-input" id="banco_email"
+                                           value="{{ config.banco_email or '' }}" placeholder="pagos@empresa.cl" oninput="updatePreview()">
                                 </div>
                             </div>
                         </div>
@@ -713,106 +640,76 @@
                 </div>
             </div>
 
-            <!-- Precio Card -->
-            <div class="config-card" style="grid-column: 1 / -1;">
+            <!-- Precio -->
+            <div class="config-card full-width">
                 <div class="card-header">
-                    <div class="card-icon price">
-                        <i class="bi bi-tag"></i>
-                    </div>
+                    <div class="card-icon price"><i class="bi bi-tag"></i></div>
                     <div class="card-title">
                         <h3>Precio de Suscripción</h3>
-                        <p>Define el valor mensual para tus clientes</p>
+                        <p>Valor mensual en pesos chilenos</p>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div style="max-width: 400px;">
-                        <div class="form-group">
-                            <label>Precio Mensual (CLP) <span class="required">*</span></label>
-                            <div class="price-input-group">
-                                <span class="price-prefix">$</span>
-                                <input type="number" name="precio_mensual" class="form-control" id="precio_mensual"
-                                       value="{{ config.precio_mensual or 14990 }}" 
-                                       min="0" step="1" required
-                                       oninput="updatePreview()">
+                    <div style="display: flex; align-items: flex-start; gap: 2rem; flex-wrap: wrap;">
+                        <div>
+                            <div class="form-group">
+                                <label>Precio Mensual (CLP) <span class="req">*</span></label>
+                                <div class="price-input-wrapper">
+                                    <span class="price-prefix">$</span>
+                                    <input type="number" name="precio_mensual" class="form-input" id="precio_mensual"
+                                           value="{{ config.precio_mensual or 14990 }}" min="0" step="1" required
+                                           oninput="updateAll()">
+                                </div>
                             </div>
-                            <p class="form-hint">Este precio se mostrará en pesos chilenos (sin decimales)</p>
                         </div>
-                        
-                        <div class="price-preview">
-                            <div class="price-preview-label">Los clientes verán</div>
-                            <div class="price-preview-value" id="price_display">$14.990</div>
-                            <div class="price-preview-period">por mes</div>
+                        <div class="price-display">
+                            <div class="price-display-label">Los clientes verán</div>
+                            <div class="price-display-value" id="price_display">$14.990</div>
+                            <div class="price-display-period">por mes</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Preview Section -->
-            <div class="preview-section">
-                <div class="preview-card">
-                    <div class="preview-header">
-                        <i class="bi bi-eye"></i>
-                        <h3>Vista Previa - Lo que verán tus clientes</h3>
+            <!-- Preview -->
+            <div class="config-card full-width">
+                <div class="card-header">
+                    <div class="card-icon preview"><i class="bi bi-eye"></i></div>
+                    <div class="card-title">
+                        <h3>Vista Previa</h3>
+                        <p>Así lo verán tus clientes</p>
                     </div>
-                    <div class="preview-body">
-                        <div class="preview-options" id="preview_container">
-                            <!-- Mercado Pago Preview -->
-                            <div class="preview-option" id="preview_mp">
-                                <div class="preview-option-icon mp">
-                                    <i class="bi bi-credit-card"></i>
-                                </div>
-                                <h4>Pagar con Mercado Pago</h4>
-                                <p>Tarjeta de crédito, débito y más</p>
-                                <div class="preview-price">
-                                    $<span id="preview_price_mp">14.990</span>
-                                    <small>/mes</small>
-                                </div>
+                </div>
+                <div class="card-body">
+                    <div class="preview-grid" id="preview_container">
+                        <!-- Mercado Pago Preview -->
+                        <div class="preview-option" id="preview_mp">
+                            <div class="preview-icon mp"><i class="bi bi-credit-card"></i></div>
+                            <h4>Mercado Pago</h4>
+                            <p>Tarjeta de crédito o débito</p>
+                            <div class="preview-price">$<span id="prev_price_mp">14.990</span> <small>/mes</small></div>
+                        </div>
+                        
+                        <!-- Bank Preview -->
+                        <div class="preview-option" id="preview_bank">
+                            <div class="preview-icon bank"><i class="bi bi-bank"></i></div>
+                            <h4>Transferencia</h4>
+                            <p>Depósito bancario directo</p>
+                            <div class="preview-price">$<span id="prev_price_bank">14.990</span> <small>/mes</small></div>
+                            <div class="preview-bank-info">
+                                <div class="bank-row"><span class="label">Banco:</span><span class="value" id="prev_banco">-</span></div>
+                                <div class="bank-row"><span class="label">Tipo:</span><span class="value" id="prev_tipo">-</span></div>
+                                <div class="bank-row"><span class="label">N° Cuenta:</span><span class="value" id="prev_numero">-</span></div>
+                                <div class="bank-row"><span class="label">Titular:</span><span class="value" id="prev_titular">-</span></div>
+                                <div class="bank-row"><span class="label">RUT:</span><span class="value" id="prev_rut">-</span></div>
+                                <div class="bank-row"><span class="label">Email:</span><span class="value" id="prev_email">-</span></div>
                             </div>
-                            
-                            <!-- Bank Transfer Preview -->
-                            <div class="preview-option" id="preview_bank">
-                                <div class="preview-option-icon bank">
-                                    <i class="bi bi-bank"></i>
-                                </div>
-                                <h4>Transferencia Bancaria</h4>
-                                <p>Depósito directo a nuestra cuenta</p>
-                                <div class="preview-price">
-                                    $<span id="preview_price_bank">14.990</span>
-                                    <small>/mes</small>
-                                </div>
-                                <div class="preview-bank-details" id="preview_bank_details">
-                                    <div class="bank-detail-row">
-                                        <span>Banco:</span>
-                                        <span id="prev_banco">-</span>
-                                    </div>
-                                    <div class="bank-detail-row">
-                                        <span>Tipo:</span>
-                                        <span id="prev_tipo">-</span>
-                                    </div>
-                                    <div class="bank-detail-row">
-                                        <span>Número:</span>
-                                        <span id="prev_numero">-</span>
-                                    </div>
-                                    <div class="bank-detail-row">
-                                        <span>Titular:</span>
-                                        <span id="prev_titular">-</span>
-                                    </div>
-                                    <div class="bank-detail-row">
-                                        <span>RUT:</span>
-                                        <span id="prev_rut">-</span>
-                                    </div>
-                                    <div class="bank-detail-row">
-                                        <span>Email:</span>
-                                        <span id="prev_email">-</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- No options message -->
-                            <div class="no-options-message" id="no_options" style="display: none;">
-                                <i class="bi bi-exclamation-triangle"></i>
-                                <p>No hay métodos de pago activos. Activa al menos uno.</p>
-                            </div>
+                        </div>
+                        
+                        <!-- No methods -->
+                        <div class="no-methods" id="no_methods" style="display: none;">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <p>Activa al menos un método de pago</p>
                         </div>
                     </div>
                 </div>
@@ -832,75 +729,52 @@
 
 {% block extra_js %}
 <script>
-    // Formatear precio chileno (sin decimales, con punto como separador de miles)
-    function formatPriceChilean(value) {
-        const num = parseInt(value) || 0;
-        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    }
+function formatChileanPrice(value) {
+    const num = parseInt(value) || 0;
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
 
-    function updatePreview() {
-        const mpActive = document.getElementById('mp_toggle').checked;
-        const bankActive = document.getElementById('bank_toggle').checked;
-        const price = document.getElementById('precio_mensual').value || 0;
-        
-        const formattedPrice = formatPriceChilean(price);
-        
-        // Update main price display
-        document.getElementById('price_display').textContent = '$' + formattedPrice;
-        
-        // Update preview prices
-        document.getElementById('preview_price_mp').textContent = formattedPrice;
-        document.getElementById('preview_price_bank').textContent = formattedPrice;
-        
-        // Show/hide preview cards
-        document.getElementById('preview_mp').classList.toggle('hidden', !mpActive);
-        document.getElementById('preview_bank').classList.toggle('hidden', !bankActive);
-        
-        // Show no options message if both are inactive
-        document.getElementById('no_options').style.display = (!mpActive && !bankActive) ? 'block' : 'none';
-        
-        // Update status badges
-        updateStatusBadge('mp_status', mpActive);
-        updateStatusBadge('bank_status', bankActive);
-        
-        // Update bank details in preview
-        updateBankPreview();
-    }
+function updateAll() {
+    const mpActive = document.getElementById('mp_toggle').checked;
+    const bankActive = document.getElementById('bank_toggle').checked;
+    const price = document.getElementById('precio_mensual').value || 0;
+    const formatted = formatChileanPrice(price);
+    
+    // Update price displays
+    document.getElementById('price_display').textContent = '$' + formatted;
+    document.getElementById('prev_price_mp').textContent = formatted;
+    document.getElementById('prev_price_bank').textContent = formatted;
+    
+    // Update status pills
+    updateStatus('mp_status', mpActive);
+    updateStatus('bank_status', bankActive);
+    
+    // Toggle bank fields
+    document.getElementById('bank_fields').classList.toggle('disabled', !bankActive);
+    
+    // Toggle previews
+    document.getElementById('preview_mp').classList.toggle('hidden', !mpActive);
+    document.getElementById('preview_bank').classList.toggle('hidden', !bankActive);
+    document.getElementById('no_methods').style.display = (!mpActive && !bankActive) ? 'block' : 'none';
+    
+    updatePreview();
+}
 
-    function updateStatusBadge(id, active) {
-        const badge = document.getElementById(id);
-        badge.className = 'status-badge ' + (active ? 'active' : 'inactive');
-        badge.innerHTML = '<i class="bi bi-' + (active ? 'check-circle' : 'x-circle') + '"></i><span>' + (active ? 'Activo' : 'Inactivo') + '</span>';
-    }
+function updateStatus(id, active) {
+    const el = document.getElementById(id);
+    el.className = 'status-pill ' + (active ? 'active' : 'inactive');
+    el.innerHTML = '<i class="bi bi-' + (active ? 'check-circle' : 'x-circle') + '"></i><span>' + (active ? 'Activo' : 'Inactivo') + '</span>';
+}
 
-    function toggleBankFields() {
-        const active = document.getElementById('bank_toggle').checked;
-        const fields = document.getElementById('bank_fields');
-        fields.style.opacity = active ? '1' : '0.5';
-        fields.style.pointerEvents = active ? 'auto' : 'none';
-    }
+function updatePreview() {
+    document.getElementById('prev_banco').textContent = document.getElementById('banco_nombre').value || '-';
+    document.getElementById('prev_tipo').textContent = document.getElementById('banco_tipo_cuenta').value || '-';
+    document.getElementById('prev_numero').textContent = document.getElementById('banco_numero').value || '-';
+    document.getElementById('prev_titular').textContent = document.getElementById('banco_titular').value || '-';
+    document.getElementById('prev_rut').textContent = document.getElementById('banco_rut').value || '-';
+    document.getElementById('prev_email').textContent = document.getElementById('banco_email').value || '-';
+}
 
-    function updateBankPreview() {
-        document.getElementById('prev_banco').textContent = document.getElementById('banco_nombre').value || '-';
-        document.getElementById('prev_tipo').textContent = document.getElementById('banco_tipo_cuenta').value || '-';
-        document.getElementById('prev_numero').textContent = document.getElementById('banco_numero').value || '-';
-        document.getElementById('prev_titular').textContent = document.getElementById('banco_titular').value || '-';
-        document.getElementById('prev_rut').textContent = document.getElementById('banco_rut').value || '-';
-        document.getElementById('prev_email').textContent = document.getElementById('banco_email').value || '-';
-    }
-
-    // Add event listeners to bank fields
-    ['banco_nombre', 'banco_tipo_cuenta', 'banco_numero', 'banco_titular', 'banco_rut', 'banco_email'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('input', updateBankPreview);
-            el.addEventListener('change', updateBankPreview);
-        }
-    });
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        updatePreview();
-    });
+document.addEventListener('DOMContentLoaded', updateAll);
 </script>
 {% endblock %}
