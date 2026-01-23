@@ -2069,15 +2069,20 @@ def api_crear_preferencia_pago():
         # Definir parámetros del pago
         plan_type = data.get('plan_type', 'mensual')
         
-        # Configurar precio según plan (CLP)
+        # Obtener precio desde configuración global
+        precio_config = get_config_value('precio_mensual', '14990')
+        try:
+            precio = int(precio_config)
+        except (ValueError, TypeError):
+            precio = 14990
+        
+        # Configurar descripción según plan
         if plan_type == 'mensual':
-            precio = 20000
             descripcion = 'Suscripción Mensual - Menú Digital'
         elif plan_type == 'anual':
-            precio = 200000
+            precio = precio * 10  # 10 meses por el precio de 12 (descuento)
             descripcion = 'Suscripción Anual - Menú Digital'
         else:
-            precio = 20000
             descripcion = 'Suscripción - Menú Digital'
         
         # Crear preferencia de pago
