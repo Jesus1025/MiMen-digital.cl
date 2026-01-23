@@ -95,11 +95,17 @@ def get_cloudinary_eager():
 
 
 def cloudinary_image_url(public_id, width=None):
-    """Construye una URL de Cloudinary para `public_id` con transformación opcional de ancho."""
+    """Construye una URL de Cloudinary para `public_id` con transformación opcional de ancho.
+    IMPORTANTE: Incluye angle='auto' para corregir rotación EXIF de fotos de celular."""
     if not CLOUDINARY_AVAILABLE or not public_id:
         return None
     try:
-        opts = {'quality': app.config.get('CLOUDINARY_IMAGE_QUALITY', 'auto'), 'fetch_format': 'auto', 'resource_type': 'image'}
+        opts = {
+            'quality': app.config.get('CLOUDINARY_IMAGE_QUALITY', 'auto'), 
+            'fetch_format': 'auto', 
+            'resource_type': 'image',
+            'angle': 'auto'  # CRÍTICO: Corrige rotación EXIF de fotos tomadas con celular
+        }
         if width:
             opts.update({'width': width, 'crop': 'limit'})
         url, _ = cloudinary.utils.cloudinary_url(public_id, **opts)
@@ -1194,6 +1200,33 @@ def ver_menu_publico(url_slug):
             ''', (restaurante['id'],))
             
             platos_raw = cur.fetchall()
+            
+            # 3.5 Cargar imágenes múltiples para todos los platos
+            plato_ids = [r['plato_id'] for r in platos_raw if r['plato_id']]
+            imagenes_por_plato = {}
+            if plato_ids:
+                # Usar placeholders seguros para evitar SQL injection
+                placeholders = ','.join(['%s'] * len(plato_ids))
+                query = '''
+                    SELECT id, plato_id, imagen_url, imagen_public_id, orden, es_principal
+                    FROM platos_imagenes 
+                    WHERE plato_id IN ({}) AND activo = 1
+                    ORDER BY es_principal DESC, orden ASC
+                '''.format(placeholders)
+                cur.execute(query, tuple(plato_ids))
+                for img in cur.fetchall():
+                    plato_id = img['plato_id']
+                    if plato_id not in imagenes_por_plato:
+                        imagenes_por_plato[plato_id] = []
+                    # Generar URL optimizada para cada imagen
+                    img_url = img['imagen_url']
+                    img_pid = img.get('imagen_public_id')
+                    if img_pid and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED:
+                        generated_url = cloudinary_image_url(img_pid, width=640)
+                        img['imagen_src'] = generated_url if generated_url else img_url
+                    else:
+                        img['imagen_src'] = img_url
+                    imagenes_por_plato[plato_id].append(dict(img))
 
             # 4. Estructurar el menú
             menu_estructurado = {}
@@ -1220,6 +1253,9 @@ def ver_menu_publico(url_slug):
                         imagen_src = img_url
                         imagen_srcset = None
                     
+                    # Obtener imágenes múltiples del plato
+                    plato_imagenes = imagenes_por_plato.get(row['plato_id'], [])
+                    
                     plato = {
                         'id': row['plato_id'],
                         'nombre': row['plato_nombre'],
@@ -1230,6 +1266,7 @@ def ver_menu_publico(url_slug):
                         'imagen_public_id': img_public_id,
                         'imagen_src': imagen_src,
                         'imagen_srcset': imagen_srcset,
+                        'imagenes': plato_imagenes,  # Lista de imágenes múltiples
                         'etiquetas': row['etiquetas'].split(',') if row['etiquetas'] else [],
                         'es_nuevo': row['es_nuevo'],
                         'es_popular': row['es_popular'],
@@ -1540,37 +1577,45 @@ def gestion_descargas():
             cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
             restaurante = dict_from_row(cur.fetchone())
             
-            # Obtener categorías y platos
+            # Obtener categorías y platos en una sola consulta (evita N+1)
             cur.execute("""
-                SELECT c.id, c.nombre, c.orden 
+                SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.orden as categoria_orden,
+                       p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
+                       p.precio_oferta, p.imagen_url, p.etiquetas
                 FROM categorias c 
+                LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1 AND p.restaurante_id = %s
                 WHERE c.restaurante_id = %s AND c.activo = 1 
-                ORDER BY c.orden, c.nombre
-            """, (restaurante_id,))
-            categorias = list_from_rows(cur.fetchall())
+                ORDER BY c.orden, c.nombre, p.orden, p.nombre
+            """, (restaurante_id, restaurante_id))
+            rows = cur.fetchall()
             
-            # Obtener platos para cada categoría
+            # Estructurar el menú
             menu = []
-            for cat in categorias:
-                cur.execute("""
-                    SELECT * FROM platos 
-                    WHERE categoria_id = %s AND restaurante_id = %s AND activo = 1 
-                    ORDER BY orden, nombre
-                """, (cat['id'], restaurante_id))
-                platos = list_from_rows(cur.fetchall())
+            categorias_dict = {}
+            for row in rows:
+                cat_id = row['categoria_id']
+                if cat_id not in categorias_dict:
+                    categorias_dict[cat_id] = {
+                        'id': cat_id,
+                        'nombre': row['categoria_nombre'],
+                        'platos': []
+                    }
+                    menu.append(categorias_dict[cat_id])
                 
-                # Procesar etiquetas (split por coma)
-                for plato in platos:
-                    if plato.get('etiquetas'):
-                        plato['etiquetas'] = [tag.strip() for tag in plato['etiquetas'].split(',')]
-                    else:
-                        plato['etiquetas'] = []
-                
-                menu.append({
-                    'id': cat['id'],
-                    'nombre': cat['nombre'],
-                    'platos': platos
-                })
+                if row['plato_id']:
+                    etiquetas = []
+                    if row.get('etiquetas'):
+                        etiquetas = [tag.strip() for tag in row['etiquetas'].split(',')]
+                    
+                    categorias_dict[cat_id]['platos'].append({
+                        'id': row['plato_id'],
+                        'nombre': row['plato_nombre'],
+                        'descripcion': row['descripcion'],
+                        'precio': row['precio'],
+                        'precio_oferta': row['precio_oferta'],
+                        'imagen_url': row['imagen_url'],
+                        'etiquetas': etiquetas
+                    })
         
         return render_template('gestion/descargas.html', restaurante=restaurante, menu=menu)
     
@@ -1594,37 +1639,45 @@ def api_menu_pdf():
             cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
             restaurante = dict_from_row(cur.fetchone())
             
-            # Obtener categorías y platos
+            # Obtener categorías y platos en una sola consulta (evita N+1)
             cur.execute("""
-                SELECT c.id, c.nombre, c.orden 
+                SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.orden as categoria_orden,
+                       p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
+                       p.precio_oferta, p.imagen_url, p.etiquetas
                 FROM categorias c 
+                LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1 AND p.restaurante_id = %s
                 WHERE c.restaurante_id = %s AND c.activo = 1 
-                ORDER BY c.orden, c.nombre
-            """, (restaurante_id,))
-            categorias = list_from_rows(cur.fetchall())
+                ORDER BY c.orden, c.nombre, p.orden, p.nombre
+            """, (restaurante_id, restaurante_id))
+            rows = cur.fetchall()
             
-            # Obtener platos para cada categoría
+            # Estructurar el menú
             menu = []
-            for cat in categorias:
-                cur.execute("""
-                    SELECT * FROM platos 
-                    WHERE categoria_id = %s AND restaurante_id = %s AND activo = 1 
-                    ORDER BY orden, nombre
-                """, (cat['id'], restaurante_id))
-                platos = list_from_rows(cur.fetchall())
+            categorias_dict = {}
+            for row in rows:
+                cat_id = row['categoria_id']
+                if cat_id not in categorias_dict:
+                    categorias_dict[cat_id] = {
+                        'id': cat_id,
+                        'nombre': row['categoria_nombre'],
+                        'platos': []
+                    }
+                    menu.append(categorias_dict[cat_id])
                 
-                # Procesar etiquetas
-                for plato in platos:
-                    if plato.get('etiquetas'):
-                        plato['etiquetas'] = [tag.strip() for tag in plato['etiquetas'].split(',')]
-                    else:
-                        plato['etiquetas'] = []
-                
-                menu.append({
-                    'id': cat['id'],
-                    'nombre': cat['nombre'],
-                    'platos': platos
-                })
+                if row['plato_id']:
+                    etiquetas = []
+                    if row.get('etiquetas'):
+                        etiquetas = [tag.strip() for tag in row['etiquetas'].split(',')]
+                    
+                    categorias_dict[cat_id]['platos'].append({
+                        'id': row['plato_id'],
+                        'nombre': row['plato_nombre'],
+                        'descripcion': row['descripcion'],
+                        'precio': row['precio'],
+                        'precio_oferta': row['precio_oferta'],
+                        'imagen_url': row['imagen_url'],
+                        'etiquetas': etiquetas
+                    })
             
             # Renderizar HTML
             base_url = request.host_url.rstrip('/')
@@ -2098,10 +2151,32 @@ def api_platos():
                 # Sin paginación (compatibilidad hacia atrás)
                 cur.execute(base_query, params)
                 rows = list_from_rows(cur.fetchall())
+                
+                # Cargar imágenes múltiples para cada plato
+                plato_ids = [r['id'] for r in rows]
+                imagenes_por_plato = {}
+                if plato_ids:
+                    # Usar placeholders seguros para evitar SQL injection
+                    placeholders = ','.join(['%s'] * len(plato_ids))
+                    query = '''
+                        SELECT * FROM platos_imagenes 
+                        WHERE plato_id IN ({}) AND activo = 1
+                        ORDER BY es_principal DESC, orden ASC
+                    '''.format(placeholders)
+                    cur.execute(query, tuple(plato_ids))
+                    for img in cur.fetchall():
+                        plato_id = img['plato_id']
+                        if plato_id not in imagenes_por_plato:
+                            imagenes_por_plato[plato_id] = []
+                        imagenes_por_plato[plato_id].append(dict(img))
+                
                 # Enriquecer con URLs responsivas si tenemos imagen_public_id
                 for r in rows:
                     pid = r.get('imagen_public_id')
                     img_url = r.get('imagen_url')
+                    
+                    # Agregar imágenes múltiples
+                    r['imagenes'] = imagenes_por_plato.get(r['id'], [])
                     
                     # Intentar generar URL optimizada con Cloudinary
                     if pid and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED:
@@ -2116,6 +2191,31 @@ def api_platos():
                 
             if request.method == 'POST':
                 data = request.get_json()
+                
+                # Validación de datos obligatorios
+                if not data:
+                    return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
+                
+                nombre = data.get('nombre', '').strip()
+                if not nombre or len(nombre) > 200:
+                    return jsonify({'success': False, 'error': 'Nombre es obligatorio (máx 200 caracteres)'}), 400
+                
+                categoria_id = data.get('categoria_id')
+                if not categoria_id:
+                    return jsonify({'success': False, 'error': 'Categoría es obligatoria'}), 400
+                
+                # Validar que la categoría pertenece al restaurante
+                cur.execute("SELECT id FROM categorias WHERE id = %s AND restaurante_id = %s", (categoria_id, restaurante_id))
+                if not cur.fetchone():
+                    return jsonify({'success': False, 'error': 'Categoría no válida'}), 400
+                
+                # Validar precio
+                try:
+                    precio = float(data.get('precio', 0))
+                    if precio < 0:
+                        return jsonify({'success': False, 'error': 'Precio no puede ser negativo'}), 400
+                except (ValueError, TypeError):
+                    return jsonify({'success': False, 'error': 'Precio inválido'}), 400
                 
                 # Procesar imagen - puede venir como archivo o ya subida previamente
                 imagen_url = data.get('imagen_url', '')
@@ -2177,6 +2277,10 @@ def api_platos():
                                 logger.exception('Error creando pending tras fallo de Cloudinary: %s', err)
                                 return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
                 
+                # Sanitizar descripción y etiquetas
+                descripcion = (data.get('descripcion', '') or '')[:1000]  # Límite 1000 chars
+                etiquetas = (data.get('etiquetas', '') or '')[:500]  # Límite 500 chars
+                
                 cur.execute('''
                     INSERT INTO platos (restaurante_id, categoria_id, nombre, descripcion, precio, 
                                         precio_oferta, imagen_url, imagen_public_id, etiquetas, es_vegetariano, es_vegano,
@@ -2184,24 +2288,42 @@ def api_platos():
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
                 ''', (
                     restaurante_id,
-                    data.get('categoria_id'),
-                    data.get('nombre'),
-                    data.get('descripcion', ''),
-                    data.get('precio', 0),
+                    categoria_id,
+                    nombre,
+                    descripcion,
+                    precio,
                     data.get('precio_oferta'),
                     imagen_url,
                     imagen_public_id,
-                    data.get('etiquetas', ''),
-                    data.get('es_vegetariano', 0),
-                    data.get('es_vegano', 0),
-                    data.get('es_sin_gluten', 0),
-                    data.get('es_picante', 0),
-                    data.get('es_nuevo', 0),
-                    data.get('es_popular', 0),
-                    data.get('orden', 0)
+                    etiquetas,
+                    1 if data.get('es_vegetariano') else 0,
+                    1 if data.get('es_vegano') else 0,
+                    1 if data.get('es_sin_gluten') else 0,
+                    1 if data.get('es_picante') else 0,
+                    1 if data.get('es_nuevo') else 0,
+                    1 if data.get('es_popular') else 0,
+                    int(data.get('orden', 0))
                 ))
                 db.commit()
                 new_id = cur.lastrowid
+                
+                # Guardar imágenes múltiples si existen
+                imagenes = data.get('imagenes', [])
+                if imagenes:
+                    for img in imagenes:
+                        cur.execute('''
+                            INSERT INTO platos_imagenes (plato_id, restaurante_id, imagen_url, imagen_public_id, orden, es_principal)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        ''', (
+                            new_id,
+                            restaurante_id,
+                            img.get('imagen_url', ''),
+                            img.get('imagen_public_id'),
+                            img.get('orden', 0),
+                            img.get('es_principal', 0)
+                        ))
+                    db.commit()
+                
                 # Si existe un pending creado antes (fallo de subida), asociarlo al plato recién creado
                 try:
                     if 'pending_id' in locals() and pending_id:
@@ -2399,6 +2521,26 @@ def api_plato(plato_id):
                     data.get('activo', 1),
                     plato_id, restaurante_id
                 ))
+                
+                # Actualizar imágenes múltiples si existen
+                imagenes = data.get('imagenes', [])
+                if imagenes:
+                    # Eliminar imágenes anteriores
+                    cur.execute("DELETE FROM platos_imagenes WHERE plato_id = %s", (plato_id,))
+                    # Insertar las nuevas
+                    for img in imagenes:
+                        cur.execute('''
+                            INSERT INTO platos_imagenes (plato_id, restaurante_id, imagen_url, imagen_public_id, orden, es_principal)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        ''', (
+                            plato_id,
+                            restaurante_id,
+                            img.get('imagen_url', ''),
+                            img.get('imagen_public_id'),
+                            img.get('orden', 0),
+                            img.get('es_principal', 0)
+                        ))
+                
                 db.commit()
                 # Invalidar cache del menú público
                 invalidate_menu_cache(restaurante_id)

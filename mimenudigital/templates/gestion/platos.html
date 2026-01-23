@@ -38,20 +38,75 @@
             -webkit-overflow-scrolling: touch;
         }
         
-        .data-table {
-            min-width: 600px;
+        /* Convertir tabla a tarjetas en móvil */
+        .data-table thead {
+            display: none;
+        }
+        
+        .data-table tbody tr {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            position: relative;
+        }
+        
+        .data-table tbody td {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border: none !important;
+        }
+        
+        .data-table tbody td:before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #7f8c8d;
+            min-width: 80px;
+            font-size: 0.85rem;
+        }
+        
+        .data-table tbody td:first-child {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+        }
+        
+        .data-table tbody td:first-child:before {
+            display: none;
+        }
+        
+        .data-table tbody td:first-child img,
+        .data-table tbody td:first-child > div {
+            width: 60px !important;
+            height: 60px !important;
+        }
+        
+        .data-table tbody td:last-child {
+            justify-content: flex-end;
+            padding-top: 1rem;
+            margin-top: 0.5rem;
+            border-top: 1px solid #eee !important;
+        }
+        
+        .data-table tbody td:last-child:before {
+            display: none;
         }
         
         .modal-content {
             width: 95%;
             max-width: 95%;
-            margin: 1rem;
-            max-height: 90vh;
+            margin: 0.5rem;
+            max-height: 95vh;
         }
         
         .modal-body {
-            max-height: 70vh;
+            max-height: 75vh;
             overflow-y: auto;
+            padding: 1rem;
         }
         
         #dropZone {
@@ -60,6 +115,16 @@
         
         #dropZone p {
             font-size: 0.85rem;
+        }
+        
+        /* Galería de imágenes en móvil */
+        .imagenes-galeria {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.5rem !important;
+        }
+        
+        .imagen-item {
+            height: 80px !important;
         }
     }
     
@@ -84,6 +149,123 @@
         .form-input {
             font-size: 16px; /* Evita zoom en iOS */
         }
+        
+        .imagenes-galeria {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+    }
+    
+    /* Estilos para galería de imágenes múltiples */
+    .imagenes-galeria {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+    }
+    
+    .imagen-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        height: 100px;
+        background: #f5f5f5;
+        border: 2px solid transparent;
+        transition: all 0.2s ease;
+    }
+    
+    .imagen-item:hover {
+        border-color: #e74c3c;
+    }
+    
+    .imagen-item.principal {
+        border-color: #27ae60;
+        box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.3);
+    }
+    
+    .imagen-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .imagen-item .imagen-actions {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    
+    .imagen-item:hover .imagen-actions {
+        opacity: 1;
+    }
+    
+    .imagen-actions button {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+    
+    .btn-principal {
+        background: #27ae60;
+        color: white;
+    }
+    
+    .btn-eliminar {
+        background: #e74c3c;
+        color: white;
+    }
+    
+    .imagen-badge {
+        position: absolute;
+        bottom: 4px;
+        left: 4px;
+        background: #27ae60;
+        color: white;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    
+    .add-imagen-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #fef5f5;
+        border: 2px dashed #e74c3c;
+        cursor: pointer;
+        color: #e74c3c;
+        transition: all 0.2s ease;
+    }
+    
+    .add-imagen-btn:hover {
+        background: #fee;
+        border-color: #c0392b;
+    }
+    
+    .add-imagen-btn i {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .add-imagen-btn span {
+        font-size: 0.75rem;
+        font-weight: 500;
     }
 </style>
 
@@ -182,56 +364,32 @@
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Imagen del Plato</label>
+                    <label class="form-label">Imágenes del Plato</label>
+                    <small style="color: #7f8c8d; display: block; margin-bottom: 0.5rem;">Puedes agregar múltiples imágenes. La primera será la principal.</small>
                     
-                    <!-- Tabs para elegir método -->
-                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
-                        <button type="button" class="btn-primary image-tab active" onclick="cambiarTabImagen('upload')" id="tabUpload" style="flex: 1; padding: 0.5rem; background: #e74c3c;">
-                            <i class="fas fa-upload"></i> Subir
-                        </button>
-                        <button type="button" class="btn-secondary image-tab" onclick="cambiarTabImagen('url')" id="tabUrl" style="flex: 1; padding: 0.5rem;">
-                            <i class="fas fa-link"></i> URL
-                        </button>
-                    </div>
-                    
-                    <!-- Opción Subir Imagen -->
-                    <div id="uploadSection">
-                        <div style="border: 2px dashed #e74c3c; border-radius: 8px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.3s; background: #fef5f5;" 
-                             id="dropZone" onclick="document.getElementById('fileInput').click()">
-                            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #e74c3c; margin-bottom: 0.5rem;"></i>
-                            <p style="color: #c0392b; margin: 0; font-weight: 500;">Haz clic para seleccionar una imagen</p>
-                            <small style="color: #95a5a6;">PNG, JPG, GIF, WEBP (máx. 5MB)</small>
-                        </div>
-                        <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="subirImagen(this)">
-                        <div id="uploadProgress" style="display: none; margin-top: 0.5rem;">
-                            <div style="background: #eee; border-radius: 4px; overflow: hidden;">
-                                <div id="progressBar" style="width: 0%; height: 8px; background: linear-gradient(90deg, #e74c3c, #c0392b); transition: width 0.3s;"></div>
-                            </div>
-                            <p id="uploadStatus" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; text-align: center;">Subiendo imagen...</p>
+                    <!-- Galería de imágenes -->
+                    <div id="imagenesGaleria" class="imagenes-galeria">
+                        <!-- Las imágenes se agregan dinámicamente -->
+                        <div class="imagen-item add-imagen-btn" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-plus"></i>
+                            <span>Agregar</span>
                         </div>
                     </div>
                     
-                    <!-- Opción URL -->
-                    <div id="urlSection" style="display: none;">
-                        <input type="url" class="form-input" id="platoImagenUrl" placeholder="https://ejemplo.com/imagen.jpg" onchange="previewImagenUrl()">
-                    </div>
+                    <input type="file" id="fileInput" accept="image/*" multiple style="display: none;" onchange="subirImagenes(this)">
                     
-                    <!-- Preview de imagen -->
-                    <div id="imagenPreview" style="margin-top: 0.75rem; display: none;">
-                        <div style="position: relative; display: inline-block;">
-                            <img id="previewImg" src="" alt="Preview" style="max-width: 150px; max-height: 100px; border-radius: 8px; object-fit: cover; border: 2px solid #ddd;" onerror="this.style.display='none'; document.getElementById('previewError').style.display='block';">
-                            <div id="previewError" style="display: none; padding: 1rem; background: #fee; border-radius: 8px; color: #c00; font-size: 0.85rem;">
-                                <i class="fas fa-exclamation-triangle"></i> Error al cargar imagen
-                            </div>
-                            <button type="button" onclick="eliminarImagen()" style="position: absolute; top: -8px; right: -8px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                                <i class="fas fa-times" style="font-size: 12px;"></i>
-                            </button>
+                    <!-- Progreso de subida -->
+                    <div id="uploadProgress" style="display: none; margin-top: 0.75rem;">
+                        <div style="background: #eee; border-radius: 4px; overflow: hidden;">
+                            <div id="progressBar" style="width: 0%; height: 8px; background: linear-gradient(90deg, #e74c3c, #c0392b); transition: width 0.3s;"></div>
                         </div>
+                        <p id="uploadStatus" style="font-size: 0.85rem; color: #666; margin-top: 0.25rem; text-align: center;">Subiendo imágenes...</p>
                     </div>
                     
-                    <!-- Campos ocultos con la URL e ID de Cloudinary -->
+                    <!-- Campos ocultos con las URLs e IDs de Cloudinary -->
                     <input type="hidden" id="platoImagen">
                     <input type="hidden" id="platoImagenPublicId">
+                    <input type="hidden" id="platoImagenesJson">
                 </div>
                 
                 <div class="form-group">
@@ -278,6 +436,7 @@
 <script>
     let platos = [];
     let categorias = {{ categorias | default([]) | tojson }};
+    let imagenesPlato = []; // Array para manejar múltiples imágenes
 
     document.addEventListener('DOMContentLoaded', function() {
         cargarPlatos();
@@ -285,6 +444,9 @@
         // Búsqueda en tiempo real
         document.getElementById('buscarPlato').addEventListener('input', filtrarPlatos);
         document.getElementById('filtroCategoria').addEventListener('change', filtrarPlatos);
+        
+        // Configurar drag & drop para la galería
+        setupDragDrop();
     });
 
     async function cargarPlatos() {
@@ -318,26 +480,36 @@
 
         tbody.innerHTML = lista.map(plato => {
             const categoria = categorias.find(c => c.id === plato.categoria_id);
+            // Obtener la imagen principal (primera del array o imagen_src)
+            const imagenPrincipal = plato.imagenes && plato.imagenes.length > 0 
+                ? plato.imagenes.find(i => i.es_principal) || plato.imagenes[0]
+                : null;
+            const imgSrc = imagenPrincipal ? imagenPrincipal.imagen_url : (plato.imagen_src || plato.imagen_url);
+            const cantImagenes = plato.imagenes ? plato.imagenes.length : (plato.imagen_url ? 1 : 0);
+            
             return `
                 <tr>
-                    <td>
-                        ${plato.imagen_src 
-                            ? `<img src="${plato.imagen_src}" srcset="${plato.imagen_srcset || ''}" alt="${plato.nombre}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">`
+                    <td data-label="">
+                        ${imgSrc 
+                            ? `<div style="position: relative;">
+                                <img src="${imgSrc}" alt="${plato.nombre}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
+                                ${cantImagenes > 1 ? `<span style="position: absolute; bottom: -4px; right: -4px; background: #3498db; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px;">+${cantImagenes-1}</span>` : ''}
+                               </div>`
                             : `<div style="width: 50px; height: 50px; background: #ecf0f1; border-radius: 8px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-image" style="color: #bdc3c7;"></i></div>`
                         }
                     </td>
-                    <td>
+                    <td data-label="Nombre">
                         <strong>${plato.nombre}</strong>
-                        ${plato.descripcion ? `<br><small style="color: #7f8c8d;">${plato.descripcion.substring(0, 50)}...</small>` : ''}
+                        ${plato.descripcion ? `<br><small style="color: #7f8c8d;">${plato.descripcion.substring(0, 50)}${plato.descripcion.length > 50 ? '...' : ''}</small>` : ''}
                     </td>
-                    <td>${categoria ? categoria.nombre : '-'}</td>
-                    <td><strong style="color: #27ae60;">$${Number(plato.precio).toLocaleString()}</strong></td>
-                    <td>
+                    <td data-label="Categoría">${categoria ? categoria.nombre : '-'}</td>
+                    <td data-label="Precio"><strong style="color: #27ae60;">$${Number(plato.precio).toLocaleString()}</strong></td>
+                    <td data-label="Estado">
                         <span class="tag ${plato.activo ? 'is-success' : 'is-warning'}" style="cursor: pointer;" onclick="toggleEstado(${plato.id}, ${plato.activo})">
                             ${plato.activo ? 'Activo' : 'Inactivo'}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="">
                         <button class="button is-small is-info" onclick="editarPlato(${plato.id})" title="Editar">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -376,11 +548,9 @@
         document.getElementById('formPlato').reset();
         document.getElementById('platoId').value = '';
         document.getElementById('platoImagen').value = '';
-        document.getElementById('platoImagenUrl').value = '';
-        document.getElementById('imagenPreview').style.display = 'none';
-        resetDropZone();
-        cambiarTabImagen('upload');
         document.getElementById('platoImagenPublicId').value = '';
+        imagenesPlato = [];
+        renderizarGaleria();
         document.getElementById('modalPlato').classList.add('active');
     }
 
@@ -398,30 +568,118 @@
         document.getElementById('platoCategoria').value = plato.categoria_id;
         document.getElementById('platoPrecio').value = plato.precio;
         document.getElementById('platoDescripcion').value = plato.descripcion || '';
-        document.getElementById('platoImagen').value = plato.imagen_url || '';
-        document.getElementById('platoImagenPublicId').value = plato.imagen_public_id || '';
         document.getElementById('platoEtiquetas').value = plato.etiquetas || '';
         
-        // Si tiene imagen, mostrar preview
-        if (plato.imagen_url) {
-            mostrarPreviewImagen(plato.imagen_url, false);
+        // Cargar imágenes del plato
+        if (plato.imagenes && plato.imagenes.length > 0) {
+            imagenesPlato = plato.imagenes.map(img => ({
+                url: img.imagen_url,
+                public_id: img.imagen_public_id,
+                id: img.id,
+                es_principal: img.es_principal
+            }));
+        } else if (plato.imagen_url) {
+            // Compatibilidad con imagen única antigua
+            imagenesPlato = [{
+                url: plato.imagen_url,
+                public_id: plato.imagen_public_id,
+                es_principal: true
+            }];
         } else {
-            document.getElementById('imagenPreview').style.display = 'none';
-            resetDropZone();
+            imagenesPlato = [];
         }
         
+        // Mantener compatibilidad con campo oculto para imagen principal
+        const imgPrincipal = imagenesPlato.find(i => i.es_principal) || imagenesPlato[0];
+        if (imgPrincipal) {
+            document.getElementById('platoImagen').value = imgPrincipal.url;
+            document.getElementById('platoImagenPublicId').value = imgPrincipal.public_id || '';
+        }
+        
+        renderizarGaleria();
         document.getElementById('modalPlato').classList.add('active');
+    }
+
+    function renderizarGaleria() {
+        const galeria = document.getElementById('imagenesGaleria');
+        
+        let html = imagenesPlato.map((img, index) => `
+            <div class="imagen-item ${img.es_principal ? 'principal' : ''}" data-index="${index}">
+                <img src="${img.url}" alt="Imagen ${index + 1}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2250%22 fill=%22%23999%22 text-anchor=%22middle%22 dy=%22.3em%22>Error</text></svg>'">
+                ${img.es_principal ? '<span class="imagen-badge">Principal</span>' : ''}
+                <div class="imagen-actions">
+                    ${!img.es_principal ? `<button type="button" class="btn-principal" onclick="hacerPrincipal(${index})" title="Hacer principal"><i class="fas fa-star"></i></button>` : ''}
+                    <button type="button" class="btn-eliminar" onclick="eliminarImagenGaleria(${index})" title="Eliminar"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Botón para agregar más (máximo 5 imágenes)
+        if (imagenesPlato.length < 5) {
+            html += `
+                <div class="imagen-item add-imagen-btn" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-plus"></i>
+                    <span>Agregar</span>
+                </div>
+            `;
+        }
+        
+        galeria.innerHTML = html;
+    }
+
+    function hacerPrincipal(index) {
+        imagenesPlato.forEach((img, i) => {
+            img.es_principal = (i === index);
+        });
+        
+        // Actualizar campos ocultos con la nueva imagen principal
+        const imgPrincipal = imagenesPlato[index];
+        document.getElementById('platoImagen').value = imgPrincipal.url;
+        document.getElementById('platoImagenPublicId').value = imgPrincipal.public_id || '';
+        
+        renderizarGaleria();
+    }
+
+    function eliminarImagenGaleria(index) {
+        const eliminada = imagenesPlato.splice(index, 1)[0];
+        
+        // Si era la principal, hacer principal a la primera
+        if (eliminada.es_principal && imagenesPlato.length > 0) {
+            imagenesPlato[0].es_principal = true;
+            document.getElementById('platoImagen').value = imagenesPlato[0].url;
+            document.getElementById('platoImagenPublicId').value = imagenesPlato[0].public_id || '';
+        }
+        
+        if (imagenesPlato.length === 0) {
+            document.getElementById('platoImagen').value = '';
+            document.getElementById('platoImagenPublicId').value = '';
+        }
+        
+        renderizarGaleria();
     }
 
     async function guardarPlato() {
         const id = document.getElementById('platoId').value;
+        
+        // Preparar imágenes para enviar
+        const imagenes = imagenesPlato.map((img, index) => ({
+            imagen_url: img.url,
+            imagen_public_id: img.public_id,
+            es_principal: img.es_principal ? 1 : 0,
+            orden: index
+        }));
+        
+        // Imagen principal para compatibilidad
+        const imgPrincipal = imagenesPlato.find(i => i.es_principal) || imagenesPlato[0];
+        
         const data = {
             nombre: document.getElementById('platoNombre').value,
             categoria_id: parseInt(document.getElementById('platoCategoria').value),
             precio: parseFloat(document.getElementById('platoPrecio').value),
             descripcion: document.getElementById('platoDescripcion').value,
-            imagen_url: document.getElementById('platoImagen').value,
-            imagen_public_id: document.getElementById('platoImagenPublicId').value || null,
+            imagen_url: imgPrincipal ? imgPrincipal.url : '',
+            imagen_public_id: imgPrincipal ? imgPrincipal.public_id : null,
+            imagenes: imagenes,
             etiquetas: document.getElementById('platoEtiquetas').value
         };
 
@@ -526,7 +784,6 @@
             
             if (result.success) {
                 cerrarModalCategoria();
-                // Recargar página para actualizar categorías
                 location.reload();
             } else {
                 alert(result.error || 'Error al guardar');
@@ -563,209 +820,125 @@
     }
 
     // ========================================
-    // FUNCIONES DE SUBIDA DE IMAGEN
+    // FUNCIONES DE SUBIDA DE IMÁGENES MÚLTIPLES
     // ========================================
     
-    function cambiarTabImagen(tab) {
-        const uploadSection = document.getElementById('uploadSection');
-        const urlSection = document.getElementById('urlSection');
-        const tabUpload = document.getElementById('tabUpload');
-        const tabUrl = document.getElementById('tabUrl');
+    async function subirImagenes(input) {
+        const files = Array.from(input.files);
+        if (files.length === 0) return;
         
-        if (tab === 'upload') {
-            uploadSection.style.display = 'block';
-            urlSection.style.display = 'none';
-            tabUpload.classList.add('active');
-            tabUpload.style.background = '#e74c3c';
-            tabUpload.style.color = 'white';
-            tabUrl.classList.remove('active');
-            tabUrl.style.background = '#ecf0f1';
-            tabUrl.style.color = '#2c3e50';
-        } else {
-            uploadSection.style.display = 'none';
-            urlSection.style.display = 'block';
-            tabUrl.classList.add('active');
-            tabUrl.style.background = '#e74c3c';
-            tabUrl.style.color = 'white';
-            tabUpload.classList.remove('active');
-            tabUpload.style.background = '#ecf0f1';
-            tabUpload.style.color = '#2c3e50';
-        }
-    }
-
-    async function subirImagen(input) {
-        const file = input.files[0];
-        if (!file) return;
-        
-        // Validar tamaño (5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            mostrarError('La imagen es muy grande. Máximo 5MB.');
+        // Verificar límite de imágenes
+        if (imagenesPlato.length + files.length > 5) {
+            mostrarError('Máximo 5 imágenes por plato');
             return;
         }
         
-        // Validar tipo
-        const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-        if (!allowedTypes.includes(file.type)) {
-            mostrarError('Tipo de archivo no permitido.');
-            return;
-        }
-        
-        // Mostrar preview local inmediatamente
-        const localPreviewUrl = URL.createObjectURL(file);
-        mostrarPreviewImagen(localPreviewUrl, true); // true = es local, aún subiendo
-        
-        // Mostrar progreso
         const progressDiv = document.getElementById('uploadProgress');
         const progressBar = document.getElementById('progressBar');
         const uploadStatus = document.getElementById('uploadStatus');
-        const dropZone = document.getElementById('dropZone');
         
         progressDiv.style.display = 'block';
-        dropZone.style.display = 'none';
-        progressBar.style.width = '30%';
-        uploadStatus.textContent = 'Subiendo imagen...';
+        let subidas = 0;
         
-        const formData = new FormData();
-        formData.append('image', file);
-        
-        try {
-            progressBar.style.width = '60%';
-            
-            const response = await fetch('/api/upload-image', {
-                method: 'POST',
-                body: formData
-            });
-            
-            progressBar.style.width = '90%';
-            const result = await response.json();
-            
-            if (result.success) {
-                progressBar.style.width = '100%';
-                uploadStatus.textContent = '¡Imagen subida!';
-                
-                // Guardar URL y public_id en campos ocultos
-                document.getElementById('platoImagen').value = result.url;
-                document.getElementById('platoImagenPublicId').value = result.public_id || '';
-                
-                // Actualizar preview con URL de Cloudinary
-                setTimeout(() => {
-                    mostrarPreviewImagen(result.url, false);
-                    progressDiv.style.display = 'none';
-                }, 500);
-                
-                mostrarExito('Imagen subida correctamente');
-            } else {
-                mostrarError(result.error || 'Error al subir imagen');
-                eliminarImagen();
-                progressDiv.style.display = 'none';
+        for (const file of files) {
+            // Validar tamaño (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                mostrarError(`${file.name} es muy grande. Máximo 5MB.`);
+                continue;
             }
-        } catch (error) {
-            console.error('Error:', error);
-            mostrarError('Error de conexión al subir imagen');
-            eliminarImagen();
-            progressDiv.style.display = 'none';
-        }
-        
-        // Limpiar URL local
-        URL.revokeObjectURL(localPreviewUrl);
-    }
-
-    function previewImagenUrl() {
-        const url = document.getElementById('platoImagenUrl').value;
-        if (url) {
-            document.getElementById('platoImagen').value = url;
-            mostrarPreviewImagen(url, false);
-        }
-    }
-
-    function mostrarPreviewImagen(url, isLoading = false) {
-        const preview = document.getElementById('imagenPreview');
-        const img = document.getElementById('previewImg');
-        const previewError = document.getElementById('previewError');
-        
-        // Resetear estados
-        img.style.display = 'block';
-        previewError.style.display = 'none';
-        
-        // Si está cargando, añadir indicador visual
-        if (isLoading) {
-            img.style.opacity = '0.6';
-            img.style.filter = 'blur(1px)';
-        } else {
-            img.style.opacity = '1';
-            img.style.filter = 'none';
-        }
-        
-        img.src = url;
-        preview.style.display = 'block';
-        
-        // Ocultar drop zone
-        const dropZone = document.getElementById('dropZone');
-        dropZone.style.display = 'none';
-    }
-
-    function eliminarImagen() {
-        document.getElementById('platoImagen').value = '';
-        document.getElementById('platoImagenPublicId').value = '';
-        document.getElementById('platoImagenUrl').value = '';
-        document.getElementById('imagenPreview').style.display = 'none';
-        document.getElementById('fileInput').value = ''; // Limpiar input de archivo
-        resetDropZone();
-    }
-
-    function resetDropZone() {
-        const dropZone = document.getElementById('dropZone');
-        dropZone.style.display = 'block';
-        dropZone.style.borderColor = '#e74c3c';
-        dropZone.style.background = '#fef5f5';
-        dropZone.innerHTML = `
-            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #e74c3c; margin-bottom: 0.5rem;"></i>
-            <p style="color: #c0392b; margin: 0; font-weight: 500;">Haz clic para seleccionar una imagen</p>
-            <small style="color: #95a5a6;">PNG, JPG, GIF, WEBP (máx. 5MB)</small>
-        `;
-    }
-
-    // Drag & Drop
-    document.addEventListener('DOMContentLoaded', function() {
-        const dropZone = document.getElementById('dropZone');
-        
-        if (dropZone) {
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = '#3498db';
-                dropZone.style.background = '#f0f8ff';
-            });
             
-            dropZone.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = '#ddd';
-                dropZone.style.background = 'transparent';
-            });
+            // Validar tipo
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                mostrarError(`${file.name}: tipo no permitido.`);
+                continue;
+            }
             
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = '#ddd';
-                dropZone.style.background = 'transparent';
+            progressBar.style.width = `${(subidas / files.length) * 100}%`;
+            uploadStatus.textContent = `Subiendo ${subidas + 1} de ${files.length}...`;
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            try {
+                const response = await fetch('/api/upload-image', {
+                    method: 'POST',
+                    body: formData
+                });
                 
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    document.getElementById('fileInput').files = files;
-                    subirImagen(document.getElementById('fileInput'));
+                const result = await response.json();
+                
+                if (result.success) {
+                    const esPrimera = imagenesPlato.length === 0;
+                    imagenesPlato.push({
+                        url: result.url,
+                        public_id: result.public_id,
+                        es_principal: esPrimera
+                    });
+                    
+                    // Actualizar campos ocultos con la primera imagen
+                    if (esPrimera) {
+                        document.getElementById('platoImagen').value = result.url;
+                        document.getElementById('platoImagenPublicId').value = result.public_id || '';
+                    }
+                    
+                    subidas++;
+                } else {
+                    mostrarError(result.error || `Error subiendo ${file.name}`);
                 }
-            });
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarError(`Error de conexión subiendo ${file.name}`);
+            }
         }
-    });
+        
+        progressBar.style.width = '100%';
+        uploadStatus.textContent = `${subidas} imagen(es) subida(s)`;
+        
+        setTimeout(() => {
+            progressDiv.style.display = 'none';
+            progressBar.style.width = '0%';
+        }, 1000);
+        
+        renderizarGaleria();
+        input.value = ''; // Limpiar input
+        
+        if (subidas > 0) {
+            mostrarExito(`${subidas} imagen(es) subida(s) correctamente`);
+        }
+    }
+    
+    function setupDragDrop() {
+        const galeria = document.getElementById('imagenesGaleria');
+        if (!galeria) return;
+        
+        galeria.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            galeria.style.background = '#f0f8ff';
+        });
+        
+        galeria.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            galeria.style.background = '';
+        });
+        
+        galeria.addEventListener('drop', (e) => {
+            e.preventDefault();
+            galeria.style.background = '';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+                subirImagenes(document.getElementById('fileInput'));
+            }
+        });
+    }
 </script>
 
 <style>
     @keyframes slideIn {
         from { transform: translateX(100%); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
-    }
-    
-    .image-tab.active {
-        background: #e74c3c !important;
-        color: white !important;
     }
 </style>
 {% endblock %}

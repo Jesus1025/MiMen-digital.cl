@@ -461,6 +461,134 @@
             font-size: 2.5rem;
         }
 
+        /* ============================================
+           CARRUSEL DE IMÁGENES
+           ============================================ */
+        .dish-carousel {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .dish-carousel .carousel-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+            pointer-events: none;
+        }
+
+        .dish-carousel .carousel-image.active {
+            opacity: 1;
+            pointer-events: auto;
+            position: relative;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dark);
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .dish-carousel:hover .carousel-btn,
+        .dish-carousel:focus-within .carousel-btn {
+            opacity: 1;
+        }
+
+        .carousel-prev {
+            left: 8px;
+        }
+
+        .carousel-next {
+            right: 8px;
+        }
+
+        .carousel-btn:hover {
+            background: var(--bg-white);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .carousel-btn:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+
+        .carousel-indicators {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .carousel-dot:hover {
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .carousel-dot.active {
+            background: var(--primary-color);
+            transform: scale(1.2);
+        }
+
+        /* En móvil, mostrar botones siempre */
+        @media (max-width: 768px) {
+            .carousel-btn {
+                opacity: 0.9;
+                width: 28px;
+                height: 28px;
+                font-size: 0.75rem;
+            }
+            
+            .carousel-dot {
+                width: 6px;
+                height: 6px;
+            }
+            
+            /* Mejorar touch targets en móvil */
+            .carousel-indicators {
+                bottom: 8px;
+                padding: 4px 8px;
+                background: rgba(0,0,0,0.2);
+                border-radius: 12px;
+            }
+        }
+
+        /* Modo horizontal en móvil */
+        .dish-card-horizontal .dish-carousel {
+            aspect-ratio: 1;
+        }
+
         .dish-content {
             padding: 1rem;
             flex: 1;
@@ -964,7 +1092,35 @@
                             {% for plato in categoria.platos %}
                                 <article class="dish-card" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}">
                                     <div class="dish-image-wrapper">
-                                        {% if plato.imagen_src %}
+                                        {% if plato.imagenes and plato.imagenes|length > 1 %}
+                                            <!-- Carrusel para múltiples imágenes -->
+                                            <div class="dish-carousel" data-plato-id="{{ plato.id }}">
+                                                {% for img in plato.imagenes %}
+                                                    <img 
+                                                        src="{{ img.imagen_src or img.imagen_url }}"
+                                                        alt="{{ plato.nombre }} - {{ loop.index }}" 
+                                                        class="dish-image carousel-image {% if loop.first %}active{% endif %}"
+                                                        loading="lazy"
+                                                    >
+                                                {% endfor %}
+                                                <div class="carousel-indicators">
+                                                    {% for img in plato.imagenes %}
+                                                        <span class="carousel-dot {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}"></span>
+                                                    {% endfor %}
+                                                </div>
+                                                <button class="carousel-btn carousel-prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+                                                <button class="carousel-btn carousel-next" aria-label="Siguiente"><i class="fas fa-chevron-right"></i></button>
+                                            </div>
+                                        {% elif plato.imagenes and plato.imagenes|length == 1 %}
+                                            <!-- Una sola imagen de la tabla platos_imagenes -->
+                                            <img 
+                                                src="{{ plato.imagenes[0].imagen_src or plato.imagenes[0].imagen_url }}"
+                                                alt="{{ plato.nombre }}" 
+                                                class="dish-image"
+                                                loading="lazy"
+                                            >
+                                        {% elif plato.imagen_src %}
+                                            <!-- Fallback: imagen de la tabla platos -->
                                             <img 
                                                 src="{{ plato.imagen_src }}"
                                                 {% if plato.imagen_srcset %} srcset="{{ plato.imagen_srcset }}" sizes="(max-width: 600px) 100vw, 33vw" {% endif %}
@@ -2034,6 +2190,95 @@
                 alert('Error al generar el PDF. Intenta nuevamente.');
             });
         }
+
+        // ==========================================
+        // CARRUSEL DE IMÁGENES
+        // ==========================================
+        function initCarousels() {
+            const carousels = document.querySelectorAll('.dish-carousel');
+            
+            carousels.forEach(carousel => {
+                const images = carousel.querySelectorAll('.carousel-image');
+                const dots = carousel.querySelectorAll('.carousel-dot');
+                const prevBtn = carousel.querySelector('.carousel-prev');
+                const nextBtn = carousel.querySelector('.carousel-next');
+                let currentIndex = 0;
+                let touchStartX = 0;
+                let touchEndX = 0;
+
+                function showSlide(index) {
+                    // Manejar índice circular
+                    if (index >= images.length) index = 0;
+                    if (index < 0) index = images.length - 1;
+                    currentIndex = index;
+
+                    // Actualizar imágenes
+                    images.forEach((img, i) => {
+                        img.classList.toggle('active', i === currentIndex);
+                    });
+
+                    // Actualizar indicadores
+                    dots.forEach((dot, i) => {
+                        dot.classList.toggle('active', i === currentIndex);
+                    });
+                }
+
+                // Botón anterior
+                if (prevBtn) {
+                    prevBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSlide(currentIndex - 1);
+                    });
+                }
+
+                // Botón siguiente
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSlide(currentIndex + 1);
+                    });
+                }
+
+                // Click en indicadores
+                dots.forEach((dot, i) => {
+                    dot.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSlide(i);
+                    });
+                });
+
+                // Soporte táctil (swipe)
+                carousel.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+
+                carousel.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    handleSwipe();
+                }, { passive: true });
+
+                function handleSwipe() {
+                    const swipeThreshold = 50;
+                    const diff = touchStartX - touchEndX;
+                    
+                    if (Math.abs(diff) > swipeThreshold) {
+                        if (diff > 0) {
+                            // Swipe izquierda -> siguiente
+                            showSlide(currentIndex + 1);
+                        } else {
+                            // Swipe derecha -> anterior
+                            showSlide(currentIndex - 1);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Inicializar carruseles cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', initCarousels);
     </script>
 
 </body>
