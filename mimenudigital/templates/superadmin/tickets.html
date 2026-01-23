@@ -1,0 +1,527 @@
+{% extends "superadmin/base_superadmin.html" %}
+
+{% block title %}Tickets de Soporte - SuperAdmin{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-headset"></i> Tickets de Soporte
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tickets-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border-left: 4px solid;
+    }
+    
+    .stat-card.abiertos { border-color: #e74c3c; }
+    .stat-card.en-proceso { border-color: #f39c12; }
+    .stat-card.respondidos { border-color: #27ae60; }
+    .stat-card.total { border-color: #3498db; }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+    
+    .stat-label {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+        margin-top: 0.25rem;
+    }
+    
+    .ticket-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border-left: 4px solid #ddd;
+    }
+    
+    .ticket-card:hover {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    
+    .ticket-card.prioridad-urgente { border-color: #e74c3c; }
+    .ticket-card.prioridad-alta { border-color: #f39c12; }
+    .ticket-card.prioridad-media { border-color: #3498db; }
+    .ticket-card.prioridad-baja { border-color: #95a5a6; }
+    
+    .ticket-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .ticket-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    .ticket-badges {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .badge-estado-abierto { background: #fef0f0; color: #e74c3c; }
+    .badge-estado-en_proceso { background: #fef9e7; color: #f39c12; }
+    .badge-estado-respondido { background: #e8f8f0; color: #27ae60; }
+    .badge-estado-cerrado { background: #f0f0f0; color: #7f8c8d; }
+    
+    .badge-tipo-consulta { background: #e8f4fc; color: #3498db; }
+    .badge-tipo-problema_tecnico { background: #fef0f0; color: #e74c3c; }
+    .badge-tipo-facturacion { background: #f5f0fe; color: #9b59b6; }
+    .badge-tipo-otro { background: #f0f0f0; color: #7f8c8d; }
+    
+    .badge-prioridad-urgente { background: #e74c3c; color: white; }
+    .badge-prioridad-alta { background: #f39c12; color: white; }
+    .badge-prioridad-media { background: #3498db; color: white; }
+    .badge-prioridad-baja { background: #95a5a6; color: white; }
+    
+    .ticket-meta {
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.85rem;
+        color: #7f8c8d;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .ticket-meta i { margin-right: 0.35rem; }
+    
+    .ticket-message {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        color: #2c3e50;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        max-height: 100px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .ticket-message.expanded {
+        max-height: none;
+    }
+    
+    .ticket-message::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 40px;
+        background: linear-gradient(transparent, #f8f9fa);
+    }
+    
+    .ticket-message.expanded::after {
+        display: none;
+    }
+    
+    .ticket-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-sm {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+    
+    .btn-primary:hover { background: #2980b9; }
+    
+    .btn-success {
+        background: #27ae60;
+        color: white;
+    }
+    
+    .btn-success:hover { background: #1e8449; }
+    
+    .btn-warning {
+        background: #f39c12;
+        color: white;
+    }
+    
+    .btn-warning:hover { background: #d68910; }
+    
+    .btn-secondary {
+        background: #ecf0f1;
+        color: #2c3e50;
+    }
+    
+    .btn-secondary:hover { background: #d5dbdb; }
+    
+    /* Filtros */
+    .filters-bar {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .filter-group label {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+        font-weight: 500;
+    }
+    
+    .filter-group select {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+    
+    /* Modal de respuesta */
+    .modal-card {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    
+    .modal-card-head {
+        background: #3498db;
+        border: none;
+    }
+    
+    .modal-card-title {
+        color: white;
+    }
+    
+    .response-preview {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #3498db;
+    }
+    
+    .response-preview strong {
+        color: #2c3e50;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #7f8c8d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .ticket-header {
+            flex-direction: column;
+        }
+        
+        .ticket-meta {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .filters-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Estadísticas -->
+<div class="tickets-stats">
+    <div class="stat-card abiertos">
+        <div class="stat-number">{{ stats.abiertos or 0 }}</div>
+        <div class="stat-label">Abiertos</div>
+    </div>
+    <div class="stat-card en-proceso">
+        <div class="stat-number">{{ stats.en_proceso or 0 }}</div>
+        <div class="stat-label">En Proceso</div>
+    </div>
+    <div class="stat-card respondidos">
+        <div class="stat-number">{{ stats.respondidos or 0 }}</div>
+        <div class="stat-label">Respondidos</div>
+    </div>
+    <div class="stat-card total">
+        <div class="stat-number">{{ stats.total or 0 }}</div>
+        <div class="stat-label">Total</div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="filters-bar">
+    <div class="filter-group">
+        <label>Estado:</label>
+        <select id="filtroEstado" onchange="aplicarFiltros()">
+            <option value="">Todos</option>
+            <option value="abierto" {{ 'selected' if filtro_estado == 'abierto' }}>Abiertos</option>
+            <option value="en_proceso" {{ 'selected' if filtro_estado == 'en_proceso' }}>En proceso</option>
+            <option value="respondido" {{ 'selected' if filtro_estado == 'respondido' }}>Respondidos</option>
+            <option value="cerrado" {{ 'selected' if filtro_estado == 'cerrado' }}>Cerrados</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Tipo:</label>
+        <select id="filtroTipo" onchange="aplicarFiltros()">
+            <option value="">Todos</option>
+            <option value="consulta" {{ 'selected' if filtro_tipo == 'consulta' }}>Consulta</option>
+            <option value="problema_tecnico" {{ 'selected' if filtro_tipo == 'problema_tecnico' }}>Problema técnico</option>
+            <option value="facturacion" {{ 'selected' if filtro_tipo == 'facturacion' }}>Facturación</option>
+            <option value="otro" {{ 'selected' if filtro_tipo == 'otro' }}>Otro</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Prioridad:</label>
+        <select id="filtroPrioridad" onchange="aplicarFiltros()">
+            <option value="">Todas</option>
+            <option value="urgente" {{ 'selected' if filtro_prioridad == 'urgente' }}>Urgente</option>
+            <option value="alta" {{ 'selected' if filtro_prioridad == 'alta' }}>Alta</option>
+            <option value="media" {{ 'selected' if filtro_prioridad == 'media' }}>Media</option>
+            <option value="baja" {{ 'selected' if filtro_prioridad == 'baja' }}>Baja</option>
+        </select>
+    </div>
+</div>
+
+<!-- Lista de tickets -->
+{% if tickets %}
+    {% for ticket in tickets %}
+    <div class="ticket-card prioridad-{{ ticket.prioridad }}" id="ticket-{{ ticket.id }}">
+        <div class="ticket-header">
+            <h3 class="ticket-title">
+                #{{ ticket.id }} - {{ ticket.asunto }}
+            </h3>
+            <div class="ticket-badges">
+                <span class="badge badge-estado-{{ ticket.estado }}">{{ ticket.estado|replace('_', ' ')|title }}</span>
+                <span class="badge badge-tipo-{{ ticket.tipo }}">{{ ticket.tipo|replace('_', ' ')|title }}</span>
+                <span class="badge badge-prioridad-{{ ticket.prioridad }}">{{ ticket.prioridad|title }}</span>
+            </div>
+        </div>
+        
+        <div class="ticket-meta">
+            <span><i class="fas fa-user"></i> {{ ticket.nombre }}</span>
+            <span><i class="fas fa-envelope"></i> <a href="mailto:{{ ticket.email }}">{{ ticket.email }}</a></span>
+            {% if ticket.telefono %}
+            <span><i class="fas fa-phone"></i> {{ ticket.telefono }}</span>
+            {% endif %}
+            <span><i class="fas fa-clock"></i> {{ ticket.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}</span>
+            {% if ticket.restaurante_nombre %}
+            <span><i class="fas fa-store"></i> {{ ticket.restaurante_nombre }}</span>
+            {% endif %}
+        </div>
+        
+        <div class="ticket-message" id="msg-{{ ticket.id }}">
+            {{ ticket.mensaje }}
+        </div>
+        
+        {% if ticket.respuesta %}
+        <div class="response-preview">
+            <strong><i class="fas fa-reply"></i> Respuesta ({{ ticket.fecha_respuesta.strftime('%d/%m/%Y %H:%M') if ticket.fecha_respuesta else 'N/A' }}):</strong><br>
+            {{ ticket.respuesta }}
+        </div>
+        {% endif %}
+        
+        <div class="ticket-actions">
+            <button class="btn-sm btn-secondary" onclick="toggleMessage({{ ticket.id }})">
+                <i class="fas fa-expand"></i> Expandir
+            </button>
+            
+            {% if ticket.estado != 'cerrado' %}
+                <button class="btn-sm btn-primary" onclick="abrirModalResponder({{ ticket.id }}, '{{ ticket.email }}', '{{ ticket.asunto|e }}')">
+                    <i class="fas fa-reply"></i> Responder
+                </button>
+                
+                {% if ticket.estado == 'abierto' %}
+                <button class="btn-sm btn-warning" onclick="cambiarEstado({{ ticket.id }}, 'en_proceso')">
+                    <i class="fas fa-spinner"></i> En proceso
+                </button>
+                {% endif %}
+                
+                <button class="btn-sm btn-success" onclick="cambiarEstado({{ ticket.id }}, 'cerrado')">
+                    <i class="fas fa-check"></i> Cerrar
+                </button>
+            {% else %}
+                <button class="btn-sm btn-secondary" onclick="cambiarEstado({{ ticket.id }}, 'abierto')">
+                    <i class="fas fa-redo"></i> Reabrir
+                </button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <h3>No hay tickets</h3>
+        <p>No se encontraron tickets con los filtros seleccionados</p>
+    </div>
+{% endif %}
+
+<!-- Modal de respuesta -->
+<div class="modal" id="modalResponder">
+    <div class="modal-background" onclick="cerrarModal()"></div>
+    <div class="modal-card">
+        <header class="modal-card-head">
+            <p class="modal-card-title"><i class="fas fa-reply"></i> Responder ticket</p>
+            <button class="delete" aria-label="close" onclick="cerrarModal()"></button>
+        </header>
+        <section class="modal-card-body">
+            <form id="formResponder" method="POST" action="{{ url_for('superadmin_responder_ticket') }}">
+                <input type="hidden" name="ticket_id" id="ticketIdInput">
+                
+                <div class="field">
+                    <label class="label">Destinatario</label>
+                    <div class="control">
+                        <input class="input" type="email" id="emailDestino" readonly>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="label">Asunto original</label>
+                    <div class="control">
+                        <input class="input" type="text" id="asuntoOriginal" readonly>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="label">Respuesta</label>
+                    <div class="control">
+                        <textarea class="textarea" name="respuesta" rows="6" required placeholder="Escribe tu respuesta aquí..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" name="enviar_email" checked>
+                        Enviar respuesta por email al usuario
+                    </label>
+                </div>
+                
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" name="cerrar_ticket">
+                        Marcar ticket como cerrado después de responder
+                    </label>
+                </div>
+            </form>
+        </section>
+        <footer class="modal-card-foot">
+            <button class="button is-primary" onclick="enviarRespuesta()">
+                <i class="fas fa-paper-plane"></i>&nbsp; Enviar respuesta
+            </button>
+            <button class="button" onclick="cerrarModal()">Cancelar</button>
+        </footer>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function aplicarFiltros() {
+    const estado = document.getElementById('filtroEstado').value;
+    const tipo = document.getElementById('filtroTipo').value;
+    const prioridad = document.getElementById('filtroPrioridad').value;
+    
+    let url = '{{ url_for("superadmin_tickets") }}?';
+    if (estado) url += `estado=${estado}&`;
+    if (tipo) url += `tipo=${tipo}&`;
+    if (prioridad) url += `prioridad=${prioridad}&`;
+    
+    window.location.href = url;
+}
+
+function toggleMessage(id) {
+    const msg = document.getElementById(`msg-${id}`);
+    msg.classList.toggle('expanded');
+}
+
+function abrirModalResponder(ticketId, email, asunto) {
+    document.getElementById('ticketIdInput').value = ticketId;
+    document.getElementById('emailDestino').value = email;
+    document.getElementById('asuntoOriginal').value = asunto;
+    document.getElementById('modalResponder').classList.add('is-active');
+}
+
+function cerrarModal() {
+    document.getElementById('modalResponder').classList.remove('is-active');
+}
+
+function enviarRespuesta() {
+    document.getElementById('formResponder').submit();
+}
+
+function cambiarEstado(ticketId, nuevoEstado) {
+    if (nuevoEstado === 'cerrado' && !confirm('¿Seguro que deseas cerrar este ticket?')) {
+        return;
+    }
+    
+    fetch('{{ url_for("superadmin_cambiar_estado_ticket") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket_id: ticketId, estado: nuevoEstado })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(err => alert('Error de conexión'));
+}
+</script>
+{% endblock %}

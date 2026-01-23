@@ -685,6 +685,43 @@ from database import init_app as db_init_app, get_db as db_get_db, get_cursor as
 db_init_app(app)
 logger.info("Database module initialized via database.init_app")
 
+# ============================================================
+# INICIALIZAR SERVICIO DE EMAIL
+# ============================================================
+try:
+    from email_service import (
+        init_mail, 
+        is_mail_configured,
+        enviar_confirmacion_ticket,
+        notificar_nuevo_ticket_admin,
+        enviar_respuesta_ticket,
+        enviar_email_recuperacion
+    )
+    
+    # Cargar configuración de email en la app
+    from config import MailConfig
+    app.config['MAIL_SERVER'] = MailConfig.MAIL_SERVER
+    app.config['MAIL_PORT'] = MailConfig.MAIL_PORT
+    app.config['MAIL_USE_TLS'] = MailConfig.MAIL_USE_TLS
+    app.config['MAIL_USE_SSL'] = MailConfig.MAIL_USE_SSL
+    app.config['MAIL_USERNAME'] = MailConfig.MAIL_USERNAME
+    app.config['MAIL_PASSWORD'] = MailConfig.MAIL_PASSWORD
+    app.config['MAIL_DEFAULT_SENDER'] = MailConfig.MAIL_DEFAULT_SENDER
+    app.config['SUPERADMIN_EMAIL'] = MailConfig.SUPERADMIN_EMAIL
+    
+    # Inicializar Flask-Mail
+    mail = init_mail(app)
+    EMAIL_SERVICE_AVAILABLE = mail is not None
+    logger.info("Email service initialized: %s", EMAIL_SERVICE_AVAILABLE)
+except ImportError as e:
+    logger.warning("Email service not available: %s", e)
+    EMAIL_SERVICE_AVAILABLE = False
+    def is_mail_configured(): return False
+    def enviar_confirmacion_ticket(data): return False
+    def notificar_nuevo_ticket_admin(data, url): return False
+    def enviar_respuesta_ticket(data, respuesta): return False
+    def enviar_email_recuperacion(data, url): return False
+
 # Backwards compatibility: expose expected names used across the codebase
 get_db = db_get_db
 get_cursor = db_get_cursor
@@ -794,9 +831,22 @@ def handle_request_entity_too_large(e):
 @app.context_processor
 def inject_globals():
     """Inyecta variables globales en todos los templates."""
+    # Contador de tickets pendientes para superadmin
+    tickets_pendientes = 0
+    if session.get('rol') == 'superadmin':
+        try:
+            db = get_db()
+            with db.cursor() as cur:
+                cur.execute("SELECT COUNT(*) as count FROM tickets_soporte WHERE estado IN ('abierto', 'en_proceso')")
+                result = cur.fetchone()
+                tickets_pendientes = result['count'] if result else 0
+        except Exception:
+            pass  # Silenciar errores si la tabla no existe aún
+    
     return {
         'subscription_info': g.get('subscription_info', None),
-        'now': datetime.utcnow()
+        'now': datetime.utcnow(),
+        'tickets_pendientes': tickets_pendientes
     }
 
 
@@ -1515,17 +1565,33 @@ def recuperar_contraseña():
                 # Link de reset
                 reset_url = f"{BASE_URL}/resetear-contraseña/{token}"
                 
-                # En producción, enviar email. Por ahora mostramos el link en desarrollo
-                # Log email, but do not print full token
-                token_mask = (token[:6] + '...') if token else None
-                logger.info("Password reset requested for %s. Token masked: %s", email, token_mask)
-                
-                if os.environ.get('FLASK_ENV') == 'production':
-                    # TODO: Implementar envío de email real
-                    flash('Se ha enviado un link de recuperación a tu email', 'success')
+                # Enviar email de recuperación
+                if EMAIL_SERVICE_AVAILABLE:
+                    try:
+                        usuario_data = {
+                            'nombre': user['nombre'],
+                            'email': user['email']
+                        }
+                        enviar_email_recuperacion(usuario_data, reset_url)
+                        logger.info("Email de recuperación enviado a %s", email)
+                        flash('Se ha enviado un link de recuperación a tu email', 'success')
+                    except Exception as email_err:
+                        logger.error("Error enviando email de recuperación: %s", email_err)
+                        # Fallback: mostrar link en desarrollo
+                        if os.environ.get('FLASK_ENV') != 'production':
+                            flash(f'Error con email. Link de reset: <a href="{reset_url}">Haz clic aquí</a>', 'warning')
+                        else:
+                            flash('Error enviando el email. Por favor intenta de nuevo.', 'error')
                 else:
-                    # En desarrollo, mostrar el link
-                    flash(f'Link de reset: <a href="{reset_url}">Haz clic aquí</a>', 'success')
+                    # Email no configurado
+                    token_mask = (token[:6] + '...') if token else None
+                    logger.info("Password reset requested for %s. Token masked: %s (email not configured)", email, token_mask)
+                    
+                    if os.environ.get('FLASK_ENV') != 'production':
+                        # En desarrollo, mostrar el link
+                        flash(f'Link de reset: <a href="{reset_url}">Haz clic aquí</a>', 'success')
+                    else:
+                        flash('Se ha enviado un link de recuperación a tu email si está registrado', 'info')
                 
                 return render_template('recuperar_contraseña.html')
         
@@ -3202,11 +3268,276 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+
 @app.route('/superadmin/estadisticas')
 @login_required
 @superadmin_required
 def superadmin_estadisticas():
     return render_template('superadmin/estadisticas.html')
+
+
+# ============================================================
+# RUTAS DE SOPORTE / TICKETS
+# ============================================================
+
+@app.route('/soporte', methods=['GET', 'POST'])
+def contactar_soporte():
+    """Formulario público para contactar soporte."""
+    # Valores por defecto si está logueado
+    nombre_default = None
+    email_default = None
+    restaurante_nombre = None
+    restaurante_id = None
+    usuario_id = None
+    
+    if 'user_id' in session:
+        usuario_id = session['user_id']
+        nombre_default = session.get('nombre', '')
+        
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("SELECT email FROM usuarios_admin WHERE id = %s", (usuario_id,))
+            user = cur.fetchone()
+            if user:
+                email_default = user.get('email', '')
+            
+            if session.get('restaurante_id'):
+                restaurante_id = session['restaurante_id']
+                cur.execute("SELECT nombre FROM restaurantes WHERE id = %s", (restaurante_id,))
+                rest = cur.fetchone()
+                if rest:
+                    restaurante_nombre = rest['nombre']
+    
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        telefono = request.form.get('telefono', '').strip() or None
+        tipo = request.form.get('tipo', 'consulta')
+        asunto = request.form.get('asunto', '').strip()
+        mensaje = request.form.get('mensaje', '').strip()
+        
+        # Validaciones
+        if not nombre or not email or not asunto or not mensaje:
+            flash('Por favor completa todos los campos obligatorios', 'error')
+            return render_template('soporte.html', 
+                                   nombre_default=nombre_default,
+                                   email_default=email_default,
+                                   restaurante_nombre=restaurante_nombre)
+        
+        if len(mensaje) < 20:
+            flash('El mensaje debe tener al menos 20 caracteres', 'error')
+            return render_template('soporte.html',
+                                   nombre_default=nombre_default,
+                                   email_default=email_default,
+                                   restaurante_nombre=restaurante_nombre)
+        
+        db = get_db()
+        try:
+            with db.cursor() as cur:
+                cur.execute('''
+                    INSERT INTO tickets_soporte 
+                    (usuario_id, restaurante_id, nombre, email, telefono, asunto, mensaje, tipo, ip_address, user_agent, pagina_origen)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', (
+                    usuario_id,
+                    restaurante_id,
+                    nombre,
+                    email,
+                    telefono,
+                    asunto,
+                    mensaje,
+                    tipo,
+                    get_client_ip(),
+                    request.headers.get('User-Agent', '')[:500],
+                    request.referrer or ''
+                ))
+                db.commit()
+                ticket_id = cur.lastrowid
+            
+            # Preparar datos del ticket para emails
+            ticket_data = {
+                'id': ticket_id,
+                'nombre': nombre,
+                'email': email,
+                'telefono': telefono,
+                'asunto': asunto,
+                'mensaje': mensaje,
+                'tipo': tipo,
+                'prioridad': 'media',  # Por defecto
+                'restaurante_nombre': restaurante_nombre
+            }
+            
+            # Enviar email de confirmación al usuario
+            if EMAIL_SERVICE_AVAILABLE:
+                try:
+                    enviar_confirmacion_ticket(ticket_data)
+                    logger.info("Email de confirmación enviado a %s para ticket #%s", email, ticket_id)
+                except Exception as email_err:
+                    logger.error("Error enviando email de confirmación: %s", email_err)
+                
+                # Notificar al superadmin
+                try:
+                    admin_url = url_for('superadmin_tickets', _external=True)
+                    notificar_nuevo_ticket_admin(ticket_data, admin_url)
+                    logger.info("Notificación enviada al superadmin para ticket #%s", ticket_id)
+                except Exception as email_err:
+                    logger.error("Error notificando al superadmin: %s", email_err)
+                
+            logger.info("Nuevo ticket de soporte #%s creado por %s", ticket_id, email)
+            flash(f'¡Mensaje enviado! Tu ticket #{ticket_id} ha sido registrado. Te responderemos pronto a {email}', 'success')
+            return render_template('soporte.html',
+                                   nombre_default=nombre_default,
+                                   email_default=email_default,
+                                   restaurante_nombre=restaurante_nombre)
+            
+        except Exception as e:
+            logger.exception("Error al crear ticket de soporte")
+            flash('Error al enviar el mensaje. Por favor intenta de nuevo.', 'error')
+    
+    return render_template('soporte.html',
+                           nombre_default=nombre_default,
+                           email_default=email_default,
+                           restaurante_nombre=restaurante_nombre)
+
+
+@app.route('/superadmin/tickets')
+@login_required
+@superadmin_required
+def superadmin_tickets():
+    """Panel de gestión de tickets de soporte."""
+    filtro_estado = request.args.get('estado', '')
+    filtro_tipo = request.args.get('tipo', '')
+    filtro_prioridad = request.args.get('prioridad', '')
+    
+    db = get_db()
+    with db.cursor() as cur:
+        # Estadísticas
+        cur.execute("""
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN estado = 'abierto' THEN 1 ELSE 0 END) as abiertos,
+                SUM(CASE WHEN estado = 'en_proceso' THEN 1 ELSE 0 END) as en_proceso,
+                SUM(CASE WHEN estado = 'respondido' THEN 1 ELSE 0 END) as respondidos
+            FROM tickets_soporte
+        """)
+        stats = cur.fetchone()
+        
+        # Construir query con filtros
+        query = """
+            SELECT t.*, r.nombre as restaurante_nombre
+            FROM tickets_soporte t
+            LEFT JOIN restaurantes r ON t.restaurante_id = r.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if filtro_estado:
+            query += " AND t.estado = %s"
+            params.append(filtro_estado)
+        if filtro_tipo:
+            query += " AND t.tipo = %s"
+            params.append(filtro_tipo)
+        if filtro_prioridad:
+            query += " AND t.prioridad = %s"
+            params.append(filtro_prioridad)
+        
+        query += " ORDER BY FIELD(t.prioridad, 'urgente', 'alta', 'media', 'baja'), t.fecha_creacion DESC"
+        
+        cur.execute(query, tuple(params))
+        tickets = list_from_rows(cur.fetchall())
+    
+    return render_template('superadmin/tickets.html',
+                           tickets=tickets,
+                           stats=stats,
+                           filtro_estado=filtro_estado,
+                           filtro_tipo=filtro_tipo,
+                           filtro_prioridad=filtro_prioridad)
+
+
+@app.route('/superadmin/tickets/responder', methods=['POST'])
+@login_required
+@superadmin_required
+def superadmin_responder_ticket():
+    """Responder a un ticket de soporte."""
+    ticket_id = request.form.get('ticket_id')
+    respuesta = request.form.get('respuesta', '').strip()
+    enviar_email = request.form.get('enviar_email') == 'on'
+    cerrar_ticket = request.form.get('cerrar_ticket') == 'on'
+    
+    if not ticket_id or not respuesta:
+        flash('Faltan datos requeridos', 'error')
+        return redirect(url_for('superadmin_tickets'))
+    
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            nuevo_estado = 'cerrado' if cerrar_ticket else 'respondido'
+            
+            cur.execute('''
+                UPDATE tickets_soporte 
+                SET respuesta = %s, 
+                    respondido_por = %s, 
+                    fecha_respuesta = NOW(),
+                    estado = %s
+                WHERE id = %s
+            ''', (respuesta, session['user_id'], nuevo_estado, ticket_id))
+            db.commit()
+            
+            # Obtener datos del ticket para el email
+            cur.execute("SELECT id, email, nombre, asunto, mensaje FROM tickets_soporte WHERE id = %s", (ticket_id,))
+            ticket = cur.fetchone()
+            
+            if enviar_email and ticket and EMAIL_SERVICE_AVAILABLE:
+                try:
+                    ticket_data = {
+                        'id': ticket['id'],
+                        'email': ticket['email'],
+                        'nombre': ticket['nombre'],
+                        'asunto': ticket['asunto'],
+                        'mensaje': ticket['mensaje']
+                    }
+                    enviar_respuesta_ticket(ticket_data, respuesta)
+                    logger.info("Email de respuesta enviado a %s para ticket #%s", ticket['email'], ticket_id)
+                    flash(f'Respuesta enviada al ticket #{ticket_id} y email enviado a {ticket["email"]}', 'success')
+                except Exception as email_err:
+                    logger.error("Error enviando email de respuesta: %s", email_err)
+                    flash(f'Respuesta guardada para ticket #{ticket_id}, pero hubo un error enviando el email', 'warning')
+            else:
+                flash(f'Respuesta guardada para el ticket #{ticket_id}', 'success')
+            
+    except Exception as e:
+        logger.exception("Error al responder ticket")
+        flash('Error al guardar la respuesta', 'error')
+    
+    return redirect(url_for('superadmin_tickets'))
+
+
+@app.route('/superadmin/tickets/cambiar-estado', methods=['POST'])
+@login_required
+@superadmin_required
+def superadmin_cambiar_estado_ticket():
+    """Cambiar el estado de un ticket (API JSON)."""
+    data = request.get_json()
+    ticket_id = data.get('ticket_id')
+    nuevo_estado = data.get('estado')
+    
+    estados_validos = ['abierto', 'en_proceso', 'respondido', 'cerrado']
+    
+    if not ticket_id or nuevo_estado not in estados_validos:
+        return jsonify({'success': False, 'error': 'Datos inválidos'}), 400
+    
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            cur.execute("UPDATE tickets_soporte SET estado = %s WHERE id = %s", (nuevo_estado, ticket_id))
+            db.commit()
+        
+        logger.info("Ticket #%s cambiado a estado: %s", ticket_id, nuevo_estado)
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logger.exception("Error al cambiar estado del ticket")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/superadmin/stats')
@@ -3235,12 +3566,18 @@ def api_superadmin_stats():
             ORDER BY fecha
         """)
         visitas_30dias = list_from_rows(cur.fetchall())
+        
+        # Tickets pendientes (para notificaciones push)
+        cur.execute("SELECT COUNT(*) as count FROM tickets_soporte WHERE estado IN ('abierto', 'en_proceso')")
+        tickets_pendientes = cur.fetchone()['count']
+        
     return jsonify({
         'total_restaurantes': total_restaurantes,
         'total_usuarios': total_usuarios,
         'total_visitas': total_visitas,
         'total_escaneos': total_escaneos,
-        'visitas_30dias': visitas_30dias
+        'visitas_30dias': visitas_30dias,
+        'tickets_pendientes': tickets_pendientes
     })
 
 

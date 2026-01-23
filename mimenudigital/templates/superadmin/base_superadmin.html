@@ -539,6 +539,15 @@
                 Suscripciones
             </a>
             
+            <div class="menu-label">Soporte</div>
+            <a href="{{ url_for('superadmin_tickets') }}" class="menu-item{% if request.endpoint == 'superadmin_tickets' %} active{% endif %}">
+                <i class="fas fa-headset"></i>
+                Tickets
+                {% if tickets_pendientes is defined and tickets_pendientes > 0 %}
+                <span style="background: #e74c3c; color: white; font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 10px; margin-left: auto;">{{ tickets_pendientes }}</span>
+                {% endif %}
+            </a>
+            
             <div class="menu-label">Sistema</div>
             <a href="#" class="menu-item">
                 <i class="fas fa-cog"></i>
@@ -561,6 +570,26 @@
                 <h1 class="page-title">{% block page_title %}SuperAdmin{% endblock %}</h1>
             </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
+                <!-- Notificaciones push -->
+                <div style="position: relative;" id="notificationsContainer">
+                    <button id="notificationsBtn" style="background: none; border: none; font-size: 1.25rem; color: #7f8c8d; cursor: pointer; position: relative;" title="Notificaciones">
+                        <i class="fas fa-bell"></i>
+                        <span id="notificationBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 10px; min-width: 16px; text-align: center;">0</span>
+                    </button>
+                    <div id="notificationsDropdown" style="display: none; position: absolute; right: 0; top: 45px; background: white; border-radius: 12px; box-shadow: 0 5px 30px rgba(0,0,0,0.15); width: 320px; max-height: 400px; overflow-y: auto; z-index: 1000;">
+                        <div style="padding: 1rem; border-bottom: 1px solid #ecf0f1; display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="color: #2c3e50;"><i class="fas fa-bell"></i> Notificaciones</strong>
+                            <button id="clearNotifications" style="background: none; border: none; color: #8e44ad; cursor: pointer; font-size: 0.8rem;">Marcar leídas</button>
+                        </div>
+                        <div id="notificationsList" style="max-height: 300px; overflow-y: auto;">
+                            <div style="padding: 2rem; text-align: center; color: #7f8c8d;">
+                                <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                                <p>Sin notificaciones nuevas</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <span style="color: #7f8c8d;" class="user-name-text">{{ session.get('nombre', 'Admin') }}</span>
                 <div style="width: 40px; height: 40px; background: #8e44ad; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
                     {{ session.get('nombre', 'A')[0]|upper }}
@@ -606,6 +635,186 @@
         }
         
         document.addEventListener('DOMContentLoaded', makeTablesResponsive);
+        
+        // ============================================================
+        // SISTEMA DE NOTIFICACIONES EN TIEMPO REAL
+        // ============================================================
+        (function() {
+            const notificationsBtn = document.getElementById('notificationsBtn');
+            const notificationsDropdown = document.getElementById('notificationsDropdown');
+            const notificationBadge = document.getElementById('notificationBadge');
+            const notificationsList = document.getElementById('notificationsList');
+            const clearNotifications = document.getElementById('clearNotifications');
+            
+            let lastTicketCount = {{ tickets_pendientes|default(0) }};
+            let notifications = JSON.parse(localStorage.getItem('adminNotifications') || '[]');
+            let notificationSound = null;
+            
+            // Cargar sonido de notificación
+            try {
+                notificationSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleWw0NlWcy+aqcRkGVajW5p16WSwkSZXD15OAUCU4SZe/0IWFUx82bYavoJp4V0QyNXmouJaGaE4xMW2jsJiOdVY8MGWep5qSfVtBLlqXop+YhmBIMVSRnaCdj2pUQjhBjZmgnZN0XVJHR3qRmZ2VfGVaTl5vhpSYm4RwYFxjZoCNlZWMf3BlZGl3gpCUkoN5bG9vdYCIjY+MgHl0dHd5f4WKi4d/eXp7e3yAhIiIhYB8fHx8fYCChYaEgH5+fX19f4GCg4OBf35+fn5/gIGCgoGAf3+Af4CAgoKCgYGAgICAgICBgYKBgYGAgYCBgIGBgYGBgYGBgICAgIGBgYGAgYCBgYGAgYCBgYGAgA==');
+            } catch(e) {
+                console.log('Audio no disponible');
+            }
+            
+            // Toggle dropdown
+            if (notificationsBtn) {
+                notificationsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    notificationsDropdown.style.display = 
+                        notificationsDropdown.style.display === 'none' ? 'block' : 'none';
+                });
+            }
+            
+            // Cerrar al hacer clic fuera
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#notificationsContainer')) {
+                    notificationsDropdown.style.display = 'none';
+                }
+            });
+            
+            // Limpiar notificaciones
+            if (clearNotifications) {
+                clearNotifications.addEventListener('click', () => {
+                    notifications = [];
+                    localStorage.setItem('adminNotifications', '[]');
+                    updateNotificationUI();
+                });
+            }
+            
+            // Actualizar UI de notificaciones
+            function updateNotificationUI() {
+                const unreadCount = notifications.filter(n => !n.read).length;
+                
+                if (unreadCount > 0) {
+                    notificationBadge.style.display = 'block';
+                    notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                } else {
+                    notificationBadge.style.display = 'none';
+                }
+                
+                if (notifications.length === 0) {
+                    notificationsList.innerHTML = `
+                        <div style="padding: 2rem; text-align: center; color: #7f8c8d;">
+                            <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                            <p>Sin notificaciones nuevas</p>
+                        </div>
+                    `;
+                } else {
+                    notificationsList.innerHTML = notifications.slice(0, 10).map((n, i) => `
+                        <div style="padding: 1rem; border-bottom: 1px solid #f0f0f0; cursor: pointer; ${!n.read ? 'background: #f8f4ff;' : ''}" 
+                             onclick="window.location.href='${n.url || '#'}'">
+                            <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                                <div style="width: 36px; height: 36px; background: ${n.color || '#8e44ad'}; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;">
+                                    <i class="${n.icon || 'fas fa-bell'}"></i>
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <p style="font-weight: 500; color: #2c3e50; margin: 0; font-size: 0.9rem;">${n.title}</p>
+                                    <p style="color: #7f8c8d; font-size: 0.8rem; margin: 0.25rem 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${n.message}</p>
+                                    <span style="color: #95a5a6; font-size: 0.7rem;">${formatTime(n.time)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+            
+            // Formatear tiempo
+            function formatTime(timestamp) {
+                const diff = Date.now() - timestamp;
+                const minutes = Math.floor(diff / 60000);
+                if (minutes < 1) return 'Ahora';
+                if (minutes < 60) return `Hace ${minutes} min`;
+                const hours = Math.floor(minutes / 60);
+                if (hours < 24) return `Hace ${hours} h`;
+                return `Hace ${Math.floor(hours / 24)} días`;
+            }
+            
+            // Agregar notificación
+            function addNotification(title, message, icon, color, url) {
+                const notification = {
+                    id: Date.now(),
+                    title,
+                    message,
+                    icon: icon || 'fas fa-bell',
+                    color: color || '#8e44ad',
+                    url: url || '',
+                    time: Date.now(),
+                    read: false
+                };
+                
+                notifications.unshift(notification);
+                if (notifications.length > 50) notifications = notifications.slice(0, 50);
+                localStorage.setItem('adminNotifications', JSON.stringify(notifications));
+                
+                updateNotificationUI();
+                
+                // Sonido
+                if (notificationSound) {
+                    try { notificationSound.play().catch(() => {}); } catch(e) {}
+                }
+                
+                // Notificación del navegador
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification(title, {
+                        body: message,
+                        icon: '/static/favicon.ico',
+                        tag: 'admin-notification'
+                    });
+                }
+            }
+            
+            // Solicitar permisos de notificación
+            if ('Notification' in window && Notification.permission === 'default') {
+                // Mostrar botón para solicitar permisos
+                setTimeout(() => {
+                    Notification.requestPermission();
+                }, 3000);
+            }
+            
+            // Polling para nuevos tickets
+            async function checkNewTickets() {
+                try {
+                    const response = await fetch('/api/superadmin/stats');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const currentPendientes = data.tickets_pendientes || 0;
+                        
+                        if (currentPendientes > lastTicketCount) {
+                            const newTickets = currentPendientes - lastTicketCount;
+                            addNotification(
+                                `${newTickets} nuevo${newTickets > 1 ? 's' : ''} ticket${newTickets > 1 ? 's' : ''}`,
+                                `Tienes ${currentPendientes} ticket${currentPendientes > 1 ? 's' : ''} pendiente${currentPendientes > 1 ? 's' : ''} de revisión`,
+                                'fas fa-headset',
+                                '#e74c3c',
+                                '{{ url_for("superadmin_tickets") }}'
+                            );
+                        }
+                        
+                        lastTicketCount = currentPendientes;
+                        
+                        // Actualizar badge del sidebar también
+                        const sidebarBadge = document.querySelector('.menu-item[href*="tickets"] span');
+                        if (sidebarBadge) {
+                            sidebarBadge.textContent = currentPendientes;
+                            sidebarBadge.style.display = currentPendientes > 0 ? 'inline' : 'none';
+                        }
+                    }
+                } catch (e) {
+                    console.log('Error checking tickets:', e);
+                }
+            }
+            
+            // Inicializar
+            updateNotificationUI();
+            
+            // Polling cada 30 segundos
+            setInterval(checkNewTickets, 30000);
+            
+            // Primera verificación después de 5 segundos
+            setTimeout(checkNewTickets, 5000);
+            
+        })();
     </script>
 
     {% block extra_js %}{% endblock %}

@@ -33,12 +33,8 @@ python-json-logger>=2.0.7  # JSON logging para producción
 Flask-WTF>=1.1.0  # CSRF protection helpers (optional but recommended)
 sentry-sdk>=1.19.0  # Error tracking (optional; configure SENTRY_DSN)
 
-# ===========================================
-# OPCIONALES (Descomenta según necesites)
-# ===========================================
-
-# Para envío de emails
-# Flask-Mail>=0.9.1
+# Envío de emails
+Flask-Mail>=0.10.0
 
 # Para validación de formularios
 # WTForms>=3.0.0
