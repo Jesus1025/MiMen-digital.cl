@@ -1,0 +1,107 @@
+{% extends "superadmin/base_superadmin.html" %}
+
+{% block title %}Estadísticas Generales - SuperAdmin{% endblock %}
+{% block page_title %}Estadísticas Generales{% endblock %}
+
+{% block content %}
+<div class="columns is-multiline" style="margin-bottom: 2rem;">
+    <div class="column is-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-purple">
+                <i class="fas fa-store"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalRestaurantes">--</h3>
+                <p>Total Restaurantes</p>
+            </div>
+        </div>
+    </div>
+    <div class="column is-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-green">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalUsuarios">--</h3>
+                <p>Usuarios Registrados</p>
+            </div>
+        </div>
+    </div>
+    <div class="column is-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-blue">
+                <i class="fas fa-eye"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalVisitas">--</h3>
+                <p>Visitas Totales</p>
+            </div>
+        </div>
+    </div>
+    <div class="column is-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-orange">
+                <i class="fas fa-qrcode"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalEscaneos">--</h3>
+                <p>Escaneos QR Totales</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-chart-bar"></i> Evolución de Visitas (Últimos 30 días)</h2>
+    </div>
+    <canvas id="chartVisitas" height="80"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/superadmin/stats')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('totalRestaurantes').textContent = data.total_restaurantes;
+            document.getElementById('totalUsuarios').textContent = data.total_usuarios;
+            document.getElementById('totalVisitas').textContent = data.total_visitas;
+            document.getElementById('totalEscaneos').textContent = data.total_escaneos;
+            renderChart(data.visitas_30dias);
+        });
+});
+
+function renderChart(visitas) {
+    const ctx = document.getElementById('chartVisitas').getContext('2d');
+    const labels = visitas.map(v => v.fecha);
+    const data = visitas.map(v => v.visitas);
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Visitas',
+                data: data,
+                borderColor: '#8e44ad',
+                backgroundColor: 'rgba(142,68,173,0.1)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: { display: true },
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

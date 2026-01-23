@@ -1,0 +1,318 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block title %}Código QR - {{ restaurante.nombre }}{% endblock %}
+
+{% block page_title %}Código QR{% endblock %}
+
+{% block extra_css %}
+<style>
+    .qr-container {
+        text-align: center;
+        padding: 2rem;
+    }
+    
+    .qr-frame {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        display: inline-block;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .qr-image {
+        width: 250px;
+        height: 250px;
+    }
+    
+    .qr-restaurant-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--secondary-color);
+        margin-top: 1rem;
+    }
+    
+    .qr-url {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        word-break: break-all;
+    }
+    
+    .qr-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 1.5rem;
+    }
+    
+    .btn-large {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+    }
+    
+    .print-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 20px;
+        padding: 2rem;
+        text-align: center;
+        max-width: 350px;
+        margin: 2rem auto;
+    }
+    
+    .print-card .qr-frame {
+        background: white;
+        box-shadow: none;
+    }
+    
+    .print-card h3 {
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .print-card p {
+        opacity: 0.9;
+        margin-bottom: 1.5rem;
+    }
+    
+    .tips-card {
+        background: #f8f9fa;
+        border-left: 4px solid var(--primary-color);
+        padding: 1.5rem;
+        border-radius: 8px;
+    }
+    
+    .tips-card h4 {
+        color: var(--secondary-color);
+        margin-bottom: 1rem;
+    }
+    
+    .tips-card ul {
+        margin-left: 1.5rem;
+    }
+    
+    .tips-card li {
+        margin-bottom: 0.5rem;
+        color: var(--text-muted);
+    }
+    
+    @media print {
+        .no-print { display: none !important; }
+        .print-card { 
+            box-shadow: none;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+    <div class="column is-7">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-qrcode"></i> Tu Código QR</h2>
+            </div>
+            
+            <div class="qr-container">
+                <div class="qr-frame" id="qrFrame">
+                    <img src="{{ url_for('static', filename='uploads/qrs/' + qr_filename) }}" 
+                         alt="Código QR" 
+                         class="qr-image"
+                         id="qrImage">
+                    <div class="qr-restaurant-name">{{ restaurante.nombre }}</div>
+                    <div class="qr-url">{{ menu_url }}</div>
+                </div>
+                
+                <div class="qr-actions no-print">
+                    <a class="btn-primary btn-large" href="{{ url_for('static', filename='uploads/qrs/' + qr_filename) }}" download="QR_{{ restaurante.url_slug }}.png">
+                        <i class="fas fa-download"></i> Descargar PNG
+                    </a>
+                    <button class="btn-secondary btn-large" onclick="imprimirQR()">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                    <button class="btn-secondary btn-large" onclick="copiarURL()">
+                        <i class="fas fa-copy"></i> Copiar URL
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Previsualización para imprimir -->
+        <div class="dashboard-card no-print">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-eye"></i> Vista Previa para Imprimir</h2>
+            </div>
+            
+            <div class="print-card" id="printCard">
+                <h3>{{ restaurante.nombre }}</h3>
+                <p>Escanea para ver nuestro menú</p>
+                <div class="qr-frame" style="padding: 1rem;">
+                    <img src="{{ url_for('static', filename='uploads/qrs/' + qr_filename) }}" 
+                         alt="QR" style="width: 150px; height: 150px;">
+                </div>
+                <p style="font-size: 0.8rem; margin-top: 1rem;">{{ menu_url }}</p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn-primary" onclick="imprimirTarjeta()">
+                    <i class="fas fa-print"></i> Imprimir Tarjeta
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-5">
+        <!-- Estadísticas de Escaneos -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-chart-bar"></i> Estadísticas de Escaneos</h2>
+            </div>
+            
+            <div class="columns">
+                <div class="column">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="scansHoy">-</h3>
+                            <p>Escaneos Hoy</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="scansMes">-</h3>
+                            <p>Este Mes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tips -->
+        <div class="dashboard-card">
+            <div class="tips-card">
+                <h4><i class="fas fa-lightbulb"></i> Consejos para tu QR</h4>
+                <ul>
+                    <li>Colócalo en cada mesa de tu restaurante</li>
+                    <li>Imprímelo en tamaño mínimo de 3x3 cm</li>
+                    <li>Usa fondo blanco para mejor lectura</li>
+                    <li>Ponlo también en la entrada y vitrinas</li>
+                    <li>Añádelo a tus redes sociales</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Personalización -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-palette"></i> Tamaño del QR</h2>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Selecciona el tamaño para descargar:</label>
+                <select class="form-input" id="qrSize">
+                    <option value="200">Pequeño (200x200 px)</option>
+                    <option value="300" selected>Mediano (300x300 px)</option>
+                    <option value="500">Grande (500x500 px)</option>
+                    <option value="1000">Extra Grande (1000x1000 px)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const MENU_URL = '{{ menu_url }}';
+const RESTAURANTE_NOMBRE = '{{ restaurante.nombre }}';
+
+// Cargar estadísticas
+async function cargarEstadisticas() {
+    try {
+        const response = await fetch('/api/dashboard/stats');
+        const data = await response.json();
+        
+        document.getElementById('scansHoy').textContent = data.visitas_hoy || 0;
+        document.getElementById('scansMes').textContent = data.visitas_mes || 0;
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+    }
+}
+
+
+// La descarga ahora es un <a> directo al PNG generado localmente
+
+function copiarURL() {
+    navigator.clipboard.writeText(MENU_URL).then(() => {
+        alert('¡URL copiada al portapapeles!\n\n' + MENU_URL);
+    }).catch(() => {
+        // Fallback para navegadores sin soporte
+        const input = document.createElement('input');
+        input.value = MENU_URL;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        alert('¡URL copiada!\n\n' + MENU_URL);
+    });
+}
+
+function imprimirQR() {
+    window.print();
+}
+
+function imprimirTarjeta() {
+    const printContent = document.getElementById('printCard').outerHTML;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>QR - ${RESTAURANTE_NOMBRE}</title>
+            <style>
+                body { 
+                    display: flex; 
+                    justify-content: center; 
+                    align-items: center; 
+                    min-height: 100vh; 
+                    margin: 0;
+                    font-family: Arial, sans-serif;
+                }
+                .print-card {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border-radius: 20px;
+                    padding: 2rem;
+                    text-align: center;
+                    max-width: 350px;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+                .print-card h3 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+                .print-card p { opacity: 0.9; margin-bottom: 1.5rem; }
+                .qr-frame { background: white; border-radius: 12px; padding: 1rem; display: inline-block; }
+            </style>
+        </head>
+        <body>${printContent}</body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.onload = () => {
+        printWindow.print();
+        printWindow.close();
+    };
+}
+
+// Cargar estadísticas al iniciar
+cargarEstadisticas();
+</script>
+{% endblock %}
