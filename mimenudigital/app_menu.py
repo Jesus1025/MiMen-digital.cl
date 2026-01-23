@@ -122,11 +122,12 @@ def _cloudinary_sign(params_to_sign, api_secret):
 def cloudinary_upload(file, **options):
     """
     Sube una imagen a Cloudinary usando requests directamente.
-    Compatible con la API del SDK de Cloudinary.
+    SIMPLIFICADO: Solo sube la imagen con folder, sin transformaciones complejas.
+    La rotación EXIF se maneja automáticamente por Cloudinary.
     
     Args:
         file: Archivo (file-like object, path string, o URL)
-        **options: Opciones de upload (folder, transformation, eager, etc.)
+        **options: Opciones de upload (folder, etc.)
     
     Returns:
         dict con la respuesta de Cloudinary (secure_url, public_id, etc.)
@@ -136,65 +137,25 @@ def cloudinary_upload(file, **options):
     api_key = config['api_key']
     api_secret = config['api_secret']
     
-    # URL del API
-    resource_type = options.pop('resource_type', 'image')
-    upload_url = f"https://api.cloudinary.com/v1_1/{cloud_name}/{resource_type}/upload"
+    # URL del API - siempre usar 'auto' para detectar tipo automáticamente
+    upload_url = f"https://api.cloudinary.com/v1_1/{cloud_name}/auto/upload"
     
     # Timestamp
     timestamp = str(int(time.time()))
     
-    # Preparar parámetros
+    # Parámetros básicos para la firma
     params = {
         'timestamp': timestamp,
     }
     
-    # Agregar opciones permitidas
-    allowed_params = ['folder', 'public_id', 'overwrite', 'tags', 'context', 
-                      'faces', 'colors', 'exif', 'image_metadata', 'phash',
-                      'invalidate', 'quality', 'format']
+    # Solo agregar folder si está presente
+    if 'folder' in options and options['folder']:
+        params['folder'] = options['folder']
     
-    for key in allowed_params:
-        if key in options and options[key] is not None:
-            params[key] = options[key]
+    # Generar firma
+    signature = _cloudinary_sign(params, api_secret)
     
-    # Manejar transformation
-    if 'transformation' in options:
-        trans = options['transformation']
-        if isinstance(trans, dict):
-            # Convertir dict a string: {angle: 'auto'} -> 'a_auto'
-            trans_parts = []
-            trans_map = {'angle': 'a', 'width': 'w', 'height': 'h', 'crop': 'c', 
-                        'quality': 'q', 'fetch_format': 'f'}
-            for k, v in trans.items():
-                prefix = trans_map.get(k, k[0])
-                trans_parts.append(f"{prefix}_{v}")
-            params['transformation'] = '/'.join(trans_parts)
-        else:
-            params['transformation'] = str(trans)
-    
-    # Manejar eager transformations
-    if 'eager' in options:
-        eager_list = options['eager']
-        if isinstance(eager_list, list):
-            eager_strs = []
-            for e in eager_list:
-                if isinstance(e, dict):
-                    parts = []
-                    if 'width' in e: parts.append(f"w_{e['width']}")
-                    if 'height' in e: parts.append(f"h_{e['height']}")
-                    if 'crop' in e: parts.append(f"c_{e['crop']}")
-                    if 'quality' in e: parts.append(f"q_{e['quality']}")
-                    if 'fetch_format' in e: parts.append(f"f_{e['fetch_format']}")
-                    eager_strs.append(','.join(parts))
-                else:
-                    eager_strs.append(str(e))
-            params['eager'] = '|'.join(eager_strs)
-    
-    # Generar firma (solo con los parámetros que van firmados)
-    params_to_sign = {k: v for k, v in params.items() if k != 'api_key' and k != 'file'}
-    signature = _cloudinary_sign(params_to_sign, api_secret)
-    
-    # Agregar credenciales
+    # Agregar credenciales (NO van en la firma)
     params['api_key'] = api_key
     params['signature'] = signature
     
@@ -202,17 +163,16 @@ def cloudinary_upload(file, **options):
     files = None
     if isinstance(file, str):
         if file.startswith(('http://', 'https://', 'ftp://', 's3://', 'data:')):
-            # URL o data URI
             params['file'] = file
         else:
-            # Path a archivo local
             files = {'file': open(file, 'rb')}
     else:
-        # File-like object (ej: request.files['imagen'])
-        files = {'file': (getattr(file, 'filename', 'upload'), file, getattr(file, 'content_type', 'application/octet-stream'))}
+        # File-like object
+        filename = getattr(file, 'filename', 'upload.jpg')
+        content_type = getattr(file, 'content_type', 'image/jpeg')
+        files = {'file': (filename, file, content_type)}
     
     try:
-        # Hacer la petición
         response = _cloudinary_session.post(
             upload_url,
             data=params,
@@ -230,17 +190,6 @@ def cloudinary_upload(file, **options):
         
     except requests.exceptions.RequestException as e:
         raise Exception(f"Error de conexión con Cloudinary: {str(e)}")
-    finally:
-        # Cerrar archivo si lo abrimos nosotros
-        if files and 'file' in files:
-            f = files['file']
-            if isinstance(f, tuple) and len(f) > 1:
-                pass  # Es un file-like object del usuario, no cerrar
-            elif hasattr(f, 'close'):
-                try:
-                    f.close()
-                except:
-                    pass
 
 
 # También importar cloudinary para funciones auxiliares (URLs, etc.)
@@ -2402,16 +2351,10 @@ def api_platos():
                             if not is_cloudinary_ready():
                                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
                             
-                            # Subir a Cloudinary con transformaciones (eager for responsive sizes)
-                            # angle="auto" corrige la rotación según datos EXIF del celular
+                            # Subir a Cloudinary (rotación EXIF se corrige automáticamente)
                             result = cloudinary_upload(
                                 file,
-                                folder=f"mimenudigital/platos/{restaurante_id}",
-                                quality="auto",
-                                fetch_format="auto",
-                                resource_type="auto",
-                                eager=get_cloudinary_eager(),
-                                transformation={"angle": "auto"}
+                                folder=f"mimenudigital/platos/{restaurante_id}"
                             )
                             imagen_url = result.get('secure_url')
                             imagen_public_id = result.get('public_id')
@@ -2554,13 +2497,10 @@ def api_upload_image():
         # Intentar subir a Cloudinary
         try:
             restaurante_id = session.get('restaurante_id') or 'anon'
-            # angle="auto" corrige la rotación según datos EXIF del celular
+            # Subir a Cloudinary
             result = cloudinary_upload(
                 file,
-                folder=f"mimenudigital/platos/{restaurante_id}",
-                quality='auto', fetch_format='auto', resource_type='auto',
-                eager=get_cloudinary_eager(),
-                transformation={"angle": "auto"}
+                folder=f"mimenudigital/platos/{restaurante_id}"
             )
             url = result.get('secure_url') or result.get('url')
             public_id = result.get('public_id')
@@ -2643,21 +2583,13 @@ def api_plato(plato_id):
                             if not is_cloudinary_ready():
                                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
                             
-                            # Subir a Cloudinary con transformaciones
-                            # angle="auto" corrige la rotación según datos EXIF del celular
-                            public_id_for_update = f"plato_{plato_id}"
+                            # Subir a Cloudinary
                             result = cloudinary_upload(
                                 file,
-                                folder=f"mimenudigital/platos/{restaurante_id}",
-                                public_id=public_id_for_update,
-                                overwrite=True,
-                                quality="auto",
-                                fetch_format="auto",
-                                resource_type="auto",
-                                transformation={"angle": "auto"}
+                                folder=f"mimenudigital/platos/{restaurante_id}"
                             )
                             imagen_url = result.get('secure_url')
-                            imagen_public_id = result.get('public_id') or public_id_for_update
+                            imagen_public_id = result.get('public_id')
                         except Exception as e:
                             logger.error("Error subiendo imagen a Cloudinary: %s", traceback.format_exc())
                             return jsonify({'success': False, 'error': f'Error al subir imagen: {str(e)}'}), 500
@@ -3022,16 +2954,10 @@ def api_subir_logo():
             if not is_cloudinary_ready():
                 return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
             
-            # Subir a Cloudinary (generar variantes para logo)
-            # angle="auto" corrige la rotación según datos EXIF del celular
+            # Subir logo a Cloudinary
             result = cloudinary_upload(
                 file,
-                folder=f"mimenudigital/logos",
-                public_id=f"logo_{session['restaurante_id']}",
-                overwrite=True,
-                resource_type="auto",
-                eager=get_cloudinary_eager(),
-                transformation={"angle": "auto"}
+                folder=f"mimenudigital/logos"
             )
             
             logo_url = result['secure_url']
@@ -3782,10 +3708,7 @@ def admin_cloudinary_test_upload():
             restaurante_id = session.get('restaurante_id') or 'anon'
             result = cloudinary_upload(
                 file,
-                folder=f"mimenudigital/test/{restaurante_id}",
-                quality='auto', fetch_format='auto', resource_type='image',
-                eager=get_cloudinary_eager(),
-                transformation={"angle": "auto"}
+                folder=f"mimenudigital/test/{restaurante_id}"
             )
             return jsonify({'success': True, 'result': {'url': result.get('secure_url'), 'public_id': result.get('public_id')}})
         except Exception as e:
@@ -3799,9 +3722,7 @@ def admin_cloudinary_test_upload():
             restaurante_id = session.get('restaurante_id') or 'anon'
             result = cloudinary_upload(
                 image_url,
-                folder=f"mimenudigital/test/{restaurante_id}",
-                quality='auto', fetch_format='auto', resource_type='image',
-                eager=get_cloudinary_eager()
+                folder=f"mimenudigital/test/{restaurante_id}"
             )
             return jsonify({'success': True, 'result': {'url': result.get('secure_url'), 'public_id': result.get('public_id')}})
         except Exception as e:
