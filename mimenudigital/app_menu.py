@@ -46,6 +46,8 @@ if _api_proxy:
     os.environ['HTTPS_PROXY'] = _api_proxy
     os.environ['http_proxy'] = _api_proxy
     os.environ['https_proxy'] = _api_proxy
+    os.environ['ALL_PROXY'] = _api_proxy
+    os.environ['no_proxy'] = ''  # No excluir nada del proxy
 
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for, 
@@ -59,6 +61,7 @@ from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import logging
+
 # Cloudinary is optional; handle missing dependency gracefully
 # ESTRATEGIA BLINDAJE TOTAL: Retirar la variable del entorno ANTES de importar
 # Esto evita que cloudinary intente auto-configurarse y crashee al importar si la URL está mal.
@@ -68,7 +71,14 @@ if _temp_cloudinary_url:
 
 try:
     import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
     from cloudinary.uploader import upload as cloudinary_upload
+    
+    # Configurar proxy inmediatamente después de importar
+    if _api_proxy:
+        cloudinary.config(api_proxy=_api_proxy)
+    
     CLOUDINARY_AVAILABLE = True
 except (ImportError, ValueError, Exception) as e:
     cloudinary = None
