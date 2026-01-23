@@ -50,41 +50,6 @@ if _api_proxy:
     os.environ['https_proxy'] = _api_proxy
     os.environ['ALL_PROXY'] = _api_proxy
     os.environ['no_proxy'] = ''  # No excluir nada del proxy
-    
-    # FORZAR PROXY EN URLLIB3 usando ProxyManager
-    # Cloudinary usa urllib3.PoolManager internamente
-    try:
-        import urllib3
-        from urllib3 import ProxyManager
-        
-        # Crear ProxyManager global
-        _global_proxy_manager = ProxyManager(
-            _api_proxy,
-            num_pools=10,
-            maxsize=10,
-            cert_reqs='CERT_REQUIRED'
-        )
-        
-        # Monkey-patch urllib3.PoolManager para que SIEMPRE use proxy
-        _OriginalPoolManager = urllib3.PoolManager
-        
-        class _ForcedProxyPoolManager(_OriginalPoolManager):
-            """PoolManager que siempre usa el proxy de PythonAnywhere."""
-            def __init__(self, *args, **kwargs):
-                # Llamar al constructor original
-                super().__init__(*args, **kwargs)
-            
-            def urlopen(self, method, url, redirect=True, **kw):
-                # Forzar todas las conexiones a través del proxy
-                return _global_proxy_manager.urlopen(method, url, redirect=redirect, **kw)
-        
-        # Reemplazar PoolManager globalmente
-        urllib3.PoolManager = _ForcedProxyPoolManager
-        urllib3.poolmanager.PoolManager = _ForcedProxyPoolManager
-        
-        logging.getLogger(__name__).info("urllib3.PoolManager parcheado con proxy: %s", _api_proxy)
-    except Exception as e:
-        logging.getLogger(__name__).warning("Error configurando proxy urllib3: %s", e)
 
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for, 
@@ -106,111 +71,67 @@ _temp_cloudinary_url = os.environ.get('CLOUDINARY_URL')
 if _temp_cloudinary_url:
     del os.environ['CLOUDINARY_URL']
 
+# ============================================================
+# PARCHE PARA FORZAR PROXY EN PYTHONANYWHERE
+# ============================================================
+if _api_proxy:
+    # Parchear requests.Session para APIs que usen requests
+    try:
+        import requests
+        _original_request = requests.Session.request
+        
+        def _proxied_request(self, method, url, **kwargs):
+            if 'proxies' not in kwargs or not kwargs['proxies']:
+                kwargs['proxies'] = {'http': _api_proxy, 'https': _api_proxy}
+            return _original_request(self, method, url, **kwargs)
+        
+        requests.Session.request = _proxied_request
+        logging.getLogger(__name__).info("requests.Session parcheado con proxy: %s", _api_proxy)
+    except Exception as e:
+        logging.getLogger(__name__).warning("Error parcheando requests: %s", e)
+
 try:
     import cloudinary
     import cloudinary.uploader
     import cloudinary.api
     
-    # Configurar proxy inmediatamente después de importar
+    # Configurar proxy en cloudinary config
     if _api_proxy:
         cloudinary.config(api_proxy=_api_proxy)
         
-        # SOLUCIÓN DEFINITIVA: Parchear cloudinary.uploader.call_api para usar proxy
+        # PARCHE DEFINITIVO: Reemplazar el HttpClient de Cloudinary
         try:
-            import requests
-            from requests.adapters import HTTPAdapter
-            from urllib3.util.retry import Retry
+            import urllib3
             
-            # Crear sesión con proxy configurado
-            _proxy_session = requests.Session()
-            _proxy_session.proxies = {
-                'http': _api_proxy,
-                'https': _api_proxy
-            }
-            _proxy_session.trust_env = False  # Ignorar env, usar proxy explícito
+            # Crear un ProxyManager configurado
+            _cloudinary_proxy_mgr = urllib3.ProxyManager(
+                _api_proxy,
+                num_pools=10,
+                maxsize=10
+            )
             
-            # Configurar reintentos
-            retry_strategy = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
-            adapter = HTTPAdapter(max_retries=retry_strategy)
-            _proxy_session.mount("http://", adapter)
-            _proxy_session.mount("https://", adapter)
+            # Parchear cloudinary.http_client para usar el proxy
+            import cloudinary.http_client as _cld_http
             
-            # Guardar referencia al call_api original
-            _original_call_api = cloudinary.uploader.call_api
-            
-            def _patched_call_api(action, params, http_headers=None, return_error=False, unsigned=False, file=None, timeout=None, **options):
-                """call_api parcheado que usa requests con proxy explícito."""
-                import cloudinary.utils
-                import cloudinary.exceptions
-                import json
+            if hasattr(_cld_http, 'HttpClient'):
+                _OrigHttpClient = _cld_http.HttpClient
                 
-                # Obtener configuración actual
-                config = cloudinary.config()
-                cloud_name = config.cloud_name
-                api_key = config.api_key
-                api_secret = config.api_secret
+                class _ProxiedHttpClient(_OrigHttpClient):
+                    def __init__(self):
+                        super().__init__()
+                        # Reemplazar el pool manager con el proxy manager
+                        self._http = _cloudinary_proxy_mgr
                 
-                if not all([cloud_name, api_key, api_secret]) and not unsigned:
-                    raise cloudinary.exceptions.Error("Must supply cloud_name, api_key, api_secret")
+                _cld_http.HttpClient = _ProxiedHttpClient
+                logging.getLogger(__name__).info("Cloudinary HttpClient parcheado con ProxyManager")
+            else:
+                # Versión antigua de cloudinary - parchear de otra forma
+                logging.getLogger(__name__).warning("Cloudinary HttpClient no encontrado, usando api_proxy config")
                 
-                # Construir URL
-                api_url = f"https://api.cloudinary.com/v1_1/{cloud_name}/{action}"
-                
-                # Preparar datos
-                data = params.copy() if params else {}
-                
-                if not unsigned:
-                    data['timestamp'] = str(int(cloudinary.utils.now()))
-                    data['api_key'] = api_key
-                    # Generar firma
-                    to_sign = {k: v for k, v in data.items() if v}
-                    data['signature'] = cloudinary.utils.api_sign_request(to_sign, api_secret)
-                
-                files = None
-                if file:
-                    if isinstance(file, str):
-                        if file.startswith(('http://', 'https://', 'ftp://', 's3://', 'data:')):
-                            data['file'] = file
-                        else:
-                            files = {'file': open(file, 'rb')}
-                    else:
-                        # File-like object
-                        files = {'file': file}
-                
-                try:
-                    response = _proxy_session.post(
-                        api_url,
-                        data=data,
-                        files=files,
-                        headers=http_headers,
-                        timeout=timeout or 60
-                    )
-                    result = response.json()
-                    
-                    if 'error' in result:
-                        if return_error:
-                            return result
-                        raise cloudinary.exceptions.Error(result['error'].get('message', str(result['error'])))
-                    
-                    return result
-                    
-                except requests.exceptions.RequestException as e:
-                    raise cloudinary.exceptions.Error(f"Request error: {str(e)}")
-                finally:
-                    if files and 'file' in files and hasattr(files['file'], 'close'):
-                        try:
-                            files['file'].close()
-                        except:
-                            pass
-            
-            # Reemplazar call_api en el módulo uploader
-            cloudinary.uploader.call_api = _patched_call_api
-            logging.getLogger(__name__).info("cloudinary.uploader.call_api parcheado con proxy requests: %s", _api_proxy)
-            
         except Exception as patch_err:
-            logging.getLogger(__name__).warning("No se pudo parchear cloudinary.uploader: %s", patch_err)
+            logging.getLogger(__name__).warning("Error parcheando Cloudinary HttpClient: %s", patch_err)
     
-    # La función cloudinary_upload ahora usará el call_api parcheado automáticamente
+    # Usar la función upload original
     cloudinary_upload = cloudinary.uploader.upload
     
     CLOUDINARY_AVAILABLE = True
