@@ -2,25 +2,60 @@
 <html lang="es" data-tema="{{ restaurante.tema or 'calido' }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#2c3e50">
-    <meta name="description" content="Menú digital de {{ restaurante.nombre }}">
+    <meta name="description" content="Menú digital de {{ restaurante.nombre }}{% if restaurante.slogan %} - {{ restaurante.slogan }}{% endif %}. Consulta nuestras categorías, platos y precios actualizados.">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="{{ restaurante.nombre }} - Menú Digital">
+    <meta property="og:description" content="{% if restaurante.slogan %}{{ restaurante.slogan }} - {% endif %}Consulta nuestro menú digital con precios actualizados.">
+    {% if restaurante.logo_url %}
+    <meta property="og:image" content="{{ restaurante.logo_url }}">
+    {% endif %}
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ restaurante.nombre }} - Menú Digital">
+    <meta name="twitter:description" content="{% if restaurante.slogan %}{{ restaurante.slogan }} - {% endif %}Consulta nuestro menú digital.">
+    {% if restaurante.logo_url %}
+    <meta name="twitter:image" content="{{ restaurante.logo_url }}">
+    {% endif %}
+    
+    <!-- PWA Support -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="{{ restaurante.nombre }}">
+    {% if restaurante.logo_url %}
+    <link rel="apple-touch-icon" href="{{ restaurante.logo_url }}">
+    {% endif %}
     
     <title>{{ restaurante.nombre }} - Menú Digital</title>
     
-    <!-- Bulma CSS (CDN optimizado) -->
+    <!-- Preconnect para mejorar rendimiento -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://res.cloudinary.com">
+    
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="https://api.qrserver.com">
+    
+    <!-- Bulma CSS (minified) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Google Fonts - Optimizado -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts - Optimizado con display=swap -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- HTML2PDF para exportar menú -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- HTML2PDF - carga diferida para mejor rendimiento -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
     
     <style>
         /* ============================================
@@ -181,13 +216,21 @@
         .restaurant-name {
             font-size: 1.8rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
             text-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
+        .restaurant-slogan {
+            font-size: 1rem;
+            font-style: italic;
+            opacity: 0.95;
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+        }
+
         .restaurant-subtitle {
-            font-size: 0.95rem;
-            opacity: 0.9;
+            font-size: 0.9rem;
+            opacity: 0.85;
             font-weight: 300;
         }
 
@@ -801,6 +844,7 @@
             height: 50px;
             background: var(--primary-color);
             color: white;
+            border: none;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -810,17 +854,56 @@
             transition: all 0.3s ease;
             z-index: 90;
             text-decoration: none;
+            cursor: pointer;
         }
 
-        .pdf-download-btn:hover {
+        .pdf-download-btn:hover:not(:disabled) {
             background: var(--primary-dark);
             transform: scale(1.1);
             box-shadow: var(--shadow-lg);
         }
 
-        .pdf-download-btn:active {
+        .pdf-download-btn:active:not(:disabled) {
             transform: scale(0.95);
         }
+
+        .pdf-download-btn:disabled {
+            opacity: 0.8;
+            cursor: wait;
+        }
+
+        /* ============================================
+           TOAST NOTIFICATIONS
+           ============================================ */
+        .toast-notification {
+            position: fixed;
+            bottom: 130px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text-dark);
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.3s ease;
+            max-width: 90%;
+        }
+
+        .toast-notification.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast-success { background: #27ae60; }
+        .toast-error { background: #e74c3c; }
+        .toast-warning { background: #f39c12; }
+        .toast-info { background: #3498db; }
 
         /* ============================================
            ANIMACIONES
@@ -1022,44 +1105,51 @@
 </head>
 <body data-theme="{{ restaurante.tema or 'default' }}">
 
+    <!-- Skip link para accesibilidad -->
+    <a href="#menu-content" class="skip-link" style="position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden;">Saltar al menú</a>
+
     <!-- Header del Restaurante -->
-    <header class="restaurant-header">
+    <header class="restaurant-header" role="banner">
         {% if restaurante.logo_url %}
-            <img src="{{ restaurante.logo_url }}" alt="{{ restaurante.nombre }}" class="restaurant-logo" loading="lazy">
+            <img src="{{ restaurante.logo_url }}" alt="Logo de {{ restaurante.nombre }}" class="restaurant-logo" loading="eager" fetchpriority="high">
         {% else %}
-            <div class="restaurant-logo-placeholder">
-                <i class="fas fa-utensils"></i>
+            <div class="restaurant-logo-placeholder" role="img" aria-label="Icono de restaurante">
+                <i class="fas fa-utensils" aria-hidden="true"></i>
             </div>
         {% endif %}
         <h1 class="restaurant-name">{{ restaurante.nombre }}</h1>
+        {% if restaurante.slogan %}
+        <p class="restaurant-slogan">{{ restaurante.slogan }}</p>
+        {% endif %}
         <p class="restaurant-subtitle">
-            <i class="fas fa-qrcode"></i> Menú Digital
+            <i class="fas fa-qrcode" aria-hidden="true"></i> Menú Digital
         </p>
     </header>
 
     <!-- Barra de búsqueda -->
-    <div class="search-container">
+    <div class="search-container" role="search">
         <div class="search-input-wrapper">
-            <i class="fas fa-search search-icon"></i>
+            <i class="fas fa-search search-icon" aria-hidden="true"></i>
             <input 
-                type="text" 
+                type="search" 
                 id="searchInput" 
                 class="search-input" 
                 placeholder="Buscar en el menú..."
                 autocomplete="off"
+                aria-label="Buscar platos en el menú"
             >
-            <button type="button" class="clear-search" id="clearSearch">
-                <i class="fas fa-times"></i>
+            <button type="button" class="clear-search" id="clearSearch" aria-label="Limpiar búsqueda">
+                <i class="fas fa-times" aria-hidden="true"></i>
             </button>
         </div>
     </div>
 
     <!-- Navegación de categorías (sticky) -->
-    <nav class="category-nav">
+    <nav class="category-nav" aria-label="Categorías del menú">
         <div class="category-nav-inner">
             {% for categoria in menu %}
-                <a href="#categoria-{{ loop.index }}" class="category-pill" data-target="categoria-{{ loop.index }}">
-                    <i class="fas fa-tag"></i>
+                <a href="#categoria-{{ loop.index }}" class="category-pill" data-target="categoria-{{ loop.index }}" aria-label="Ir a {{ categoria.nombre }}">
+                    <i class="fas fa-tag" aria-hidden="true"></i>
                     {{ categoria.nombre }}
                 </a>
             {% endfor %}
@@ -1067,45 +1157,45 @@
     </nav>
 
     <!-- Contenido principal del menú -->
-    <main class="container-menu">
+    <main class="container-menu" id="menu-content" role="main">
         
         <!-- Toggle de vista -->
-        <div class="view-toggle">
-            <button class="view-btn active" data-view="grid" title="Vista cuadrícula">
-                <i class="fas fa-th-large"></i>
+        <div class="view-toggle" role="group" aria-label="Cambiar vista del menú">
+            <button class="view-btn active" data-view="grid" title="Vista cuadrícula" aria-pressed="true" aria-label="Vista cuadrícula">
+                <i class="fas fa-th-large" aria-hidden="true"></i>
             </button>
-            <button class="view-btn" data-view="list" title="Vista lista">
-                <i class="fas fa-list"></i>
+            <button class="view-btn" data-view="list" title="Vista lista" aria-pressed="false" aria-label="Vista lista">
+                <i class="fas fa-list" aria-hidden="true"></i>
             </button>
         </div>
 
         {% if menu %}
             {% for categoria in menu %}
-                <section class="menu-section" id="categoria-{{ loop.index }}">
-                    <h2 class="category-title">
-                        <i class="fas fa-utensils"></i>
+                <section class="menu-section" id="categoria-{{ loop.index }}" aria-labelledby="cat-title-{{ loop.index }}">
+                    <h2 class="category-title" id="cat-title-{{ loop.index }}">
+                        <i class="fas fa-utensils" aria-hidden="true"></i>
                         {{ categoria.nombre }}
                     </h2>
                     
                     {% if categoria.platos %}
-                        <div class="dishes-grid" id="dishes-{{ loop.index }}">
+                        <div class="dishes-grid" id="dishes-{{ loop.index }}" role="list">
                             {% for plato in categoria.platos %}
-                                <article class="dish-card" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}">
+                                <article class="dish-card" role="listitem" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}" tabindex="0" aria-label="{{ plato.nombre }}, ${{ '{:,.0f}'.format(plato.precio) }}">
                                     <div class="dish-image-wrapper">
                                         {% if plato.imagenes and plato.imagenes|length > 1 %}
                                             <!-- Carrusel para múltiples imágenes -->
-                                            <div class="dish-carousel" data-plato-id="{{ plato.id }}">
+                                            <div class="dish-carousel" data-plato-id="{{ plato.id }}" role="region" aria-label="Galería de imágenes de {{ plato.nombre }}">
                                                 {% for img in plato.imagenes %}
                                                     <img 
                                                         src="{{ img.imagen_src or img.imagen_url }}"
-                                                        alt="{{ plato.nombre }} - {{ loop.index }}" 
+                                                        alt="{{ plato.nombre }} - imagen {{ loop.index }} de {{ plato.imagenes|length }}" 
                                                         class="dish-image carousel-image {% if loop.first %}active{% endif %}"
                                                         loading="lazy"
                                                     >
                                                 {% endfor %}
-                                                <div class="carousel-indicators">
+                                                <div class="carousel-indicators" role="tablist">
                                                     {% for img in plato.imagenes %}
-                                                        <span class="carousel-dot {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}"></span>
+                                                        <span class="carousel-dot {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}" role="tab" aria-selected="{% if loop.first %}true{% else %}false{% endif %}" aria-label="Imagen {{ loop.index }}"></span>
                                                     {% endfor %}
                                                 </div>
                                                 <button class="carousel-btn carousel-prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
@@ -1176,8 +1266,8 @@
         {% endif %}
         
         <!-- Resultado de búsqueda vacío -->
-        <div class="empty-state hidden" id="noResults">
-            <i class="fas fa-search"></i>
+        <div class="empty-state hidden" id="noResults" role="alert" aria-live="polite">
+            <i class="fas fa-search" aria-hidden="true"></i>
             <h3>No encontramos resultados</h3>
             <p>Intenta con otra palabra o revisa el menú completo.</p>
         </div>
@@ -1186,39 +1276,39 @@
 
     <!-- Información del Restaurante -->
     {% if restaurante.telefono or restaurante.direccion or restaurante.horario %}
-    <section class="restaurant-info-section">
+    <section class="restaurant-info-section" aria-label="Información de contacto">
         <div class="info-container">
             {% if restaurante.telefono %}
-            <a href="tel:{{ restaurante.telefono }}" class="info-item">
-                <i class="fas fa-phone"></i>
+            <a href="tel:{{ restaurante.telefono }}" class="info-item" aria-label="Llamar al {{ restaurante.telefono }}">
+                <i class="fas fa-phone" aria-hidden="true"></i>
                 <span>{{ restaurante.telefono }}</span>
             </a>
             {% endif %}
             
             {% if restaurante.direccion %}
             <div class="info-item">
-                <i class="fas fa-map-marker-alt"></i>
+                <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
                 <span>{{ restaurante.direccion }}</span>
             </div>
             {% endif %}
             
             {% if restaurante.horario %}
-            <div class="info-item horario-item" onclick="toggleHorarios()">
-                <i class="fas fa-clock"></i>
-                <span>Ver horarios <i class="fas fa-chevron-down" id="horarioChevron"></i></span>
-            </div>
+            <button type="button" class="info-item horario-item" onclick="toggleHorarios()" aria-expanded="false" aria-controls="horariosDropdown">
+                <i class="fas fa-clock" aria-hidden="true"></i>
+                <span>Ver horarios <i class="fas fa-chevron-down" id="horarioChevron" aria-hidden="true"></i></span>
+            </button>
             {% endif %}
             
             {% if restaurante.whatsapp %}
-            <a href="https://wa.me/{{ restaurante.whatsapp|replace('+', '')|replace(' ', '') }}" class="info-item whatsapp-item" target="_blank">
-                <i class="fab fa-whatsapp"></i>
+            <a href="https://wa.me/{{ restaurante.whatsapp|replace('+', '')|replace(' ', '') }}" class="info-item whatsapp-item" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
+                <i class="fab fa-whatsapp" aria-hidden="true"></i>
                 <span>WhatsApp</span>
             </a>
             {% endif %}
         </div>
         
         {% if restaurante.horario %}
-        <div class="horarios-dropdown" id="horariosDropdown">
+        <div class="horarios-dropdown" id="horariosDropdown" role="region" aria-label="Horarios de atención">
             <div class="horarios-content" id="horariosContent">
                 <!-- Se llena con JavaScript -->
             </div>
@@ -1230,22 +1320,24 @@
     <!-- Botón flotante para descargar PDF -->
     <button type="button"
        class="pdf-download-btn" 
+       id="pdfDownloadBtn"
        title="Descargar menú en PDF"
+       aria-label="Descargar menú en formato PDF"
        onclick="descargarPDF()">
-        <i class="fas fa-file-pdf"></i>
+        <i class="fas fa-file-pdf" aria-hidden="true"></i>
     </button>
 
     <!-- Footer -->
-    <footer class="menu-footer">
-        <i class="fas fa-bolt"></i>
-        Powered by <a href="#">Divergent Studio</a>
+    <footer class="menu-footer" role="contentinfo">
+        <i class="fas fa-bolt" aria-hidden="true"></i>
+        Powered by <a href="https://divergent.studio" target="_blank" rel="noopener">Divergent Studio</a>
     </footer>
 
     <!-- Modal para ver plato en detalle -->
-    <div class="dish-modal" id="dishModal">
-        <div class="dish-modal-backdrop" onclick="cerrarModal()"></div>
+    <div class="dish-modal" id="dishModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
+        <div class="dish-modal-backdrop" onclick="cerrarModal()" aria-label="Cerrar modal"></div>
         <div class="dish-modal-content">
-            <button class="dish-modal-close" onclick="cerrarModal()">
+            <button class="dish-modal-close" onclick="cerrarModal()" aria-label="Cerrar detalles del plato">
                 <i class="fas fa-times"></i>
             </button>
             <div class="dish-modal-image" id="modalImage"></div>
@@ -1577,8 +1669,20 @@
         
         // Función para cerrar modal
         function cerrarModal() {
-            document.getElementById('dishModal').classList.remove('active');
+            const modal = document.getElementById('dishModal');
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
+        }
+
+        // Función para abrir modal (actualizada para accesibilidad)
+        function abrirModal() {
+            const modal = document.getElementById('dishModal');
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            // Focus trap
+            modal.querySelector('.dish-modal-close').focus();
         }
         
         // Cerrar modal con Escape
@@ -1600,8 +1704,11 @@
             const item = document.querySelector('.horario-item');
             
             if (dropdown) {
-                dropdown.classList.toggle('open');
-                if (item) item.classList.toggle('open');
+                const isOpen = dropdown.classList.toggle('open');
+                if (item) {
+                    item.classList.toggle('open');
+                    item.setAttribute('aria-expanded', isOpen);
+                }
             }
         }
         
@@ -1625,7 +1732,7 @@
                             : '<span class="horario-cerrado">Cerrado</span>';
                         
                         html += `
-                            <div class="horario-row ${esHoy ? 'hoy' : ''}">
+                            <div class="horario-row ${esHoy ? 'hoy' : ''}"  role="row">>
                                 <span class="horario-dia">${DIAS_NOMBRES[index]}${esHoy ? ' (Hoy)' : ''}</span>
                                 <span class="horario-horas">${horasText}</span>
                             </div>
@@ -1644,13 +1751,60 @@
         document.addEventListener('DOMContentLoaded', cargarHorarios);
 
         // ============================================
+        // TOAST NOTIFICATION SYSTEM
+        // ============================================
+        function mostrarToast(mensaje, tipo = 'info', duracion = 3000) {
+            // Eliminar toast anterior si existe
+            const existingToast = document.querySelector('.toast-notification');
+            if (existingToast) existingToast.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast-notification toast-${tipo}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'polite');
+            
+            const iconos = {
+                'success': 'fa-check-circle',
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle'
+            };
+            
+            toast.innerHTML = `
+                <i class="fas ${iconos[tipo] || iconos.info}" aria-hidden="true"></i>
+                <span>${mensaje}</span>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, duracion);
+        }
+
+        // ============================================
         // EXPORTAR A PDF - DISEÑO PREMIUM
         // ============================================
         function descargarPDF() {
-            const btn = document.querySelector('.pdf-download-btn');
+            // Verificar que html2pdf esté cargado
+            if (typeof html2pdf === 'undefined') {
+                mostrarToast('Error: El generador de PDF no está disponible. Recarga la página.', 'error', 4000);
+                return;
+            }
+
+            const btn = document.getElementById('pdfDownloadBtn');
             const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>';
             btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+            
+            mostrarToast('Generando PDF, espera un momento...', 'info', 2000);
 
             // Datos del restaurante
             const restauranteNombre = '{{ restaurante.nombre }}';
@@ -2183,11 +2337,14 @@
             html2pdf().set(opt).from(pdfContent).save().then(() => {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
+                btn.setAttribute('aria-busy', 'false');
+                mostrarToast('¡PDF descargado exitosamente!', 'success');
             }).catch(err => {
                 console.error('Error al generar PDF:', err);
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
-                alert('Error al generar el PDF. Intenta nuevamente.');
+                btn.setAttribute('aria-busy', 'false');
+                mostrarToast('Error al generar el PDF. Intenta nuevamente.', 'error', 4000);
             });
         }
 
@@ -2217,9 +2374,10 @@
                         img.classList.toggle('active', i === currentIndex);
                     });
 
-                    // Actualizar indicadores
+                    // Actualizar indicadores (con ARIA)
                     dots.forEach((dot, i) => {
                         dot.classList.toggle('active', i === currentIndex);
+                        dot.setAttribute('aria-selected', i === currentIndex);
                     });
                 }
 
