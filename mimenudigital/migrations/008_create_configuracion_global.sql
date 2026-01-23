@@ -17,7 +17,7 @@ INSERT INTO configuracion_global (clave, valor, descripcion) VALUES
 ('deposito_activo', 'true', 'Habilitar/deshabilitar pagos por depósito bancario'),
 ('banco_nombre', 'Banco Estado', 'Nombre del banco para depósitos'),
 ('banco_tipo_cuenta', 'Cuenta Vista', 'Tipo de cuenta bancaria'),
-('banco_numero_cuenta', '12345678', 'Número de cuenta bancaria'),
+('banco_numero', '12345678', 'Número de cuenta bancaria'),
 ('banco_rut', '12.345.678-9', 'RUT del titular de la cuenta'),
 ('banco_titular', 'Tu Nombre', 'Nombre del titular de la cuenta'),
 ('banco_email', 'tu@email.com', 'Email para confirmar depósitos'),

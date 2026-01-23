@@ -262,6 +262,7 @@
     
     .tag.abierto { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
     .tag.en_proceso { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+    .tag.respondido { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
     .tag.cerrado { background: rgba(52, 211, 153, 0.15); color: #34d399; }
     .tag.alta { background: rgba(248, 113, 113, 0.15); color: #f87171; }
     .tag.media { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
@@ -451,34 +452,34 @@
     <div class="stats-row">
         <div class="stat-box">
             <div class="icon"><i class="bi bi-ticket-detailed"></i></div>
-            <div class="info"><h3>{{ tickets|length }}</h3><p>Total</p></div>
+            <div class="info"><h3>{{ stats.total or tickets|length }}</h3><p>Total</p></div>
         </div>
         <div class="stat-box">
             <div class="icon"><i class="bi bi-envelope-open"></i></div>
-            <div class="info"><h3>{{ tickets|selectattr('estado', 'eq', 'abierto')|list|length }}</h3><p>Abiertos</p></div>
+            <div class="info"><h3>{{ stats.abiertos or 0 }}</h3><p>Abiertos</p></div>
         </div>
         <div class="stat-box">
             <div class="icon"><i class="bi bi-arrow-repeat"></i></div>
-            <div class="info"><h3>{{ tickets|selectattr('estado', 'eq', 'en_proceso')|list|length }}</h3><p>En Proceso</p></div>
+            <div class="info"><h3>{{ stats.en_proceso or 0 }}</h3><p>En Proceso</p></div>
         </div>
         <div class="stat-box">
             <div class="icon"><i class="bi bi-check-circle"></i></div>
-            <div class="info"><h3>{{ tickets|selectattr('estado', 'eq', 'cerrado')|list|length }}</h3><p>Resueltos</p></div>
+            <div class="info"><h3>{{ stats.respondidos or 0 }}</h3><p>Respondidos</p></div>
         </div>
     </div>
 
     <div class="filters-row">
         <button class="filter-btn active" data-filter="todos">
-            <i class="bi bi-grid-3x3-gap"></i> Todos <span class="cnt">{{ tickets|length }}</span>
+            <i class="bi bi-grid-3x3-gap"></i> Todos <span class="cnt">{{ stats.total or tickets|length }}</span>
         </button>
         <button class="filter-btn" data-filter="abierto">
-            <i class="bi bi-envelope-open"></i> Abiertos <span class="cnt">{{ tickets|selectattr('estado', 'eq', 'abierto')|list|length }}</span>
+            <i class="bi bi-envelope-open"></i> Abiertos <span class="cnt">{{ stats.abiertos or 0 }}</span>
         </button>
         <button class="filter-btn" data-filter="en_proceso">
-            <i class="bi bi-arrow-repeat"></i> En Proceso <span class="cnt">{{ tickets|selectattr('estado', 'eq', 'en_proceso')|list|length }}</span>
+            <i class="bi bi-arrow-repeat"></i> En Proceso <span class="cnt">{{ stats.en_proceso or 0 }}</span>
         </button>
-        <button class="filter-btn" data-filter="cerrado">
-            <i class="bi bi-check-circle"></i> Resueltos <span class="cnt">{{ tickets|selectattr('estado', 'eq', 'cerrado')|list|length }}</span>
+        <button class="filter-btn" data-filter="respondido">
+            <i class="bi bi-check-circle"></i> Respondidos <span class="cnt">{{ stats.respondidos or 0 }}</span>
         </button>
         <button class="filter-btn" data-filter="alta">
             <i class="bi bi-exclamation-triangle"></i> Urgentes
@@ -491,20 +492,20 @@
             <div class="ticket-item" data-estado="{{ t.estado }}" data-prioridad="{{ t.prioridad }}">
                 <div class="ticket-top" onclick="this.parentElement.classList.toggle('open')">
                     <div class="priority-line"></div>
-                    <div class="ticket-avatar">{{ t.usuario_nombre[:2]|upper if t.usuario_nombre else 'US' }}</div>
+                    <div class="ticket-avatar">{{ t.nombre[:2]|upper if t.nombre else 'US' }}</div>
                     <div class="ticket-info">
                         <div class="ticket-title-row">
                             <span class="ticket-num">#{{ t.id }}</span>
                             <span class="ticket-subj">{{ t.asunto }}</span>
                         </div>
                         <div class="ticket-meta">
-                            <span><i class="bi bi-person"></i> {{ t.usuario_nombre or 'Usuario' }}</span>
+                            <span><i class="bi bi-person"></i> {{ t.nombre or 'Usuario' }}</span>
                             <span><i class="bi bi-shop"></i> {{ t.restaurante_nombre or 'N/A' }}</span>
                             <span><i class="bi bi-clock"></i> {{ t.fecha_creacion.strftime('%d/%m/%Y %H:%M') if t.fecha_creacion else '' }}</span>
                         </div>
                     </div>
                     <div class="ticket-tags">
-                        <span class="tag {{ t.estado }}">{% if t.estado == 'abierto' %}Abierto{% elif t.estado == 'en_proceso' %}En Proceso{% else %}Cerrado{% endif %}</span>
+                        <span class="tag {{ t.estado }}">{% if t.estado == 'abierto' %}Abierto{% elif t.estado == 'en_proceso' %}En Proceso{% elif t.estado == 'respondido' %}Respondido{% else %}Cerrado{% endif %}</span>
                         <span class="tag {{ t.prioridad }}"><i class="bi bi-flag-fill"></i> {{ t.prioridad|capitalize }}</span>
                     </div>
                     <div class="ticket-expand-btn"><i class="bi bi-chevron-down"></i></div>
@@ -513,31 +514,30 @@
                     <div class="ticket-inner">
                         <div class="messages">
                             <div class="msg">
-                                <div class="msg-avatar">{{ t.usuario_nombre[:2]|upper if t.usuario_nombre else 'US' }}</div>
+                                <div class="msg-avatar">{{ t.nombre[:2]|upper if t.nombre else 'US' }}</div>
                                 <div class="msg-body">
                                     <div class="msg-head">
-                                        <span class="msg-author">{{ t.usuario_nombre or 'Usuario' }}</span>
+                                        <span class="msg-author">{{ t.nombre or 'Usuario' }}</span>
                                         <span class="msg-time">{{ t.fecha_creacion.strftime('%d/%m/%Y %H:%M') if t.fecha_creacion else '' }}</span>
                                     </div>
                                     <p class="msg-text">{{ t.mensaje }}</p>
                                 </div>
                             </div>
-                            {% if t.respuestas %}
-                                {% for r in t.respuestas %}
-                                <div class="msg {% if r.es_admin %}admin{% endif %}">
-                                    <div class="msg-avatar">{% if r.es_admin %}<i class="bi bi-shield-check"></i>{% else %}{{ t.usuario_nombre[:2]|upper if t.usuario_nombre else 'US' }}{% endif %}</div>
+                            {% if t.respuesta %}
+                                <div class="msg admin">
+                                    <div class="msg-avatar"><i class="bi bi-shield-check"></i></div>
                                     <div class="msg-body">
                                         <div class="msg-head">
-                                            <span class="msg-author">{% if r.es_admin %}Soporte{% else %}{{ t.usuario_nombre or 'Usuario' }}{% endif %}</span>
-                                            <span class="msg-time">{{ r.fecha_respuesta.strftime('%d/%m/%Y %H:%M') if r.fecha_respuesta else '' }}</span>
+                                            <span class="msg-author">Soporte</span>
+                                            <span class="msg-time">{{ t.fecha_respuesta.strftime('%d/%m/%Y %H:%M') if t.fecha_respuesta else '' }}</span>
                                         </div>
-                                        <p class="msg-text">{{ r.mensaje }}</p>
+                                        <p class="msg-text">{{ t.respuesta }}</p>
                                     </div>
                                 </div>
-                                {% endfor %}
                             {% endif %}
                         </div>
-                        <form class="reply-box" action="{{ url_for('superadmin_responder_ticket', ticket_id=t.id) }}" method="POST">
+                        <form class="reply-box" action="{{ url_for('superadmin_responder_ticket') }}" method="POST">
+                            <input type="hidden" name="ticket_id" value="{{ t.id }}">
                             <textarea name="respuesta" class="reply-textarea" placeholder="Escribe tu respuesta..." required></textarea>
                             <div class="reply-footer">
                                 <div class="status-sel">
@@ -545,6 +545,7 @@
                                     <select name="nuevo_estado">
                                         <option value="abierto" {% if t.estado == 'abierto' %}selected{% endif %}>Abierto</option>
                                         <option value="en_proceso" {% if t.estado == 'en_proceso' %}selected{% endif %}>En Proceso</option>
+                                        <option value="respondido" {% if t.estado == 'respondido' %}selected{% endif %}>Respondido</option>
                                         <option value="cerrado" {% if t.estado == 'cerrado' %}selected{% endif %}>Cerrado</option>
                                     </select>
                                 </div>

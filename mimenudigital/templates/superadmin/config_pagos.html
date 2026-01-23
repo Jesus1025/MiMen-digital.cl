@@ -433,18 +433,18 @@
                         <p>Pagos automáticos online</p>
                     </div>
                 </div>
-                <span class="badge {{ 'active' if config.mercado_pago_activo else 'inactive' }}">
-                    {{ 'Activo' if config.mercado_pago_activo else 'Inactivo' }}
+                <span class="badge {{ 'active' if config.mercadopago_activo == 'true' else 'inactive' }}">
+                    {{ 'Activo' if config.mercadopago_activo == 'true' else 'Inactivo' }}
                 </span>
             </div>
             <div class="card-body">
                 <div class="info-row">
                     <span class="label"><i class="bi bi-lightning-charge"></i> Estado</span>
-                    <span class="value">{{ 'Operativo' if config.mercado_pago_activo else 'Desactivado' }}</span>
+                    <span class="value">{{ 'Operativo' if config.mercadopago_activo == 'true' else 'Desactivado' }}</span>
                 </div>
                 <div class="info-row">
                     <span class="label"><i class="bi bi-gear"></i> Configuración</span>
-                    <span class="value">{{ 'API Configurada' if config.mercado_pago_activo else 'Pendiente' }}</span>
+                    <span class="value">{{ 'API Configurada' if config.mercadopago_activo == 'true' else 'Pendiente' }}</span>
                 </div>
             </div>
         </div>
@@ -459,8 +459,8 @@
                         <p>Pagos manuales</p>
                     </div>
                 </div>
-                <span class="badge {{ 'active' if config.transferencia_activo else 'inactive' }}">
-                    {{ 'Activo' if config.transferencia_activo else 'Inactivo' }}
+                <span class="badge {{ 'active' if config.deposito_activo == 'true' else 'inactive' }}">
+                    {{ 'Activo' if config.deposito_activo == 'true' else 'Inactivo' }}
                 </span>
             </div>
             <div class="card-body">
@@ -516,7 +516,7 @@
             <div class="card-body">
                 <div class="info-row">
                     <span class="label"><i class="bi bi-check2-all"></i> Métodos activos</span>
-                    <span class="value">{{ (1 if config.mercado_pago_activo else 0) + (1 if config.transferencia_activo else 0) }}/2</span>
+                    <span class="value">{{ (1 if config.mercadopago_activo == 'true' else 0) + (1 if config.deposito_activo == 'true' else 0) }}/2</span>
                 </div>
                 <div class="info-row">
                     <span class="label"><i class="bi bi-shield-check"></i> Seguridad</span>
@@ -546,7 +546,7 @@
                     </div>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" name="mercado_pago_activo" {{ 'checked' if config.mercado_pago_activo else '' }}>
+                    <input type="checkbox" name="mercadopago_activo" {{ 'checked' if config.mercadopago_activo == 'true' else '' }}>
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -559,7 +559,7 @@
                     </div>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" name="transferencia_activo" {{ 'checked' if config.transferencia_activo else '' }}>
+                    <input type="checkbox" name="deposito_activo" {{ 'checked' if config.deposito_activo == 'true' else '' }}>
                     <span class="toggle-slider"></span>
                 </label>
             </div>
