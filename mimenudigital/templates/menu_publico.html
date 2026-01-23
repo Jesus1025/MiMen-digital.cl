@@ -1180,7 +1180,7 @@
                     {% if categoria.platos %}
                         <div class="dishes-grid" id="dishes-{{ loop.index }}" role="list">
                             {% for plato in categoria.platos %}
-                                <article class="dish-card" role="listitem" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}" tabindex="0" aria-label="{{ plato.nombre }}, ${{ '{:,.0f}'.format(plato.precio) }}">
+                                <article class="dish-card" role="listitem" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}" tabindex="0" aria-label="{{ plato.nombre }}, ${{ '{:,.0f}'.format(plato.precio)|replace(',', '.') }}">
                                     <div class="dish-image-wrapper">
                                         {% if plato.imagenes and plato.imagenes|length > 1 %}
                                             <!-- Carrusel para múltiples imágenes -->
@@ -1241,7 +1241,7 @@
                                         {% endif %}
                                         <div class="dish-footer">
                                             <span class="dish-price">
-                                                <span class="currency">$</span>{{ "{:,.0f}".format(plato.precio) }}
+                                                <span class="currency">$</span>{{ "{:,.0f}".format(plato.precio)|replace(",", ".") }}
                                             </span>
                                         </div>
                                     </div>

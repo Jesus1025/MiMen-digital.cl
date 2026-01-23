@@ -146,6 +146,85 @@
         </table>
     </div>
 </div>
+
+<!-- Sección de Soporte -->
+<div class="dashboard-card" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border: 1px solid #667eea30;">
+    <div class="card-header">
+        <h2 class="card-title">
+            <i class="fas fa-headset" style="color: #667eea; margin-right: 0.5rem;"></i>
+            ¿Necesitas Ayuda?
+        </h2>
+    </div>
+    <div class="columns is-vcentered">
+        <div class="column is-8">
+            <p style="color: #555; margin-bottom: 0.5rem;">
+                <strong>Estamos aquí para ayudarte.</strong> Si tienes dudas, problemas técnicos o sugerencias, 
+                envíanos un mensaje y te responderemos lo antes posible.
+            </p>
+            <p style="color: #888; font-size: 0.85rem;">
+                <i class="fas fa-clock" style="margin-right: 0.3rem;"></i>
+                Tiempo promedio de respuesta: menos de 24 horas
+            </p>
+        </div>
+        <div class="column is-4" style="text-align: right;">
+            <button onclick="abrirModalSoporte()" class="button is-primary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                <i class="fas fa-envelope" style="margin-right: 0.5rem;"></i>
+                Enviar Mensaje
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Soporte -->
+<div class="modal" id="modalSoporte">
+    <div class="modal-background" onclick="cerrarModalSoporte()"></div>
+    <div class="modal-card" style="max-width: 500px;">
+        <header class="modal-card-head" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <p class="modal-card-title" style="color: white;">
+                <i class="fas fa-headset" style="margin-right: 0.5rem;"></i>
+                Contactar Soporte
+            </p>
+            <button class="delete" aria-label="close" onclick="cerrarModalSoporte()"></button>
+        </header>
+        <section class="modal-card-body">
+            <div class="field">
+                <label class="label">Tipo de consulta</label>
+                <div class="control">
+                    <div class="select is-fullwidth">
+                        <select id="ticketTipo">
+                            <option value="consulta">Consulta general</option>
+                            <option value="problema">Problema técnico</option>
+                            <option value="sugerencia">Sugerencia</option>
+                            <option value="pago">Consulta de pago/suscripción</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="field">
+                <label class="label">Asunto *</label>
+                <div class="control">
+                    <input class="input" type="text" id="ticketAsunto" placeholder="Resumen de tu consulta" maxlength="200">
+                </div>
+            </div>
+            
+            <div class="field">
+                <label class="label">Mensaje *</label>
+                <div class="control">
+                    <textarea class="textarea" id="ticketMensaje" rows="5" placeholder="Describe tu consulta o problema con el mayor detalle posible..."></textarea>
+                </div>
+                <p class="help">Mínimo 10 caracteres</p>
+            </div>
+        </section>
+        <footer class="modal-card-foot" style="justify-content: flex-end;">
+            <button class="button" onclick="cerrarModalSoporte()">Cancelar</button>
+            <button class="button is-primary" id="btnEnviarTicket" onclick="enviarTicket()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                <i class="fas fa-paper-plane" style="margin-right: 0.5rem;"></i>
+                Enviar Ticket
+            </button>
+        </footer>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -303,5 +382,91 @@
     function mostrarDetalleScans() {
         alert('Escaneos QR: Visitas desde dispositivos móviles (smartphones/tablets). Estos son probablemente clientes que escanearon tu código QR en el restaurante.');
     }
+    
+    // ========== FUNCIONES DE SOPORTE ==========
+    
+    function abrirModalSoporte() {
+        document.getElementById('ticketTipo').value = 'consulta';
+        document.getElementById('ticketAsunto').value = '';
+        document.getElementById('ticketMensaje').value = '';
+        document.getElementById('modalSoporte').classList.add('is-active');
+        setTimeout(() => document.getElementById('ticketAsunto').focus(), 100);
+    }
+    
+    function cerrarModalSoporte() {
+        document.getElementById('modalSoporte').classList.remove('is-active');
+    }
+    
+    async function enviarTicket() {
+        const tipo = document.getElementById('ticketTipo').value;
+        const asunto = document.getElementById('ticketAsunto').value.trim();
+        const mensaje = document.getElementById('ticketMensaje').value.trim();
+        
+        if (!asunto) {
+            alert('Por favor ingresa un asunto');
+            document.getElementById('ticketAsunto').focus();
+            return;
+        }
+        
+        if (!mensaje || mensaje.length < 10) {
+            alert('El mensaje debe tener al menos 10 caracteres');
+            document.getElementById('ticketMensaje').focus();
+            return;
+        }
+        
+        const btn = document.getElementById('btnEnviarTicket');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+        
+        try {
+            const res = await fetch('/api/tickets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo, asunto, mensaje })
+            });
+            
+            const result = await res.json();
+            
+            if (result.success) {
+                cerrarModalSoporte();
+                
+                // Mostrar mensaje de éxito bonito
+                const successModal = document.createElement('div');
+                successModal.className = 'modal is-active';
+                successModal.innerHTML = `
+                    <div class="modal-background" onclick="this.parentElement.remove()"></div>
+                    <div class="modal-content" style="text-align: center; background: white; padding: 2.5rem; border-radius: 16px; max-width: 400px;">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+                            <i class="fas fa-check" style="font-size: 2.5rem; color: white;"></i>
+                        </div>
+                        <h3 class="title is-4" style="color: #2c3e50;">¡Ticket Enviado!</h3>
+                        <p style="color: #666; margin-bottom: 1rem;">Tu ticket <strong>#${result.ticket_id}</strong> ha sido registrado correctamente.</p>
+                        <p style="color: #888; font-size: 0.9rem;">Te responderemos por email lo antes posible.</p>
+                        <button class="button is-primary mt-4" onclick="this.closest('.modal').remove()" style="background: #27ae60; border: none;">
+                            Entendido
+                        </button>
+                    </div>
+                    <button class="modal-close is-large" aria-label="close" onclick="this.parentElement.remove()"></button>
+                `;
+                document.body.appendChild(successModal);
+            } else {
+                alert(result.error || 'Error al enviar el ticket');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error de conexión. Intenta de nuevo.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    }
+    
+    // Cerrar modal con Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            cerrarModalSoporte();
+        }
+    });
 </script>
 {% endblock %}

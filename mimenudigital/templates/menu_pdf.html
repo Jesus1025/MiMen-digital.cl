@@ -346,7 +346,7 @@
                                     <p class="dish-description">{{ plato.descripcion }}</p>
                                 {% endif %}
                             </div>
-                            <div class="dish-price">${{ "{:,.0f}".format(plato.precio) }}</div>
+                            <div class="dish-price">${{ "{:,.0f}".format(plato.precio)|replace(",", ".") }}</div>
                         </div>
                     {% endfor %}
                 </div>
