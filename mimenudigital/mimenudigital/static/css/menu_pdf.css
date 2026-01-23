@@ -1,0 +1,16 @@
+/* Stylesheet for PDF export (optional overrides)
+   This file is used by pdfkit if present. It complements inline styles in template.
+*/
+@page { size: A4; margin: 1.2cm; }
+body { -webkit-font-smoothing: antialiased; font-smoothing: antialiased; }
+.header { margin-bottom: 18px; }
+.restaurant-name { font-size: 26pt !important; }
+.category-title { font-size: 14pt !important; color: #e74c3c !important; }
+.dish-name { font-size: 11pt !important; }
+.dish-price { font-size: 11pt !important; }
+.dish-description { color: #6c757d !important; }
+.footer { border-top: 1px solid #e9ecef; padding-top: 6px; font-size: 8pt; }
+/* Avoid breaking inside dish cards */
+.category, .dish, .dish-card { page-break-inside: avoid; }
+/* Small QR tweak */
+.qr-section img { width: 90px; height: 90px; }

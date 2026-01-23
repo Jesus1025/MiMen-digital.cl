@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Menú Digital Divergent Studio</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1rem;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            color: white;
+        }
+
+        .login-logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .login-body {
+            padding: 2rem;
+        }
+
+        .field {
+            margin-bottom: 1.25rem;
+        }
+
+        .label {
+            font-weight: 500;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .input {
+            padding: 0.9rem 1rem 0.9rem 2.75rem;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .input:focus {
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+        }
+
+        .control.has-icons-left .icon {
+            color: #7f8c8d;
+            height: 100%;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 0.9rem;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .login-footer {
+            text-align: center;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .login-footer a {
+            color: #e74c3c;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Flash messages */
+        .notification {
+            margin-bottom: 1rem;
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .notification.is-danger {
+            background: #fef0f0;
+            color: #c0392b;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .notification.is-success {
+            background: #f0fef4;
+            color: #1e8449;
+            border-left: 4px solid #27ae60;
+        }
+
+        .notification.is-info {
+            background: #f0f8fe;
+            color: #2980b9;
+            border-left: 4px solid #3498db;
+        }
+
+        /* Powered by */
+        .powered-by {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: rgba(255,255,255,0.8);
+            font-size: 0.85rem;
+        }
+
+        .powered-by a {
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Animaciones */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-card {
+            animation: fadeIn 0.5s ease forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <h1 class="login-title">Menú Digital</h1>
+                <p class="login-subtitle">Panel de Gestión</p>
+            </div>
+            
+            <div class="login-body">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="notification is-{{ 'danger' if category == 'error' else category }}">
+                                <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}" style="margin-right: 0.5rem;"></i>
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="field">
+                        <label class="label">Usuario</label>
+                        <div class="control has-icons-left">
+                            <input class="input" type="text" name="username" placeholder="Tu usuario" required autofocus>
+                            <span class="icon is-small is-left">
+                                <i class="fas fa-user"></i>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <label class="label">Contraseña</label>
+                        <div class="control has-icons-left">
+                            <input class="input" type="password" name="password" placeholder="Tu contraseña" required>
+                            <span class="icon is-small is-left">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="field" style="margin-top: 1.5rem;">
+                        <button type="submit" class="btn-login">
+                            <i class="fas fa-sign-in-alt"></i>
+                            Iniciar Sesión
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="login-footer">
+                <p><a href="{{ url_for('recuperar_contraseña') }}"><i class="fas fa-key"></i> ¿Olvidaste tu contraseña?</a></p>
+                <p style="margin-top: 0.75rem;"><a href="{{ url_for('contactar_soporte') }}" style="color: #7f8c8d;"><i class="fas fa-headset"></i> Contactar soporte</a></p>
+            </div>
+        </div>
+        
+        <p class="powered-by">
+            Powered by <a href="https://divergent.studio" target="_blank" rel="noopener">Divergent Studio</a>
+        </p>
+    </div>
+</body>
+</html>

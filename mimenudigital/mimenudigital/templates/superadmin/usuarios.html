@@ -1,0 +1,40 @@
+{% extends "superadmin/base_superadmin.html" %}
+
+{% block title %}Gestión de Usuarios - SuperAdmin{% endblock %}
+{% block page_title %}Gestión de Usuarios{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-users"></i> Gestión de Usuarios</h2>
+    </div>
+    {% if usuarios and usuarios|length > 0 %}
+    <div class="table-container mt-4">
+        <table class="table is-striped is-fullwidth">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Creado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>{{ u.nombre }}</td>
+                    <td>{{ u.email }}</td>
+                    <td>{{ u.rol }}</td>
+                    <td>{{ u.fecha_creacion.strftime('%d/%m/%Y %H:%M') if u.fecha_creacion else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No hay usuarios registrados.</p>
+    {% endif %}
+</div>
+{% endblock %}
