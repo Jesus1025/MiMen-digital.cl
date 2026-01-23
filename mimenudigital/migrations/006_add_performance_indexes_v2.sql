@@ -2,43 +2,52 @@
 -- MIGRACIÓN 006: Índices de Performance Adicionales
 -- ============================================================
 -- Mejora el rendimiento de consultas frecuentes
--- Compatible con MySQL 5.7+
+-- Compatible con MySQL 5.7+ / PythonAnywhere
 -- ============================================================
 
--- Índice compuesto para búsqueda de platos por restaurante y categoría
--- DROP INDEX si existe, luego crear (ignorar errores si no existe)
-DROP INDEX idx_platos_rest_cat_activo ON platos;
-CREATE INDEX idx_platos_rest_cat_activo ON platos(restaurante_id, categoria_id, activo);
+-- Nota: Usamos procedimiento para evitar errores si el índice ya existe
 
--- Índice para ordenamiento de platos
-DROP INDEX idx_platos_orden ON platos;
-CREATE INDEX idx_platos_orden ON platos(restaurante_id, orden, nombre(50));
+DELIMITER //
 
--- Índice para estadísticas diarias (muy consultado en dashboard)
-DROP INDEX idx_estadisticas_rest_fecha ON estadisticas_diarias;
-CREATE INDEX idx_estadisticas_rest_fecha ON estadisticas_diarias(restaurante_id, fecha);
+-- Procedimiento helper para crear índice si no existe
+DROP PROCEDURE IF EXISTS create_index_if_not_exists//
+CREATE PROCEDURE create_index_if_not_exists(
+    IN p_table VARCHAR(64),
+    IN p_index VARCHAR(64),
+    IN p_columns VARCHAR(255)
+)
+BEGIN
+    DECLARE index_exists INT DEFAULT 0;
+    
+    SELECT COUNT(*) INTO index_exists
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+    AND table_name = p_table
+    AND index_name = p_index;
+    
+    IF index_exists = 0 THEN
+        SET @sql = CONCAT('CREATE INDEX ', p_index, ' ON ', p_table, '(', p_columns, ')');
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END//
 
--- Índice para visitas recientes
-DROP INDEX idx_visitas_fecha ON visitas;
-CREATE INDEX idx_visitas_fecha ON visitas(restaurante_id, fecha);
+DELIMITER ;
 
--- Índice para usuarios por restaurante (login y listados)
-DROP INDEX idx_usuarios_rest_activo ON usuarios_admin;
-CREATE INDEX idx_usuarios_rest_activo ON usuarios_admin(restaurante_id, activo, username);
+-- Crear índices usando el procedimiento
+CALL create_index_if_not_exists('platos', 'idx_platos_rest_cat_activo', 'restaurante_id, categoria_id, activo');
+CALL create_index_if_not_exists('platos', 'idx_platos_orden', 'restaurante_id, orden');
+CALL create_index_if_not_exists('estadisticas_diarias', 'idx_estadisticas_rest_fecha', 'restaurante_id, fecha');
+CALL create_index_if_not_exists('visitas', 'idx_visitas_fecha', 'restaurante_id, fecha');
+CALL create_index_if_not_exists('usuarios_admin', 'idx_usuarios_rest_activo', 'restaurante_id, activo');
+CALL create_index_if_not_exists('categorias', 'idx_categorias_orden', 'restaurante_id, activo, orden');
+CALL create_index_if_not_exists('password_resets', 'idx_password_resets_token', 'token, utilizado');
+CALL create_index_if_not_exists('restaurantes', 'idx_restaurantes_vencimiento', 'fecha_vencimiento, activo');
 
--- Índice para categorías ordenadas
-DROP INDEX idx_categorias_orden ON categorias;
-CREATE INDEX idx_categorias_orden ON categorias(restaurante_id, activo, orden);
-
--- Índice para password_resets (recuperación de contraseña)
-DROP INDEX idx_password_resets_token ON password_resets;
-CREATE INDEX idx_password_resets_token ON password_resets(token, utilizado);
-
--- Índice para suscripciones próximas a vencer (superadmin)
-DROP INDEX idx_restaurantes_vencimiento ON restaurantes;
-CREATE INDEX idx_restaurantes_vencimiento ON restaurantes(fecha_vencimiento, activo);
+-- Limpiar procedimiento temporal
+DROP PROCEDURE IF EXISTS create_index_if_not_exists;
 
 -- ============================================================
--- NOTA: Los DROP INDEX pueden dar error si el índice no existe,
--- eso está bien, simplemente continúa con el siguiente.
+-- MIGRACIÓN COMPLETADA
 -- ============================================================
