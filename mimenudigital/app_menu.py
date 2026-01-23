@@ -3676,18 +3676,21 @@ def superadmin_responder_ticket():
     """Responder a un ticket de soporte."""
     ticket_id = request.form.get('ticket_id')
     respuesta = request.form.get('respuesta', '').strip()
+    nuevo_estado = request.form.get('nuevo_estado', 'respondido')
     enviar_email = request.form.get('enviar_email') == 'on'
-    cerrar_ticket = request.form.get('cerrar_ticket') == 'on'
     
     if not ticket_id or not respuesta:
         flash('Faltan datos requeridos', 'error')
         return redirect(url_for('superadmin_tickets'))
     
+    # Validar estado
+    estados_validos = ['abierto', 'en_proceso', 'respondido', 'cerrado']
+    if nuevo_estado not in estados_validos:
+        nuevo_estado = 'respondido'
+    
     db = get_db()
     try:
         with db.cursor() as cur:
-            nuevo_estado = 'cerrado' if cerrar_ticket else 'respondido'
-            
             cur.execute('''
                 UPDATE tickets_soporte 
                 SET respuesta = %s, 
