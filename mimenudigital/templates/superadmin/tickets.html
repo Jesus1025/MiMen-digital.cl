@@ -258,7 +258,12 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.3px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
     }
+    
+    .tag i { font-size: 0.7rem; }
     
     .tag.abierto { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
     .tag.en_proceso { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
@@ -267,6 +272,12 @@
     .tag.alta { background: rgba(248, 113, 113, 0.15); color: #f87171; }
     .tag.media { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
     .tag.baja { background: rgba(52, 211, 153, 0.15); color: #34d399; }
+    .tag.urgente { background: rgba(239, 68, 68, 0.2); color: #ef4444; animation: pulse-urgente 2s infinite; }
+    
+    @keyframes pulse-urgente {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    }
     
     .ticket-expand-btn {
         width: 36px;
@@ -340,8 +351,10 @@
         margin-bottom: 0.35rem;
     }
     
-    .msg-author { font-weight: 600; color: #f1f5f9; font-size: 0.85rem; }
-    .msg-time { font-size: 0.7rem; color: #64748b; }
+    .msg-author { font-weight: 600; color: #f1f5f9; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; }
+    .msg-author i { opacity: 0.7; }
+    .msg-time { font-size: 0.7rem; color: #64748b; display: flex; align-items: center; gap: 0.3rem; }
+    .msg-time::before { content: '\\f292'; font-family: 'bootstrap-icons'; margin-right: 0.2rem; }
     .msg-text { color: #cbd5e1; font-size: 0.88rem; line-height: 1.6; }
 
     /* Reply */
@@ -505,7 +518,7 @@
                         </div>
                     </div>
                     <div class="ticket-tags">
-                        <span class="tag {{ t.estado }}">{% if t.estado == 'abierto' %}Abierto{% elif t.estado == 'en_proceso' %}En Proceso{% elif t.estado == 'respondido' %}Respondido{% else %}Cerrado{% endif %}</span>
+                        <span class="tag {{ t.estado }}"><i class="bi bi-{% if t.estado == 'abierto' %}envelope-open{% elif t.estado == 'en_proceso' %}hourglass-split{% elif t.estado == 'respondido' %}reply-fill{% else %}check-circle-fill{% endif %}"></i> {% if t.estado == 'abierto' %}Abierto{% elif t.estado == 'en_proceso' %}En Proceso{% elif t.estado == 'respondido' %}Respondido{% else %}Cerrado{% endif %}</span>
                         <span class="tag {{ t.prioridad }}"><i class="bi bi-flag-fill"></i> {{ t.prioridad|capitalize }}</span>
                     </div>
                     <div class="ticket-expand-btn"><i class="bi bi-chevron-down"></i></div>
@@ -514,10 +527,10 @@
                     <div class="ticket-inner">
                         <div class="messages">
                             <div class="msg">
-                                <div class="msg-avatar">{{ t.nombre[:2]|upper if t.nombre else 'US' }}</div>
+                                <div class="msg-avatar"><i class="bi bi-person-fill"></i></div>
                                 <div class="msg-body">
                                     <div class="msg-head">
-                                        <span class="msg-author">{{ t.nombre or 'Usuario' }}</span>
+                                        <span class="msg-author"><i class="bi bi-chat-quote-fill"></i> {{ t.nombre or 'Usuario' }}</span>
                                         <span class="msg-time">{{ t.fecha_creacion.strftime('%d/%m/%Y %H:%M') if t.fecha_creacion else '' }}</span>
                                     </div>
                                     <p class="msg-text">{{ t.mensaje }}</p>
@@ -528,7 +541,7 @@
                                     <div class="msg-avatar"><i class="bi bi-shield-check"></i></div>
                                     <div class="msg-body">
                                         <div class="msg-head">
-                                            <span class="msg-author">Soporte</span>
+                                            <span class="msg-author"><i class="bi bi-headset"></i> Soporte</span>
                                             <span class="msg-time">{{ t.fecha_respuesta.strftime('%d/%m/%Y %H:%M') if t.fecha_respuesta else '' }}</span>
                                         </div>
                                         <p class="msg-text">{{ t.respuesta }}</p>
@@ -538,10 +551,10 @@
                         </div>
                         <form class="reply-box" action="{{ url_for('superadmin_responder_ticket') }}" method="POST">
                             <input type="hidden" name="ticket_id" value="{{ t.id }}">
-                            <textarea name="respuesta" class="reply-textarea" placeholder="Escribe tu respuesta..." required></textarea>
+                            <textarea name="respuesta" class="reply-textarea" placeholder="✍️ Escribe tu respuesta aquí..." required></textarea>
                             <div class="reply-footer">
                                 <div class="status-sel">
-                                    <label>Estado:</label>
+                                    <label><i class="bi bi-arrow-left-right"></i> Estado:</label>
                                     <select name="nuevo_estado">
                                         <option value="abierto" {% if t.estado == 'abierto' %}selected{% endif %}>Abierto</option>
                                         <option value="en_proceso" {% if t.estado == 'en_proceso' %}selected{% endif %}>En Proceso</option>
@@ -558,9 +571,9 @@
             {% endfor %}
         {% else %}
             <div class="empty-state">
-                <i class="bi bi-emoji-smile"></i>
-                <h3>¡Sin tickets!</h3>
-                <p>No hay solicitudes pendientes</p>
+                <i class="bi bi-inbox"></i>
+                <h3><i class="bi bi-check-circle"></i> ¡Sin tickets pendientes!</h3>
+                <p><i class="bi bi-emoji-smile"></i> No hay solicitudes de soporte en este momento</p>
             </div>
         {% endif %}
     </div>
