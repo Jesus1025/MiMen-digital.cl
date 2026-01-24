@@ -405,7 +405,7 @@
 {% block content %}
 <div class="pagos-page">
     <div class="page-header">
-        <div class="header-icon"><i class="bi bi-credit-card-2-front"></i></div>
+        <div class="header-icon"><i class="fas fa-credit-card"></i></div>
         <div class="header-text">
             <h1>Configuración de Pagos</h1>
             <p>Gestiona los métodos de pago de la plataforma</p>
@@ -416,7 +416,7 @@
         {% if messages %}
             {% for cat, msg in messages %}
                 <div class="alert alert-{{ 'success' if cat == 'success' else 'error' }}">
-                    <i class="bi bi-{{ 'check-circle-fill' if cat == 'success' else 'x-circle-fill' }}"></i>
+                    <i class="fas fa-{{ 'check-circle' if cat == 'success' else 'times-circle' }}"></i>
                     <span>{{ msg }}</span>
                 </div>
             {% endfor %}
@@ -428,23 +428,23 @@
         <div class="config-card">
             <div class="card-header">
                 <div class="card-header-left">
-                    <div class="card-icon blue"><i class="bi bi-wallet2"></i></div>
+                    <div class="card-icon blue"><i class="fas fa-wallet"></i></div>
                     <div class="card-title">
                         <h3>Mercado Pago</h3>
                         <p>Pagos automáticos online</p>
                     </div>
                 </div>
                 <span class="badge {{ 'active' if config.mercadopago_activo == 'true' else 'inactive' }}">
-                    <i class="bi bi-{{ 'check-circle-fill' if config.mercadopago_activo == 'true' else 'x-circle-fill' }}"></i> {{ 'Activo' if config.mercadopago_activo == 'true' else 'Inactivo' }}
+                    <i class="fas fa-{{ 'check-circle' if config.mercadopago_activo == 'true' else 'times-circle' }}"></i> {{ 'Activo' if config.mercadopago_activo == 'true' else 'Inactivo' }}
                 </span>
             </div>
             <div class="card-body">
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-lightning-charge"></i> Estado</span>
+                    <span class="label"><i class="fas fa-bolt"></i> Estado</span>
                     <span class="value">{{ 'Operativo' if config.mercadopago_activo == 'true' else 'Desactivado' }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-gear"></i> Configuración</span>
+                    <span class="label"><i class="fas fa-cog"></i> Configuración</span>
                     <span class="value">{{ 'API Configurada' if config.mercadopago_activo == 'true' else 'Pendiente' }}</span>
                 </div>
             </div>
@@ -454,27 +454,27 @@
         <div class="config-card">
             <div class="card-header">
                 <div class="card-header-left">
-                    <div class="card-icon green"><i class="bi bi-bank"></i></div>
+                    <div class="card-icon green"><i class="fas fa-university"></i></div>
                     <div class="card-title">
                         <h3>Transferencia Bancaria</h3>
                         <p>Pagos manuales</p>
                     </div>
                 </div>
                 <span class="badge {{ 'active' if config.deposito_activo == 'true' else 'inactive' }}">
-                    <i class="bi bi-{{ 'check-circle-fill' if config.deposito_activo == 'true' else 'x-circle-fill' }}"></i> {{ 'Activo' if config.deposito_activo == 'true' else 'Inactivo' }}
+                    <i class="fas fa-{{ 'check-circle' if config.deposito_activo == 'true' else 'times-circle' }}"></i> {{ 'Activo' if config.deposito_activo == 'true' else 'Inactivo' }}
                 </span>
             </div>
             <div class="card-body">
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-building"></i> Banco</span>
+                    <span class="label"><i class="fas fa-building"></i> Banco</span>
                     <span class="value">{{ config.banco_nombre or 'No configurado' }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-hash"></i> Cuenta</span>
+                    <span class="label"><i class="fas fa-hashtag"></i> Cuenta</span>
                     <span class="value">{{ config.banco_numero if config.banco_numero else 'No configurado' }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-person"></i> Titular</span>
+                    <span class="label"><i class="fas fa-user"></i> Titular</span>
                     <span class="value">{{ config.banco_titular or 'No configurado' }}</span>
                 </div>
             </div>
@@ -484,7 +484,7 @@
         <div class="config-card">
             <div class="card-header">
                 <div class="card-header-left">
-                    <div class="card-icon purple"><i class="bi bi-tag"></i></div>
+                    <div class="card-icon purple"><i class="fas fa-tag"></i></div>
                     <div class="card-title">
                         <h3>Plan Premium</h3>
                         <p>Precio de suscripción</p>
@@ -493,11 +493,11 @@
             </div>
             <div class="card-body">
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-currency-dollar"></i> Precio mensual</span>
+                    <span class="label"><i class="fas fa-dollar-sign"></i> Precio mensual</span>
                     <span class="value" style="font-size: 1.25rem; color: #34d399;">${{ config.precio_mensual|precio_cl }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-globe"></i> Moneda</span>
+                    <span class="label"><i class="fas fa-globe"></i> Moneda</span>
                     <span class="value">CLP (Peso Chileno)</span>
                 </div>
             </div>
@@ -507,7 +507,7 @@
         <div class="config-card">
             <div class="card-header">
                 <div class="card-header-left">
-                    <div class="card-icon yellow"><i class="bi bi-info-circle"></i></div>
+                    <div class="card-icon yellow"><i class="fas fa-info-circle"></i></div>
                     <div class="card-title">
                         <h3>Información</h3>
                         <p>Estado del sistema</p>
@@ -516,12 +516,12 @@
             </div>
             <div class="card-body">
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-check2-all"></i> Métodos activos</span>
+                    <span class="label"><i class="fas fa-check-double"></i> Métodos activos</span>
                     <span class="value">{{ (1 if config.mercadopago_activo == 'true' else 0) + (1 if config.deposito_activo == 'true' else 0) }}/2</span>
                 </div>
                 <div class="info-row">
-                    <span class="label"><i class="bi bi-shield-check"></i> Seguridad</span>
-                    <span class="value" style="color: #34d399;"><i class="bi bi-patch-check-fill"></i> Verificado</span>
+                    <span class="label"><i class="fas fa-shield-alt"></i> Seguridad</span>
+                    <span class="value" style="color: #34d399;"><i class="fas fa-certificate"></i> Verificado</span>
                 </div>
             </div>
         </div>
@@ -530,7 +530,7 @@
     <!-- Form -->
     <form class="form-section" method="POST">
         <div class="form-header">
-            <div class="form-header-icon"><i class="bi bi-sliders"></i></div>
+            <div class="form-header-icon"><i class="fas fa-sliders-h"></i></div>
             <div class="form-header-text">
                 <h3>Editar Configuración</h3>
                 <p>Modifica los parámetros de pago</p>
@@ -540,7 +540,7 @@
         <div class="toggles-section">
             <div class="toggle-card">
                 <div class="toggle-info">
-                    <div class="toggle-icon mp"><i class="bi bi-wallet2"></i></div>
+                    <div class="toggle-icon mp"><i class="fas fa-wallet"></i></div>
                     <div class="toggle-text">
                         <h4>Mercado Pago</h4>
                         <p>Pagos automáticos</p>
@@ -553,7 +553,7 @@
             </div>
             <div class="toggle-card">
                 <div class="toggle-info">
-                    <div class="toggle-icon bank"><i class="bi bi-bank"></i></div>
+                    <div class="toggle-icon bank"><i class="fas fa-university"></i></div>
                     <div class="toggle-text">
                         <h4>Transferencia</h4>
                         <p>Pagos manuales</p>
@@ -568,16 +568,16 @@
 
         <div class="form-grid">
             <div class="form-group">
-                <label><i class="bi bi-tag"></i> Precio Mensual (CLP)</label>
+                <label><i class="fas fa-tag"></i> Precio Mensual (CLP)</label>
                 <input type="number" name="precio_mensual" value="{{ config.precio_mensual }}" placeholder="4990">
                 <small>Precio sin puntos ni símbolos</small>
             </div>
             <div class="form-group">
-                <label><i class="bi bi-building"></i> Banco</label>
+                <label><i class="fas fa-building"></i> Banco</label>
                 <input type="text" name="banco_nombre" value="{{ config.banco_nombre or '' }}" placeholder="Banco Estado">
             </div>
             <div class="form-group">
-                <label><i class="bi bi-credit-card"></i> Tipo de Cuenta</label>
+                <label><i class="fas fa-credit-card"></i> Tipo de Cuenta</label>
                 <select name="banco_tipo_cuenta">
                     <option value="corriente" {{ 'selected' if config.banco_tipo_cuenta == 'corriente' else '' }}>Cuenta Corriente</option>
                     <option value="vista" {{ 'selected' if config.banco_tipo_cuenta == 'vista' else '' }}>Cuenta Vista / RUT</option>
@@ -585,27 +585,27 @@
                 </select>
             </div>
             <div class="form-group">
-                <label><i class="bi bi-hash"></i> Número de Cuenta</label>
+                <label><i class="fas fa-hashtag"></i> Número de Cuenta</label>
                 <input type="text" name="banco_numero" value="{{ config.banco_numero or '' }}" placeholder="123456789">
             </div>
             <div class="form-group">
-                <label><i class="bi bi-person"></i> Titular</label>
+                <label><i class="fas fa-user"></i> Titular</label>
                 <input type="text" name="banco_titular" value="{{ config.banco_titular or '' }}" placeholder="Nombre completo">
             </div>
             <div class="form-group">
-                <label><i class="bi bi-card-text"></i> RUT del Titular</label>
+                <label><i class="fas fa-id-card"></i> RUT del Titular</label>
                 <input type="text" name="banco_rut" value="{{ config.banco_rut or '' }}" placeholder="12.345.678-9">
             </div>
             <div class="form-group form-row-full">
-                <label><i class="bi bi-envelope"></i> Email para notificaciones</label>
+                <label><i class="fas fa-envelope"></i> Email para notificaciones</label>
                 <input type="email" name="banco_email" value="{{ config.banco_email or '' }}" placeholder="pagos@tudominio.cl">
                 <small>Este email recibirá los comprobantes de transferencia</small>
             </div>
         </div>
 
         <div class="form-actions">
-            <button type="reset" class="btn btn-secondary"><i class="bi bi-arrow-counterclockwise"></i> Restablecer</button>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar Cambios</button>
+            <button type="reset" class="btn btn-secondary"><i class="fas fa-undo"></i> Restablecer</button>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar Cambios</button>
         </div>
     </form>
 </div>
