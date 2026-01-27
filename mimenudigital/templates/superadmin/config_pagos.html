@@ -529,6 +529,7 @@
 
     <!-- Form -->
     <form class="form-section" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-header">
             <div class="form-header-icon"><i class="fas fa-sliders-h"></i></div>
             <div class="form-header-text">
