@@ -90,14 +90,14 @@
         </div>
         
         <div style="display: flex; gap: 15px;">
-            {% if restaurante.whatsapp %}
-                <a href="https://wa.me/{{ restaurante.whatsapp }}?text=Hola%20quisiera%20reactivar%20mi%20suscripci%C3%B3n" target="_blank" class="button is-fullwidth" style="background: rgba(255, 255, 255, 0.2); color: white; font-weight: bold; border: 2px solid white; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+            {% if config_pagos.soporte_whatsapp %}
+                <a href="https://wa.me/{{ config_pagos.soporte_whatsapp }}?text=Hola%2C%20soy%20{{ restaurante.nombre|urlencode }}%20y%20quisiera%20reactivar%20mi%20suscripci%C3%B3n" target="_blank" class="button is-fullwidth" style="background: #25d366; color: white; font-weight: bold; border: none; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
                     <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
                 </a>
             {% endif %}
             
-            {% if restaurante.email %}
-                <a href="mailto:{{ restaurante.email }}?subject=Reactivar%20suscripci%C3%B3n%20de%20men%C3%BA%20digital" class="button is-fullwidth" style="background: rgba(255, 255, 255, 0.2); color: white; font-weight: bold; border: 2px solid white; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+            {% if config_pagos.banco_email %}
+                <a href="mailto:{{ config_pagos.banco_email }}?subject=Reactivar%20suscripci%C3%B3n%20-%20{{ restaurante.nombre }}" class="button is-fullwidth" style="background: rgba(255, 255, 255, 0.2); color: white; font-weight: bold; border: 2px solid white; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
                     <i class="fas fa-envelope"></i> Enviar Email
                 </a>
             {% endif %}
