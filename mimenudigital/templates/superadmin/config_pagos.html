@@ -520,6 +520,10 @@
                     <span class="value">{{ (1 if config.mercadopago_activo == 'true' else 0) + (1 if config.deposito_activo == 'true' else 0) }}/2</span>
                 </div>
                 <div class="info-row">
+                    <span class="label"><i class="fab fa-whatsapp" style="color: #25d366;"></i> WhatsApp</span>
+                    <span class="value">{% if config.soporte_whatsapp %}{{ config.soporte_whatsapp }}{% else %}<span style="color: #f87171;">No configurado</span>{% endif %}</span>
+                </div>
+                <div class="info-row">
                     <span class="label"><i class="fas fa-shield-alt"></i> Seguridad</span>
                     <span class="value" style="color: #34d399;"><i class="fas fa-certificate"></i> Verificado</span>
                 </div>
@@ -601,6 +605,11 @@
                 <label><i class="fas fa-envelope"></i> Email para notificaciones</label>
                 <input type="email" name="banco_email" value="{{ config.banco_email or '' }}" placeholder="pagos@tudominio.cl">
                 <small>Este email recibirá los comprobantes de transferencia</small>
+            </div>
+            <div class="form-group form-row-full">
+                <label><i class="fab fa-whatsapp" style="color: #25d366;"></i> WhatsApp de Soporte</label>
+                <input type="text" name="soporte_whatsapp" value="{{ config.soporte_whatsapp or '' }}" placeholder="56912345678">
+                <small>Número completo con código de país, sin + ni espacios (ej: 56912345678)</small>
             </div>
         </div>
 

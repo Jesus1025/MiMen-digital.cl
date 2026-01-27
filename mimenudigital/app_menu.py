@@ -662,12 +662,16 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Optional: enable CSRF via Flask-WTF if available
 try:
-    from flask_wtf.csrf import CSRFProtect
+    from flask_wtf.csrf import CSRFProtect, generate_csrf
     csrf = CSRFProtect()
     csrf.init_app(app)
+    # Registrar csrf_token en el contexto global de Jinja2
+    app.jinja_env.globals['csrf_token'] = generate_csrf
     logger.info('CSRF protection enabled via Flask-WTF')
 except Exception as e:
     logger.warning('Flask-WTF not available; CSRF protection not enabled: %s', e)
+    # Registrar función dummy para que los templates no fallen
+    app.jinja_env.globals['csrf_token'] = lambda: ''
 
 # Optional: integrate Sentry if SENTRY_DSN present
 if os.environ.get('SENTRY_DSN'):
@@ -3778,7 +3782,8 @@ def superadmin_config_pagos():
             ('banco_rut', request.form.get('banco_rut', '')),
             ('banco_titular', request.form.get('banco_titular', '')),
             ('banco_email', request.form.get('banco_email', '')),
-            ('precio_mensual', request.form.get('precio_mensual', '14990'))
+            ('precio_mensual', request.form.get('precio_mensual', '14990')),
+            ('soporte_whatsapp', request.form.get('soporte_whatsapp', ''))
         ]
         
         try:
@@ -3813,7 +3818,7 @@ def api_superadmin_config():
         'mercadopago_activo', 'deposito_activo',
         'banco_nombre', 'banco_tipo_cuenta', 'banco_numero',
         'banco_rut', 'banco_titular', 'banco_email',
-        'precio_mensual'
+        'precio_mensual', 'soporte_whatsapp'
     ]
     
     if clave not in claves_permitidas:
@@ -3841,7 +3846,8 @@ def api_config_pagos_public():
         'banco_rut': config.get('banco_rut', ''),
         'banco_titular': config.get('banco_titular', ''),
         'banco_email': config.get('banco_email', ''),
-        'precio_mensual': int(config.get('precio_mensual', 14990))
+        'precio_mensual': int(config.get('precio_mensual', 14990)),
+        'soporte_whatsapp': config.get('soporte_whatsapp', '')
     })
 
 
