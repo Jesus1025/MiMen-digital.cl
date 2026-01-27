@@ -225,6 +225,7 @@
                 </div>
                 
                 <form method="POST" id="resetForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="form-group">
                         <label for="email">
                             <i class="fas fa-envelope icon"></i>Email

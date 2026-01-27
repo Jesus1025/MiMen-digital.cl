@@ -549,6 +549,7 @@
                             {% endif %}
                         </div>
                         <form class="reply-box" action="{{ url_for('superadmin_responder_ticket') }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="ticket_id" value="{{ t.id }}">
                             <textarea name="respuesta" class="reply-textarea" placeholder="✍️ Escribe tu respuesta aquí..." required></textarea>
                             <div class="reply-footer">
