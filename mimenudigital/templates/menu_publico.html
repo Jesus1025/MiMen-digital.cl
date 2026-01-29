@@ -1387,11 +1387,12 @@
                 <!-- Renderizado por JavaScript -->
             </div>
         </div>
-        <!-- Datos de horario en un elemento oculto para JavaScript -->
-        <script id="horarioData" type="application/json">{{ restaurante.horario|default('{}', true) }}</script>
         {% endif %}
     </section>
     {% endif %}
+    
+    <!-- Datos de horario para JavaScript (siempre incluir) -->
+    <script id="horarioData" type="application/json">{{ restaurante.horario|default('{}', true)|safe }}</script>
 
     <!-- Botón flotante para descargar PDF -->
     <button type="button"

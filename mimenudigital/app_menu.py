@@ -386,6 +386,7 @@ try:
         get_client_ip,
         get_cache,
         invalidate_menu_cache,
+        clear_all_menu_cache,
         rate_limit
     )
     init_security_middleware(app)
@@ -402,6 +403,8 @@ except ImportError as e:
     def get_client_ip():
         return request.remote_addr or '127.0.0.1'
     def invalidate_menu_cache(restaurante_id, url_slug=None):
+        pass
+    def clear_all_menu_cache():
         pass
     def rate_limit(limit_type='default'):
         def decorator(f):
@@ -1445,11 +1448,13 @@ def ver_menu_publico(url_slug):
     try:
         # Preview de tema - no cachear
         preview_tema = request.args.get('preview_tema')
+        # Forzar recarga sin cache
+        force_refresh = request.args.get('refresh') == '1' or request.args.get('nocache') == '1'
         
-        # Intentar obtener del cache si no es preview
+        # Intentar obtener del cache si no es preview ni refresh
         cache_key = f"menu:{url_slug}"
         cached_data = None
-        if not preview_tema and SECURITY_MIDDLEWARE_AVAILABLE:
+        if not preview_tema and not force_refresh and SECURITY_MIDDLEWARE_AVAILABLE:
             cached_data = get_cache().get(cache_key)
         
         if cached_data:
@@ -3375,6 +3380,20 @@ def superadmin_usuarios():
 @superadmin_required
 def superadmin_suscripciones():
     return render_template('superadmin/suscripciones.html')
+
+
+@app.route('/api/superadmin/clear-cache', methods=['POST'])
+@login_required
+@superadmin_required
+def api_superadmin_clear_cache():
+    """API para limpiar todo el cache de menús."""
+    try:
+        count = clear_all_menu_cache()
+        logger.info("Cache limpiado por superadmin: %d entradas eliminadas", count)
+        return jsonify({'success': True, 'message': f'Cache limpiado: {count} entradas eliminadas'})
+    except Exception as e:
+        logger.exception("Error limpiando cache")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/superadmin/suscripciones', methods=['GET'])
