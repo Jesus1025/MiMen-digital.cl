@@ -321,7 +321,10 @@ def add_security_headers(response):
         if request.path.startswith('/api/'):
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         elif request.path.startswith('/static/'):
-            response.headers['Cache-Control'] = 'public, max-age=31536000'  # 1 año para estáticos
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'  # 1 año para estáticos + immutable
+        elif request.path.startswith('/menu/'):
+            # Cache público de menús por 5 minutos para mejorar rendimiento móvil
+            response.headers['Cache-Control'] = 'public, max-age=300, s-maxage=300'
     
     # Añadir headers de rate limit si están disponibles
     if hasattr(g, 'rate_limit_remaining'):
@@ -562,9 +565,8 @@ def init_security_middleware(app):
         """Aplica headers de seguridad y compresión GZIP."""
         response = add_security_headers(response)
         
-        # Solo comprimir en producción para no ralentizar desarrollo
-        if app.config.get('FLASK_ENV') == 'production' or not app.debug:
-            response = gzip_response(response)
+        # Aplicar GZIP siempre - importante para rendimiento móvil
+        response = gzip_response(response)
         
         return response
     
