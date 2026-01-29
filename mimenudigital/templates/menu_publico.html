@@ -1384,9 +1384,11 @@
         {% if restaurante.horario %}
         <div class="horarios-dropdown" id="horariosDropdown" role="region" aria-label="Horarios de atención">
             <div class="horarios-content" id="horariosContent">
-                <!-- Se llena con JavaScript -->
+                <!-- Renderizado por JavaScript -->
             </div>
         </div>
+        <!-- Datos de horario en un elemento oculto para JavaScript -->
+        <script id="horarioData" type="application/json">{{ restaurante.horario|default('{}', true) }}</script>
         {% endif %}
     </section>
     {% endif %}
@@ -1787,35 +1789,37 @@
         }
         
         function cargarHorarios() {
-            // El horario viene como string JSON desde la base de datos
-            const horarioStr = {{ (restaurante.horario or '')|tojson }};
             const container = document.getElementById('horariosContent');
+            const dataElement = document.getElementById('horarioData');
             
             if (!container) return;
             
-            // Si no hay horario configurado
-            if (!horarioStr || horarioStr === '' || horarioStr === '{}') {
+            // Si no hay elemento de datos o está vacío
+            if (!dataElement || !dataElement.textContent.trim()) {
                 container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
                 return;
             }
             
             try {
-                // Parsear el string JSON almacenado en la base de datos
-                let horarios;
-                if (typeof horarioStr === 'string') {
-                    horarios = JSON.parse(horarioStr);
-                } else {
-                    horarios = horarioStr;
+                const horarioStr = dataElement.textContent.trim();
+                
+                // Si está vacío o es un objeto vacío
+                if (!horarioStr || horarioStr === '{}' || horarioStr === '') {
+                    container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
+                    return;
                 }
+                
+                // Parsear el JSON
+                const horarios = JSON.parse(horarioStr);
                 
                 const hoy = new Date().getDay(); // 0 = Domingo
                 
                 let html = '';
-                // Iterar en orden de lunes a domingo para mostrar
+                // Iterar en orden de lunes a domingo
                 const ordenDias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
                 const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-                // Mapeo de día de la semana (0=dom, 1=lun, etc.) al índice en ordenDias
-                const diaHoyIndex = hoy === 0 ? 6 : hoy - 1; // Convertir: 0(dom)->6, 1(lun)->0, etc.
+                // Mapeo: 0(dom)->6, 1(lun)->0, 2(mar)->1, etc.
+                const diaHoyIndex = hoy === 0 ? 6 : hoy - 1;
                 
                 ordenDias.forEach((dia, index) => {
                     const esHoy = index === diaHoyIndex;
@@ -1842,9 +1846,8 @@
                     container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
                 }
             } catch (e) {
-                // Si falla el parsing JSON, mostrar el texto tal cual (formato antiguo)
                 console.error('Error parsing horarios:', e);
-                container.innerHTML = `<div class="horario-row"><span style="color: #7f8c8d;">Error al cargar horarios</span></div>`;
+                container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
             }
         }
         
