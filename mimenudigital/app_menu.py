@@ -767,15 +767,16 @@ def get_subscription_info(restaurante_id):
     - Estado: 'active', 'expiring_soon' (< 5 días), 'expired'
     - Días restantes
     - Fecha de vencimiento
+    - Tipo de plan: 'prueba' o 'activa'
     
     Returns:
-        dict: Con keys: status, days_remaining, expiration_date, fecha_vencimiento (object)
+        dict: Con keys: status, days_remaining, expiration_date, fecha_vencimiento (object), plan_type
     """
     try:
         db = get_db()
         with db.cursor() as cur:
             cur.execute(
-                "SELECT fecha_vencimiento FROM restaurantes WHERE id = %s",
+                "SELECT fecha_vencimiento, estado_suscripcion FROM restaurantes WHERE id = %s",
                 (restaurante_id,)
             )
             result = cur.fetchone()
@@ -785,6 +786,7 @@ def get_subscription_info(restaurante_id):
                 return None
             
             fecha_vencimiento = result.get('fecha_vencimiento')
+            estado_suscripcion = result.get('estado_suscripcion', 'prueba')
             
             if not fecha_vencimiento:
                 logger.warning("No expiration date for restaurant %s", restaurante_id)
@@ -812,7 +814,8 @@ def get_subscription_info(restaurante_id):
                 'status': estado,
                 'days_remaining': max(0, dias_restantes),
                 'expiration_date': fecha_formateada,
-                'fecha_vencimiento': fecha_vencimiento
+                'fecha_vencimiento': fecha_vencimiento,
+                'plan_type': estado_suscripcion
             }
     except Exception as e:
         logger.exception("Error getting subscription info")
@@ -2839,9 +2842,10 @@ def api_apariencia():
     try:
         data = request.get_json() or {}
         tema = data.get('tema', 'calido')
-        mostrar_precios = 1 if data.get('mostrar_precios', True) else 0
-        mostrar_descripciones = 1 if data.get('mostrar_descripciones', True) else 0
-        mostrar_imagenes = 1 if data.get('mostrar_imagenes', True) else 0
+        # Convertir booleanos/strings a 0/1 de forma robusta
+        mostrar_precios = 1 if (data.get('mostrar_precios', True) in (True, 1, '1', 'true')) else 0
+        mostrar_descripciones = 1 if (data.get('mostrar_descripciones', True) in (True, 1, '1', 'true')) else 0
+        mostrar_imagenes = 1 if (data.get('mostrar_imagenes', True) in (True, 1, '1', 'true')) else 0
 
         with db.cursor() as cur:
             # Confirmar que el restaurante existe y pertenece al session
@@ -2855,7 +2859,8 @@ def api_apariencia():
                     tema = %s,
                     mostrar_precios = %s,
                     mostrar_descripciones = %s,
-                    mostrar_imagenes = %s
+                    mostrar_imagenes = %s,
+                    fecha_actualizacion = NOW()
                 WHERE id = %s
             ''', (
                 tema,
@@ -2867,6 +2872,8 @@ def api_apariencia():
             db.commit()
         # Invalidar cache del menú público
         invalidate_menu_cache(restaurante_id)
+        logger.info("Apariencia actualizada para restaurante %s: tema=%s, precios=%s, descripciones=%s, imagenes=%s", 
+                   restaurante_id, tema, mostrar_precios, mostrar_descripciones, mostrar_imagenes)
         return jsonify({'success': True, 'message': 'Apariencia actualizada'})
     except Exception as e:
         try:
@@ -3256,7 +3263,7 @@ def superadmin_cambiar_password():
             
             # Actualizar contraseña
             nuevo_hash = generate_password_hash(password_nuevo)
-            cur.execute("UPDATE usuarios_admin SET password = %s WHERE id = %s", (nuevo_hash, usuario_id))
+            cur.execute("UPDATE usuarios_admin SET password_hash = %s WHERE id = %s", (nuevo_hash, usuario_id))
             db.commit()
         
         logger.info("SuperAdmin %s cambió su contraseña", usuario_id)
@@ -3377,8 +3384,16 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
             else:
                 return jsonify({'success': False, 'error': 'Debe especificar días o fecha'}), 400
             
-            # Actualizar
-            nuevo_estado = data.get('estado_suscripcion', 'activa')
+            # Actualizar - Cambiar de 'prueba' a 'activa' si se especifica
+            nuevo_estado = data.get('estado_suscripcion') or 'activa'
+            if nuevo_estado == 'activa':
+                # Asegurar que el estado cambie realmente
+                estado_anterior_query = "SELECT estado_suscripcion FROM restaurantes WHERE id = %s"
+                cur.execute(estado_anterior_query, (restaurante_id,))
+                anterior = cur.fetchone()['estado_suscripcion']
+                # Force update even if same field
+                nuevo_estado = 'activa' if anterior != 'activa' or data.get('estado_suscripcion') == 'activa' else anterior
+            
             cur.execute('''
                 UPDATE restaurantes 
                 SET fecha_vencimiento = %s, estado_suscripcion = %s, fecha_actualizacion = NOW()
@@ -3889,6 +3904,95 @@ def api_superadmin_stats():
         'total_escaneos': total_escaneos,
         'visitas_30dias': visitas_30dias,
         'tickets_pendientes': tickets_pendientes
+    })
+
+
+@app.route('/api/superadmin/stats-extended')
+@login_required
+@superadmin_required
+def api_superadmin_stats_extended():
+    """API extendida de estadísticas con ingresos y desglose de suscripciones."""
+    db = get_db()
+    with db.cursor() as cur:
+        # Total restaurantes
+        cur.execute("SELECT COUNT(*) as total FROM restaurantes")
+        total_restaurantes = cur.fetchone()['total']
+        
+        # Total usuarios (sin superadmin)
+        cur.execute("SELECT COUNT(*) as total FROM usuarios_admin WHERE rol != 'superadmin'")
+        total_usuarios = cur.fetchone()['total']
+        
+        # Total visitas y escaneos
+        cur.execute("SELECT COALESCE(SUM(visitas),0) as visitas, COALESCE(SUM(escaneos_qr),0) as escaneos FROM estadisticas_diarias")
+        row = cur.fetchone()
+        total_visitas = row['visitas']
+        total_escaneos = row['escaneos']
+        
+        # Visitas últimos 30 días
+        cur.execute("""
+            SELECT fecha, COALESCE(SUM(visitas),0) as visitas
+            FROM estadisticas_diarias
+            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY fecha
+            ORDER BY fecha
+        """)
+        visitas_30dias = list_from_rows(cur.fetchall())
+        
+        # Desglose de suscripciones por estado
+        cur.execute("""
+            SELECT estado_suscripcion, COUNT(*) as count 
+            FROM restaurantes 
+            GROUP BY estado_suscripcion
+        """)
+        subs_rows = cur.fetchall()
+        subs_activas = 0
+        subs_prueba = 0
+        subs_vencidas = 0
+        subs_suspendidas = 0
+        for r in subs_rows:
+            estado = r['estado_suscripcion']
+            if estado == 'activa':
+                subs_activas = r['count']
+            elif estado == 'prueba':
+                subs_prueba = r['count']
+            elif estado == 'vencida':
+                subs_vencidas = r['count']
+            elif estado == 'suspendida':
+                subs_suspendidas = r['count']
+        
+        # Obtener precio mensual de configuración
+        config = get_config_global()
+        precio_mensual = int(config.get('precio_mensual', 14990))
+        
+        # Ingreso mensual estimado = suscripciones activas × precio
+        ingreso_mensual = subs_activas * precio_mensual
+        
+        # Top 10 restaurantes por visitas
+        cur.execute("""
+            SELECT r.id, r.nombre, r.estado_suscripcion,
+                   COALESCE(SUM(e.visitas), 0) as total_visitas,
+                   COALESCE(SUM(e.escaneos_qr), 0) as total_escaneos
+            FROM restaurantes r
+            LEFT JOIN estadisticas_diarias e ON r.id = e.restaurante_id
+            GROUP BY r.id, r.nombre, r.estado_suscripcion
+            ORDER BY total_visitas DESC
+            LIMIT 10
+        """)
+        top_restaurantes = list_from_rows(cur.fetchall())
+        
+    return jsonify({
+        'total_restaurantes': total_restaurantes,
+        'total_usuarios': total_usuarios,
+        'total_visitas': total_visitas,
+        'total_escaneos': total_escaneos,
+        'visitas_30dias': visitas_30dias,
+        'subs_activas': subs_activas,
+        'subs_prueba': subs_prueba,
+        'subs_vencidas': subs_vencidas,
+        'subs_suspendidas': subs_suspendidas,
+        'ingreso_mensual': ingreso_mensual,
+        'precio_mensual': precio_mensual,
+        'top_restaurantes': top_restaurantes
     })
 
 

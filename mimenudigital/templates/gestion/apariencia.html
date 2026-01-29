@@ -111,6 +111,31 @@
     .theme-calido .theme-body { background: #fff5f5; }
     .theme-calido .theme-item { background: #e74c3c; }
     
+    /* Nuevos temas Hipster/Cafetería */
+    .theme-hipster .theme-header { background: linear-gradient(135deg, #2c2c2c, #1a1a1a); }
+    .theme-hipster .theme-body { background: #f5f0e8; }
+    .theme-hipster .theme-item { background: #8b6914; }
+    
+    .theme-industrial .theme-header { background: #37474f; }
+    .theme-industrial .theme-body { background: #eceff1; }
+    .theme-industrial .theme-item { background: #ff5722; }
+    
+    .theme-vintage .theme-header { background: #5d4037; }
+    .theme-vintage .theme-body { background: #efebe9; }
+    .theme-vintage .theme-item { background: #795548; }
+    
+    .theme-nordico .theme-header { background: #546e7a; }
+    .theme-nordico .theme-body { background: #fafafa; }
+    .theme-nordico .theme-item { background: #90a4ae; }
+    
+    .theme-botanico .theme-header { background: #2e7d32; }
+    .theme-botanico .theme-body { background: #e8f5e9; }
+    .theme-botanico .theme-item { background: #81c784; }
+    
+    .theme-minimalista .theme-header { background: #212121; }
+    .theme-minimalista .theme-body { background: #ffffff; }
+    .theme-minimalista .theme-item { background: #424242; }
+    
     .preview-frame {
         border: 1px solid #ddd;
         border-radius: 12px;
@@ -253,7 +278,98 @@
                         </div>
                     </div>
                     <div class="theme-info">
-                        <div class="theme-name">Cálido (Por defecto)</div>
+                        <div class="theme-name">Cálido</div>
+                    </div>
+                </div>
+                
+                <!-- NUEVOS TEMAS HIPSTER/CAFETERÍA -->
+                <div class="theme-card theme-hipster {% if restaurante.tema == 'hipster' %}active{% endif %}" 
+                     onclick="seleccionarTema('hipster')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">☕ Mi Cafetería</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Hipster Coffee</div>
+                    </div>
+                </div>
+                
+                <div class="theme-card theme-industrial {% if restaurante.tema == 'industrial' %}active{% endif %}" 
+                     onclick="seleccionarTema('industrial')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🏭 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Industrial</div>
+                    </div>
+                </div>
+                
+                <div class="theme-card theme-vintage {% if restaurante.tema == 'vintage' %}active{% endif %}" 
+                     onclick="seleccionarTema('vintage')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🎺 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Vintage</div>
+                    </div>
+                </div>
+                
+                <div class="theme-card theme-nordico {% if restaurante.tema == 'nordico' %}active{% endif %}" 
+                     onclick="seleccionarTema('nordico')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">❄️ Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Nórdico</div>
+                    </div>
+                </div>
+                
+                <div class="theme-card theme-botanico {% if restaurante.tema == 'botanico' %}active{% endif %}" 
+                     onclick="seleccionarTema('botanico')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🌿 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Botánico</div>
+                    </div>
+                </div>
+                
+                <div class="theme-card theme-minimalista {% if restaurante.tema == 'minimalista' %}active{% endif %}" 
+                     onclick="seleccionarTema('minimalista')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">◾ Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Minimalista</div>
                     </div>
                 </div>
             </div>
@@ -359,9 +475,11 @@ async function guardarApariencia() {
         const result = await response.json();
         
         if (result.success) {
-            alert('¡Tema actualizado correctamente!');
-            // Recargar preview con el tema guardado
+            alert('¡Apariencia guardada correctamente!');
+            // Recargar preview con los cambios
             document.getElementById('previewFrame').src = menuUrl + '?t=' + Date.now();
+            // Recargar página para reflejar cambios en checkboxes
+            setTimeout(() => location.reload(), 500);
         } else {
             alert('Error: ' + result.error);
         }

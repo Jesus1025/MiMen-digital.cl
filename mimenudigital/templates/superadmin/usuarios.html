@@ -3,6 +3,36 @@
 {% block title %}Gestión de Usuarios - SuperAdmin{% endblock %}
 {% block page_title %}Gestión de Usuarios{% endblock %}
 
+{% block extra_css %}
+<style>
+    .badge-rol {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .badge-superadmin { background: #8e44ad; color: white; }
+    .badge-admin { background: #3498db; color: white; }
+    .badge-editor { background: #27ae60; color: white; }
+    .badge-consulta { background: #95a5a6; color: white; }
+    
+    .badge-activo {
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        font-size: 0.7rem;
+    }
+    .badge-activo.si { background: #d4edda; color: #155724; }
+    .badge-activo.no { background: #f8d7da; color: #721c24; }
+    
+    .ultimo-login {
+        font-size: 0.85rem;
+    }
+    .ultimo-login .fecha { color: #2c3e50; }
+    .ultimo-login .nunca { color: #95a5a6; font-style: italic; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="dashboard-card">
     <div class="card-header">
@@ -10,13 +40,16 @@
     </div>
     {% if usuarios and usuarios|length > 0 %}
     <div class="table-container mt-4">
-        <table class="table is-striped is-fullwidth">
+        <table class="table is-striped is-fullwidth is-hoverable">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Nombre</th>
                     <th>Email</th>
+                    <th>Restaurante</th>
                     <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Último Login</th>
                     <th>Creado</th>
                 </tr>
             </thead>
@@ -24,17 +57,41 @@
                 {% for u in usuarios %}
                 <tr>
                     <td>{{ u.id }}</td>
-                    <td>{{ u.nombre }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>{{ u.rol }}</td>
-                    <td>{{ u.fecha_creacion.strftime('%d/%m/%Y %H:%M') if u.fecha_creacion else '' }}</td>
+                    <td>
+                        <strong>{{ u.nombre }}</strong>
+                        <br><small style="color: #7f8c8d;">@{{ u.username }}</small>
+                    </td>
+                    <td>{{ u.email or '-' }}</td>
+                    <td>{{ u.restaurante_nombre or '<span style="color:#95a5a6">Sin asignar</span>'|safe }}</td>
+                    <td>
+                        <span class="badge-rol badge-{{ u.rol }}">{{ u.rol }}</span>
+                    </td>
+                    <td>
+                        {% if u.activo %}
+                            <span class="badge-activo si">Activo</span>
+                        {% else %}
+                            <span class="badge-activo no">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td class="ultimo-login">
+                        {% if u.ultimo_login %}
+                            <span class="fecha">{{ u.ultimo_login.strftime('%d/%m/%Y') }}</span>
+                            <br><small style="color: #7f8c8d;">{{ u.ultimo_login.strftime('%H:%M') }}</small>
+                        {% else %}
+                            <span class="nunca">Nunca</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.fecha_creacion.strftime('%d/%m/%Y') if u.fecha_creacion else '-' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% else %}
-    <p>No hay usuarios registrados.</p>
+    <p class="has-text-centered" style="padding: 2rem; color: #7f8c8d;">
+        <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+        No hay usuarios registrados.
+    </p>
     {% endif %}
 </div>
 {% endblock %}

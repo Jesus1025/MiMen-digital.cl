@@ -3,7 +3,104 @@
 {% block title %}Estadísticas Generales - SuperAdmin{% endblock %}
 {% block page_title %}Estadísticas Generales{% endblock %}
 
+{% block extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .mini-stat {
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        border: 1px solid #ecf0f1;
+        border-radius: 10px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .mini-stat .icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+    }
+    
+    .mini-stat .info h4 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    .mini-stat .info p {
+        font-size: 0.8rem;
+        color: #7f8c8d;
+        margin: 0;
+    }
+    
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .export-btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+    
+    .export-btn:hover { transform: translateY(-2px); }
+    .export-btn.pdf { background: #e74c3c; color: white; }
+    .export-btn.csv { background: #27ae60; color: white; }
+    
+    .subs-breakdown {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .subs-item {
+        text-align: center;
+        padding: 1rem;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+    
+    .subs-item .count {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    
+    .subs-item .label {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+    }
+    
+    .subs-item.activa .count { color: #27ae60; }
+    .subs-item.prueba .count { color: #3498db; }
+    .subs-item.vencida .count { color: #e74c3c; }
+    .subs-item.suspendida .count { color: #f39c12; }
+</style>
+{% endblock %}
+
 {% block content %}
+<!-- Stats Cards -->
 <div class="columns is-multiline" style="margin-bottom: 2rem;">
     <div class="column is-3">
         <div class="stat-card">
@@ -51,34 +148,163 @@
     </div>
 </div>
 
+<!-- Ingresos y Suscripciones -->
+<div class="columns">
+    <div class="column is-6">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-dollar-sign"></i> Ingresos Estimados</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="mini-stat">
+                    <div class="icon" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="info">
+                        <h4 id="ingresoMensual">$--</h4>
+                        <p>Ingreso Mensual</p>
+                    </div>
+                </div>
+                <div class="mini-stat">
+                    <div class="icon" style="background: linear-gradient(135deg, #3498db, #5dade2);">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="info">
+                        <h4 id="ingresoAnual">$--</h4>
+                        <p>Proyección Anual</p>
+                    </div>
+                </div>
+            </div>
+            <p style="font-size: 0.8rem; color: #95a5a6; margin-top: 0.5rem;">
+                <i class="fas fa-info-circle"></i> Basado en suscripciones activas × precio mensual configurado
+            </p>
+        </div>
+    </div>
+    
+    <div class="column is-6">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-chart-pie"></i> Estado de Suscripciones</h2>
+            </div>
+            <div class="subs-breakdown">
+                <div class="subs-item activa">
+                    <div class="count" id="subsActivas">--</div>
+                    <div class="label">Activas</div>
+                </div>
+                <div class="subs-item prueba">
+                    <div class="count" id="subsPrueba">--</div>
+                    <div class="label">Prueba</div>
+                </div>
+                <div class="subs-item vencida">
+                    <div class="count" id="subsVencidas">--</div>
+                    <div class="label">Vencidas</div>
+                </div>
+                <div class="subs-item suspendida">
+                    <div class="count" id="subsSuspendidas">--</div>
+                    <div class="label">Suspendidas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico de Visitas -->
 <div class="dashboard-card">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h2 class="card-title"><i class="fas fa-chart-bar"></i> Evolución de Visitas (Últimos 30 días)</h2>
+        <div class="export-buttons">
+            <button class="export-btn csv" onclick="exportarCSV()">
+                <i class="fas fa-file-csv"></i> CSV
+            </button>
+            <button class="export-btn pdf" onclick="exportarPDF()">
+                <i class="fas fa-file-pdf"></i> PDF
+            </button>
+        </div>
     </div>
     <canvas id="chartVisitas" height="80"></canvas>
+</div>
+
+<!-- Tabla de Restaurantes Top -->
+<div class="dashboard-card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-trophy"></i> Top 10 Restaurantes por Visitas</h2>
+    </div>
+    <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable" id="tablaTopRestaurantes">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Restaurante</th>
+                    <th>Visitas</th>
+                    <th>Escaneos QR</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Se llena con JS -->
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+let statsData = {};
+let chartInstance = null;
+
 document.addEventListener('DOMContentLoaded', function() {
-    fetch('/api/superadmin/stats')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('totalRestaurantes').textContent = data.total_restaurantes;
-            document.getElementById('totalUsuarios').textContent = data.total_usuarios;
-            document.getElementById('totalVisitas').textContent = data.total_visitas;
-            document.getElementById('totalEscaneos').textContent = data.total_escaneos;
-            renderChart(data.visitas_30dias);
-        });
+    cargarEstadisticas();
 });
+
+async function cargarEstadisticas() {
+    try {
+        const res = await fetch('/api/superadmin/stats-extended');
+        statsData = await res.json();
+        
+        // Actualizar contadores principales
+        document.getElementById('totalRestaurantes').textContent = statsData.total_restaurantes;
+        document.getElementById('totalUsuarios').textContent = statsData.total_usuarios;
+        document.getElementById('totalVisitas').textContent = formatNumber(statsData.total_visitas);
+        document.getElementById('totalEscaneos').textContent = formatNumber(statsData.total_escaneos);
+        
+        // Ingresos
+        document.getElementById('ingresoMensual').textContent = formatCurrency(statsData.ingreso_mensual);
+        document.getElementById('ingresoAnual').textContent = formatCurrency(statsData.ingreso_mensual * 12);
+        
+        // Suscripciones
+        document.getElementById('subsActivas').textContent = statsData.subs_activas || 0;
+        document.getElementById('subsPrueba').textContent = statsData.subs_prueba || 0;
+        document.getElementById('subsVencidas').textContent = statsData.subs_vencidas || 0;
+        document.getElementById('subsSuspendidas').textContent = statsData.subs_suspendidas || 0;
+        
+        // Gráfico
+        renderChart(statsData.visitas_30dias);
+        
+        // Top restaurantes
+        renderTopRestaurantes(statsData.top_restaurantes);
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+    }
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat('es-CL').format(num || 0);
+}
+
+function formatCurrency(num) {
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(num || 0);
+}
 
 function renderChart(visitas) {
     const ctx = document.getElementById('chartVisitas').getContext('2d');
     const labels = visitas.map(v => v.fecha);
     const data = visitas.map(v => v.visitas);
-    new Chart(ctx, {
+    
+    if (chartInstance) chartInstance.destroy();
+    
+    chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
@@ -102,6 +328,108 @@ function renderChart(visitas) {
             }
         }
     });
+}
+
+function renderTopRestaurantes(restaurantes) {
+    const tbody = document.querySelector('#tablaTopRestaurantes tbody');
+    if (!restaurantes || restaurantes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#95a5a6;">Sin datos</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = restaurantes.map((r, i) => {
+        const badgeClass = r.estado_suscripcion === 'activa' ? 'is-success' : 
+                          r.estado_suscripcion === 'prueba' ? 'is-info' : 'is-danger';
+        return `
+            <tr>
+                <td><strong>${i + 1}</strong></td>
+                <td>${r.nombre}</td>
+                <td>${formatNumber(r.total_visitas)}</td>
+                <td>${formatNumber(r.total_escaneos)}</td>
+                <td><span class="tag ${badgeClass}">${r.estado_suscripcion}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function exportarCSV() {
+    if (!statsData.visitas_30dias) return alert('No hay datos para exportar');
+    
+    let csv = 'Fecha,Visitas\n';
+    statsData.visitas_30dias.forEach(v => {
+        csv += `${v.fecha},${v.visitas}\n`;
+    });
+    
+    // Agregar resumen
+    csv += '\nResumen\n';
+    csv += `Total Restaurantes,${statsData.total_restaurantes}\n`;
+    csv += `Total Usuarios,${statsData.total_usuarios}\n`;
+    csv += `Total Visitas,${statsData.total_visitas}\n`;
+    csv += `Total Escaneos,${statsData.total_escaneos}\n`;
+    csv += `Suscripciones Activas,${statsData.subs_activas}\n`;
+    csv += `Ingreso Mensual Estimado,${statsData.ingreso_mensual}\n`;
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `estadisticas_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+}
+
+function exportarPDF() {
+    // Abrir ventana de impresión con el gráfico
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Estadísticas - Mi Menú Digital</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #2c3e50; }
+                .stats { display: flex; gap: 20px; margin: 20px 0; }
+                .stat { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }
+                .stat h3 { margin: 0; font-size: 24px; color: #8e44ad; }
+                .stat p { margin: 5px 0 0; color: #7f8c8d; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+                th { background: #f8f9fa; }
+                .footer { margin-top: 30px; font-size: 12px; color: #95a5a6; }
+            </style>
+        </head>
+        <body>
+            <h1>📊 Reporte de Estadísticas</h1>
+            <p>Generado el ${new Date().toLocaleDateString('es-CL')}</p>
+            
+            <div class="stats">
+                <div class="stat"><h3>${statsData.total_restaurantes}</h3><p>Restaurantes</p></div>
+                <div class="stat"><h3>${statsData.total_usuarios}</h3><p>Usuarios</p></div>
+                <div class="stat"><h3>${formatNumber(statsData.total_visitas)}</h3><p>Visitas</p></div>
+                <div class="stat"><h3>${formatNumber(statsData.total_escaneos)}</h3><p>Escaneos QR</p></div>
+            </div>
+            
+            <h2>💰 Ingresos</h2>
+            <p><strong>Ingreso Mensual Estimado:</strong> ${formatCurrency(statsData.ingreso_mensual)}</p>
+            <p><strong>Proyección Anual:</strong> ${formatCurrency(statsData.ingreso_mensual * 12)}</p>
+            
+            <h2>📈 Suscripciones</h2>
+            <table>
+                <tr><th>Estado</th><th>Cantidad</th></tr>
+                <tr><td>Activas</td><td>${statsData.subs_activas}</td></tr>
+                <tr><td>Prueba</td><td>${statsData.subs_prueba}</td></tr>
+                <tr><td>Vencidas</td><td>${statsData.subs_vencidas}</td></tr>
+                <tr><td>Suspendidas</td><td>${statsData.subs_suspendidas}</td></tr>
+            </table>
+            
+            <div class="footer">
+                <p>Mi Menú Digital - Panel de Administración</p>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
 }
 </script>
 {% endblock %}

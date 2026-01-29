@@ -779,6 +779,12 @@
             box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
         }
 
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+
         .btn-info {
             background: #3498db;
         }
@@ -830,12 +836,17 @@
                         <span>Suscripción Vencida</span>
                     {% endif %}
                 </div>
+                {% if subscription_info.plan_type %}
+                <span style="font-size: 0.7rem; background: {% if subscription_info.plan_type == 'prueba' %}#3498db{% else %}#27ae60{% endif %}; color: white; padding: 2px 6px; border-radius: 3px; text-transform: uppercase;">
+                    {{ subscription_info.plan_type }}
+                </span>
+                {% endif %}
             </div>
 
             <div class="subscription-details">
                 <div class="subscription-detail-item">
                     <i class="fas fa-calendar"></i>
-                    <span><strong>{{ subscription_info.days_remaining }}</strong> días</span>
+                    <span><strong>{{ subscription_info.days_remaining }}</strong> días restantes</span>
                 </div>
                 <div class="subscription-detail-item">
                     <i class="fas fa-clock"></i>
@@ -844,10 +855,20 @@
             </div>
 
             <div class="subscription-actions">
-                <a href="{{ url_for('gestion_pago_pendiente') }}" class="btn-renew">
+                {% if subscription_info.status != 'active' or subscription_info.days_remaining <= 15 %}
+                <a href="{{ url_for('gestion_pago_pendiente') }}" class="btn-renew" style="{% if subscription_info.status == 'expired' %}animation: pulse 2s infinite;{% endif %}">
                     <i class="fas fa-credit-card"></i>
-                    Renovar Ahora
+                    {% if subscription_info.status == 'expired' %}
+                        Reactivar Ahora
+                    {% else %}
+                        Renovar Ahora
+                    {% endif %}
                 </a>
+                {% else %}
+                <span style="font-size: 0.8rem; color: #27ae60; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-shield-alt"></i> Todo en orden
+                </span>
+                {% endif %}
             </div>
         </div>
         {% endif %}
