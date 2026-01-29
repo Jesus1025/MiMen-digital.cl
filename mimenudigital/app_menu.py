@@ -1291,10 +1291,32 @@ def verificar_suscripcion(f):
                                 from datetime import datetime as _dt
                                 fecha_vencimiento = _dt.strptime(fecha_vencimiento, '%Y-%m-%d').date()
 
+                            # Verificar estado y fecha
+                            estado_sus = rest.get('estado_suscripcion', 'prueba') if isinstance(rest, dict) else rest['estado_suscripcion']
+                            
                             if date.today() > fecha_vencimiento:
+                                # Si la fecha venció pero el estado no refleja eso, actualizarlo
+                                if estado_sus not in ('vencida', 'suspendida'):
+                                    try:
+                                        cur.execute("UPDATE restaurantes SET estado_suscripcion = 'vencida' WHERE id = %s", (restaurante_id,))
+                                        db.commit()
+                                    except Exception:
+                                        pass
                                 logger.warning("Suscripción expirada para restaurante %s", restaurante_id)
                                 flash('Tu período de prueba o suscripción ha terminado', 'warning')
                                 return redirect(url_for('gestion_pago_pendiente'))
+                            
+                            # Si la fecha es válida pero el estado es vencida/suspendida, corregirlo
+                            if estado_sus in ('vencida',) and date.today() <= fecha_vencimiento:
+                                try:
+                                    cur.execute("UPDATE restaurantes SET estado_suscripcion = 'activa' WHERE id = %s", (restaurante_id,))
+                                    db.commit()
+                                    logger.info("Estado corregido a 'activa' para restaurante %s", restaurante_id)
+                                except Exception:
+                                    pass
+                                # Permitir acceso ya que la fecha es válida
+                                return f(*args, **kwargs)
+                                
                         except Exception as e:
                             logger.warning("Formato de fecha_vencimiento inesperado: %s", e)
                             return f(*args, **kwargs)
@@ -3364,12 +3386,13 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
     try:
         with db.cursor() as cur:
             # Obtener fecha actual de vencimiento
-            cur.execute("SELECT fecha_vencimiento FROM restaurantes WHERE id = %s", (restaurante_id,))
+            cur.execute("SELECT fecha_vencimiento, estado_suscripcion FROM restaurantes WHERE id = %s", (restaurante_id,))
             row = cur.fetchone()
             if not row:
                 return jsonify({'success': False, 'error': 'Restaurante no encontrado'}), 404
             
             fecha_actual = row['fecha_vencimiento']
+            estado_actual = row['estado_suscripcion']
             
             # Calcular nueva fecha
             if data.get('fecha_especifica'):
@@ -3384,15 +3407,20 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
             else:
                 return jsonify({'success': False, 'error': 'Debe especificar días o fecha'}), 400
             
-            # Actualizar - Cambiar de 'prueba' a 'activa' si se especifica
-            nuevo_estado = data.get('estado_suscripcion') or 'activa'
-            if nuevo_estado == 'activa':
-                # Asegurar que el estado cambie realmente
-                estado_anterior_query = "SELECT estado_suscripcion FROM restaurantes WHERE id = %s"
-                cur.execute(estado_anterior_query, (restaurante_id,))
-                anterior = cur.fetchone()['estado_suscripcion']
-                # Force update even if same field
-                nuevo_estado = 'activa' if anterior != 'activa' or data.get('estado_suscripcion') == 'activa' else anterior
+            # Determinar el nuevo estado
+            # Si se especifica explícitamente, usar ese. Si no, cambiar a 'activa'
+            nuevo_estado = data.get('estado_suscripcion', 'activa')
+            
+            # Si la fecha nueva es válida (futura), asegurarse de que el estado sea correcto
+            if isinstance(nueva_fecha, str):
+                from datetime import datetime as _dt
+                nueva_fecha_date = _dt.strptime(nueva_fecha, '%Y-%m-%d').date()
+            else:
+                nueva_fecha_date = nueva_fecha
+                
+            if nueva_fecha_date >= date.today() and nuevo_estado in ('vencida', 'prueba'):
+                # Si se extiende y la fecha es válida, marcar como activa
+                nuevo_estado = 'activa'
             
             cur.execute('''
                 UPDATE restaurantes 
@@ -3401,10 +3429,14 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
             ''', (nueva_fecha, nuevo_estado, restaurante_id))
             db.commit()
             
-            logger.info("Suscripción actualizada: restaurante=%s, nueva_fecha=%s, estado=%s", 
-                       restaurante_id, nueva_fecha, nuevo_estado)
+            logger.info("Suscripción actualizada: restaurante=%s, nueva_fecha=%s, estado=%s (anterior: %s)", 
+                       restaurante_id, nueva_fecha, nuevo_estado, estado_actual)
             
-            return jsonify({'success': True, 'nueva_fecha': str(nueva_fecha)})
+            return jsonify({
+                'success': True, 
+                'nueva_fecha': str(nueva_fecha),
+                'nuevo_estado': nuevo_estado
+            })
             
     except Exception as e:
         logger.exception("Error actualizando suscripción")

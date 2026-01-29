@@ -1787,29 +1787,19 @@
         }
         
         function cargarHorarios() {
-            // Usar tojson para evitar problemas de escape de comillas
-            const horarioRaw = {{ restaurante.horario | tojson | safe }};
+            // El horario viene como string JSON desde la base de datos
+            const horarioStr = {{ (restaurante.horario or '')|tojson }};
             const container = document.getElementById('horariosContent');
-            if (!container || !horarioRaw) return;
+            if (!container || !horarioStr || horarioStr === '') {
+                if (container) {
+                    container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
+                }
+                return;
+            }
             
             try {
-                // Si es string, intentar parsear como JSON
-                let horarios;
-                if (typeof horarioRaw === 'string') {
-                    // Intentar parsear si es un string JSON
-                    try {
-                        horarios = JSON.parse(horarioRaw);
-                    } catch {
-                        // Es texto libre (formato antiguo)
-                        container.innerHTML = `<div class="horario-row"><span>${escapeHtml(horarioRaw)}</span></div>`;
-                        return;
-                    }
-                } else if (typeof horarioRaw === 'object' && horarioRaw !== null) {
-                    horarios = horarioRaw;
-                } else {
-                    return;
-                }
-                
+                // Parsear el string JSON almacenado en la base de datos
+                const horarios = JSON.parse(horarioStr);
                 const hoy = new Date().getDay(); // 0 = Domingo
                 
                 let html = '';
@@ -1837,8 +1827,9 @@
                     container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
                 }
             } catch (e) {
-                console.error('Error parsing horarios:', e);
-                container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no disponibles</span></div>';
+                // Si falla el parsing JSON, mostrar el texto tal cual (formato antiguo)
+                console.log('Horario en formato texto:', horarioStr);
+                container.innerHTML = `<div class="horario-row"><span>${escapeHtml(horarioStr)}</span></div>`;
             }
         }
         
