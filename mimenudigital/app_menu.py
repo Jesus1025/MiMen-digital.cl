@@ -401,12 +401,35 @@ except ImportError as e:
         pass
     def get_client_ip():
         return request.remote_addr or '127.0.0.1'
-    def invalidate_menu_cache(restaurante_id):
+    def invalidate_menu_cache(restaurante_id, url_slug=None):
         pass
     def rate_limit(limit_type='default'):
         def decorator(f):
             return f
         return decorator
+
+
+def invalidar_cache_restaurante(restaurante_id):
+    """
+    Helper para invalidar el cache del menú de un restaurante.
+    Obtiene el url_slug de la BD y llama a invalidate_menu_cache.
+    """
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("SELECT url_slug FROM restaurantes WHERE id = %s", (restaurante_id,))
+            result = cur.fetchone()
+            if result:
+                url_slug = result.get('url_slug') if isinstance(result, dict) else result[0]
+                invalidate_menu_cache(restaurante_id, url_slug)
+                logger.debug("Cache invalidado para restaurante %s (slug: %s)", restaurante_id, url_slug)
+            else:
+                # Fallback: invalidar todas las entradas de menú
+                invalidate_menu_cache(restaurante_id)
+    except Exception as e:
+        logger.warning("Error invalidando cache: %s", e)
+        # Fallback: invalidar sin url_slug
+        invalidate_menu_cache(restaurante_id)
 
 # Función now() para templates
 app.jinja_env.globals['now'] = lambda: datetime.utcnow()
@@ -772,6 +795,10 @@ def get_subscription_info(restaurante_id):
     Returns:
         dict: Con keys: status, days_remaining, expiration_date, fecha_vencimiento (object), plan_type
     """
+    # Validar que el ID sea válido
+    if not restaurante_id:
+        return None
+        
     try:
         db = get_db()
         with db.cursor() as cur:
@@ -782,7 +809,7 @@ def get_subscription_info(restaurante_id):
             result = cur.fetchone()
             
             if not result:
-                logger.warning("Restaurant %s not found", restaurante_id)
+                logger.debug("Restaurant %s not found in get_subscription_info", restaurante_id)
                 return None
             
             fecha_vencimiento = result.get('fecha_vencimiento')
@@ -841,8 +868,10 @@ def inject_subscription_info():
             g.subscription_info = None
             return
 
-        if 'restaurante_id' in session:
-            subscription_info = get_subscription_info(session['restaurante_id'])
+        # Verificar que restaurante_id existe Y no es None
+        restaurante_id = session.get('restaurante_id')
+        if restaurante_id:
+            subscription_info = get_subscription_info(restaurante_id)
             g.subscription_info = subscription_info
         else:
             g.subscription_info = None
@@ -2616,7 +2645,7 @@ def api_platos():
                     logger.warning('No se pudo asociar pending_id %s con plato %s: %s', pending_id, new_id, e)
 
                 # Invalidar cache del menú público
-                invalidate_menu_cache(restaurante_id)
+                invalidar_cache_restaurante(restaurante_id)
                 
                 return jsonify({'success': True, 'id': new_id})
                 
@@ -2813,7 +2842,7 @@ def api_plato(plato_id):
                 
                 db.commit()
                 # Invalidar cache del menú público
-                invalidate_menu_cache(restaurante_id)
+                invalidar_cache_restaurante(restaurante_id)
                 return jsonify({'success': True})
                 
             if request.method == 'DELETE':
@@ -2835,7 +2864,7 @@ def api_plato(plato_id):
                            (plato_id, restaurante_id))
                 db.commit()
                 # Invalidar cache del menú público
-                invalidate_menu_cache(restaurante_id)
+                invalidar_cache_restaurante(restaurante_id)
                 return jsonify({'success': True})
                 
     except Exception as e:
@@ -2893,7 +2922,7 @@ def api_apariencia():
             ))
             db.commit()
         # Invalidar cache del menú público
-        invalidate_menu_cache(restaurante_id)
+        invalidar_cache_restaurante(restaurante_id)
         logger.info("Apariencia actualizada para restaurante %s: tema=%s, precios=%s, descripciones=%s, imagenes=%s", 
                    restaurante_id, tema, mostrar_precios, mostrar_descripciones, mostrar_imagenes)
         return jsonify({'success': True, 'message': 'Apariencia actualizada'})
@@ -2944,7 +2973,7 @@ def api_categorias():
                 ))
                 db.commit()
                 # Invalidar cache del menú público
-                invalidate_menu_cache(restaurante_id)
+                invalidar_cache_restaurante(restaurante_id)
                 return jsonify({'success': True, 'id': cur.lastrowid})
                 
     except Exception as e:
@@ -2990,7 +3019,7 @@ def api_categoria(categoria_id):
                 ))
                 db.commit()
                 # Invalidar cache del menú público
-                invalidate_menu_cache(restaurante_id)
+                invalidar_cache_restaurante(restaurante_id)
                 return jsonify({'success': True})
                 
             if request.method == 'DELETE':
@@ -3001,7 +3030,7 @@ def api_categoria(categoria_id):
                            (categoria_id, restaurante_id))
                 db.commit()
                 # Invalidar cache del menú público
-                invalidate_menu_cache(restaurante_id)
+                invalidar_cache_restaurante(restaurante_id)
                 return jsonify({'success': True})
                 
     except Exception as e:
@@ -3063,7 +3092,7 @@ def api_mi_restaurante():
                 session['restaurante_nombre'] = data.get('nombre')
                 
                 # Invalidar cache del menú público
-                invalidate_menu_cache(restaurante_id)
+                invalidar_cache_restaurante(restaurante_id)
                 
                 return jsonify({'success': True})
                 
@@ -3099,7 +3128,7 @@ def api_actualizar_tema():
             ))
             db.commit()
         # Invalidar cache del menú público
-        invalidate_menu_cache(restaurante_id)
+        invalidar_cache_restaurante(restaurante_id)
         return jsonify({'success': True})
         
     except Exception as e:
@@ -3145,7 +3174,7 @@ def api_subir_logo():
             
             logger.info("Logo subido a Cloudinary para restaurante %s", session['restaurante_id'])
             # Invalidar cache del menú público
-            invalidate_menu_cache(session['restaurante_id'])
+            invalidar_cache_restaurante(session['restaurante_id'])
             return jsonify({'success': True, 'logo_url': logo_url})
         
         except Exception as e:
