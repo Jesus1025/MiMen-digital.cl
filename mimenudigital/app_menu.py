@@ -3066,6 +3066,13 @@ def api_mi_restaurante():
                 
             if request.method == 'PUT':
                 data = request.get_json()
+                
+                # Log para debug
+                logger.info("Actualizando restaurante %s - horario: %s, whatsapp: %s", 
+                           restaurante_id, 
+                           data.get('horario', '')[:100] if data.get('horario') else 'None',
+                           data.get('whatsapp', ''))
+                
                 cur.execute('''
                     UPDATE restaurantes SET 
                         nombre = %s, descripcion = %s, slogan = %s, telefono = %s, 
@@ -3092,6 +3099,8 @@ def api_mi_restaurante():
                     restaurante_id
                 ))
                 db.commit()
+                
+                logger.info("Restaurante %s actualizado correctamente", restaurante_id)
                 
                 # Actualizar nombre en sesión
                 session['restaurante_nombre'] = data.get('nombre')

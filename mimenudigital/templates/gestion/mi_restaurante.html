@@ -332,7 +332,7 @@
                         </div>
                     </div>
                     <!-- Campo oculto para guardar el horario en formato JSON -->
-                    <input type="hidden" id="horario" value="{{ restaurante.horario or '' }}">
+                    <input type="hidden" id="horario" value='{{ restaurante.horario|default("", true)|e }}'>
                 </div>
 
                 <div style="margin-top: 1.5rem;">
@@ -625,18 +625,23 @@ function copiarURL() {
 document.getElementById('formRestaurante').addEventListener('submit', async function(e) {
     e.preventDefault();
     
+    const horarioJSON = getHorarioJSON();
+    console.log('Horario a guardar:', horarioJSON);
+    
     const data = {
         nombre: document.getElementById('nombre').value,
         descripcion: document.getElementById('descripcion').value,
         telefono: document.getElementById('telefono').value,
         email: document.getElementById('email').value,
         direccion: document.getElementById('direccion').value,
-        horario: getHorarioJSON(),
+        horario: horarioJSON,
         logo_url: document.getElementById('logo_url').value,
         instagram: document.getElementById('instagram').value,
         facebook: document.getElementById('facebook').value,
         whatsapp: document.getElementById('whatsapp').value
     };
+    
+    console.log('Datos a enviar:', data);
     
     try {
         const response = await fetch('/api/mi-restaurante', {
@@ -646,8 +651,11 @@ document.getElementById('formRestaurante').addEventListener('submit', async func
         });
         
         const result = await response.json();
+        console.log('Respuesta del servidor:', result);
         
         if (result.success) {
+            // Actualizar el campo hidden con el nuevo horario
+            document.getElementById('horario').value = horarioJSON;
             alert('¡Cambios guardados correctamente!');
         } else {
             alert('Error: ' + result.error);
