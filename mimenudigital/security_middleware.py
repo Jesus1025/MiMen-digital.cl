@@ -516,12 +516,27 @@ def get_cache():
     return _cache
 
 
-def invalidate_menu_cache(restaurante_id):
-    """Invalida el cache del menú de un restaurante específico."""
-    pattern = f"menu:{restaurante_id}"
-    count = _cache.invalidate_pattern(pattern)
-    logger.debug("Invalidated %d cache entries for restaurant %s", count, restaurante_id)
-    return count
+def invalidate_menu_cache(restaurante_id, url_slug=None):
+    """
+    Invalida el cache del menú de un restaurante específico.
+    
+    Args:
+        restaurante_id: ID del restaurante (para logging)
+        url_slug: URL slug del restaurante. Si no se proporciona, 
+                  se invalidan todas las entradas que empiecen con 'menu:'
+    """
+    if url_slug:
+        # Invalidar por url_slug específico
+        key = f"menu:{url_slug}"
+        _cache.invalidate(key)
+        logger.debug("Invalidated cache for menu:%s (restaurant %s)", url_slug, restaurante_id)
+        return 1
+    else:
+        # Invalidar todas las entradas de menú (fallback)
+        pattern = "menu:"
+        count = _cache.invalidate_pattern(pattern)
+        logger.debug("Invalidated %d menu cache entries (restaurant %s)", count, restaurante_id)
+        return count
 
 
 # ============================================================
