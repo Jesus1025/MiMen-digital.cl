@@ -142,7 +142,7 @@
             </div>
             <div class="stat-info">
                 <h3 id="totalEscaneos">--</h3>
-                <p>Escaneos QR Totales</p>
+                <p>Escaneos QR/NFC Totales</p>
             </div>
         </div>
     </div>
@@ -236,7 +236,7 @@
                     <th>#</th>
                     <th>Restaurante</th>
                     <th>Visitas</th>
-                    <th>Escaneos QR</th>
+                    <th>Escaneos QR/NFC</th>
                     <th>Estado</th>
                 </tr>
             </thead>
@@ -406,7 +406,7 @@ function exportarPDF() {
                 <div class="stat"><h3>${statsData.total_restaurantes}</h3><p>Restaurantes</p></div>
                 <div class="stat"><h3>${statsData.total_usuarios}</h3><p>Usuarios</p></div>
                 <div class="stat"><h3>${formatNumber(statsData.total_visitas)}</h3><p>Visitas</p></div>
-                <div class="stat"><h3>${formatNumber(statsData.total_escaneos)}</h3><p>Escaneos QR</p></div>
+                <div class="stat"><h3>${formatNumber(statsData.total_escaneos)}</h3><p>Escaneos QR/NFC</p></div>
             </div>
             
             <h2>💰 Ingresos</h2>
