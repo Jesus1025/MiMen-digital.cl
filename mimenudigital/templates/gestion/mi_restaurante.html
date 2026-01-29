@@ -409,6 +409,7 @@
             <div class="form-group">
                 <label class="form-label"><i class="fab fa-whatsapp" style="color: #25d366;"></i> WhatsApp</label>
                 <input type="text" class="form-input" id="whatsapp" value="{{ restaurante.whatsapp or '' }}" placeholder="+56912345678">
+                <small style="color: var(--text-muted);">Este número aparecerá en tu menú público</small>
             </div>
         </div>
     </div>
@@ -628,6 +629,13 @@ document.getElementById('formRestaurante').addEventListener('submit', async func
     const horarioJSON = getHorarioJSON();
     console.log('Horario a guardar:', horarioJSON);
     
+    // Verificar que todos los campos existen
+    const camposRequeridos = ['nombre', 'descripcion', 'telefono', 'email', 'direccion', 'logo_url', 'instagram', 'facebook', 'whatsapp'];
+    camposRequeridos.forEach(campo => {
+        const el = document.getElementById(campo);
+        console.log(`Campo ${campo}:`, el ? el.value : 'NO EXISTE');
+    });
+    
     const data = {
         nombre: document.getElementById('nombre').value,
         descripcion: document.getElementById('descripcion').value,
@@ -635,13 +643,13 @@ document.getElementById('formRestaurante').addEventListener('submit', async func
         email: document.getElementById('email').value,
         direccion: document.getElementById('direccion').value,
         horario: horarioJSON,
-        logo_url: document.getElementById('logo_url').value,
-        instagram: document.getElementById('instagram').value,
-        facebook: document.getElementById('facebook').value,
-        whatsapp: document.getElementById('whatsapp').value
+        logo_url: document.getElementById('logo_url') ? document.getElementById('logo_url').value : '',
+        instagram: document.getElementById('instagram') ? document.getElementById('instagram').value : '',
+        facebook: document.getElementById('facebook') ? document.getElementById('facebook').value : '',
+        whatsapp: document.getElementById('whatsapp') ? document.getElementById('whatsapp').value : ''
     };
     
-    console.log('Datos a enviar:', data);
+    console.log('Datos completos a enviar:', JSON.stringify(data, null, 2));
     
     try {
         const response = await fetch('/api/mi-restaurante', {
