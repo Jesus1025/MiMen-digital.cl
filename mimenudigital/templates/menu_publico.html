@@ -1373,8 +1373,9 @@
             </button>
             {% endif %}
             
-            {% if restaurante.whatsapp %}
-            <a href="https://wa.me/{{ restaurante.whatsapp|replace('+', '')|replace(' ', '') }}" class="info-item whatsapp-item" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
+            <!-- Debug: whatsapp='{{ restaurante.whatsapp }}' -->
+            {% if restaurante.whatsapp and restaurante.whatsapp|trim %}
+            <a href="https://wa.me/{{ restaurante.whatsapp|replace('+', '')|replace(' ', '')|replace('-', '') }}" class="info-item whatsapp-item" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
                 <i class="fab fa-whatsapp" aria-hidden="true"></i>
                 <span>WhatsApp</span>
             </a>
