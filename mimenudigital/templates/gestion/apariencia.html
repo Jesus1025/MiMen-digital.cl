@@ -436,14 +436,24 @@
 let temaSeleccionado = '{{ restaurante.tema or "calido" }}';
 const menuUrl = '/menu/{{ restaurante.url_slug }}';
 
+// Debug: mostrar tema actual
+console.log('Tema actual cargado desde BD:', temaSeleccionado);
+
 function seleccionarTema(tema) {
+    console.log('Seleccionando tema:', tema);
     // Quitar active de todos
     document.querySelectorAll('.theme-card').forEach(card => {
         card.classList.remove('active');
     });
     
     // Añadir active al seleccionado
-    document.querySelector(`.theme-${tema}`).classList.add('active');
+    const targetCard = document.querySelector(`.theme-${tema}`);
+    if (targetCard) {
+        targetCard.classList.add('active');
+        console.log('Card encontrada y activada:', tema);
+    } else {
+        console.error('No se encontró card para tema:', tema);
+    }
     temaSeleccionado = tema;
     
     // Actualizar preview en tiempo real usando postMessage
@@ -465,6 +475,8 @@ async function guardarApariencia() {
         mostrar_imagenes: document.getElementById('mostrarImagenes').checked
     };
     
+    console.log('Guardando apariencia:', data);
+    
     try {
         const response = await fetch('/api/mi-restaurante/apariencia', {
             method: 'PUT',
@@ -473,13 +485,12 @@ async function guardarApariencia() {
         });
         
         const result = await response.json();
+        console.log('Respuesta del servidor:', result);
         
         if (result.success) {
             alert('¡Apariencia guardada correctamente!');
-            // Recargar preview con los cambios
-            document.getElementById('previewFrame').src = menuUrl + '?t=' + Date.now();
-            // Recargar página para reflejar cambios en checkboxes
-            setTimeout(() => location.reload(), 500);
+            // Recargar página para reflejar cambios
+            location.reload();
         } else {
             alert('Error: ' + result.error);
         }
@@ -492,9 +503,24 @@ async function guardarApariencia() {
 // Marcar el tema actual como activo al cargar
 document.addEventListener('DOMContentLoaded', function() {
     const temaActual = '{{ restaurante.tema or "calido" }}';
+    console.log('DOMContentLoaded - Marcando tema activo:', temaActual);
+    
+    // Primero quitar active de todos
+    document.querySelectorAll('.theme-card').forEach(card => {
+        card.classList.remove('active');
+    });
+    
+    // Luego marcar el correcto
     const card = document.querySelector(`.theme-${temaActual}`);
     if (card) {
         card.classList.add('active');
+        console.log('Tema marcado como activo:', temaActual);
+    } else {
+        // Si no se encuentra el tema guardado, marcar calido como default
+        console.warn('Tema no encontrado, usando default "calido"');
+        const defaultCard = document.querySelector('.theme-calido');
+        if (defaultCard) defaultCard.classList.add('active');
+        temaSeleccionado = 'calido';
     }
 });
 </script>

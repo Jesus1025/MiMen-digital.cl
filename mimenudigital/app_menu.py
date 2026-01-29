@@ -3411,15 +3411,15 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
             # Si se especifica explícitamente, usar ese. Si no, cambiar a 'activa'
             nuevo_estado = data.get('estado_suscripcion', 'activa')
             
-            # Si la fecha nueva es válida (futura), asegurarse de que el estado sea correcto
+            # Si la fecha nueva es válida (futura), y el estado actual es 'vencida', cambiar a 'activa'
             if isinstance(nueva_fecha, str):
                 from datetime import datetime as _dt
                 nueva_fecha_date = _dt.strptime(nueva_fecha, '%Y-%m-%d').date()
             else:
                 nueva_fecha_date = nueva_fecha
                 
-            if nueva_fecha_date >= date.today() and nuevo_estado in ('vencida', 'prueba'):
-                # Si se extiende y la fecha es válida, marcar como activa
+            # Solo forzar 'activa' si el estado actual es 'vencida' y la fecha es válida
+            if nueva_fecha_date >= date.today() and estado_actual == 'vencida' and nuevo_estado == 'vencida':
                 nuevo_estado = 'activa'
             
             cur.execute('''
