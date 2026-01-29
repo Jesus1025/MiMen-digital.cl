@@ -1360,7 +1360,7 @@ def verificar_suscripcion(f):
 
 
 # ============================================================
-# TRACKING DE VISITAS Y ESCANEOS QR
+# TRACKING DE VISITAS Y ESCANEOS QR/NFC
 # ============================================================
 
 def registrar_visita(restaurante_id, req):
