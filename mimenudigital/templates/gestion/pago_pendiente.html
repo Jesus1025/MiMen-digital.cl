@@ -5,25 +5,44 @@
     <div class="box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 12px; text-align: center;">
         
         <div style="font-size: 48px; margin-bottom: 20px;">
-            <i class="fas fa-exclamation-circle"></i>
+            {% if dias_vencido > 0 %}
+                <i class="fas fa-exclamation-circle"></i>
+            {% else %}
+                <i class="fas fa-info-circle"></i>
+            {% endif %}
         </div>
         
         <h1 style="font-size: 28px; margin-bottom: 10px;">
-            Período de Prueba Expirado
+            {% if restaurante.estado_suscripcion == 'prueba' and dias_vencido > 0 %}
+                Período de Prueba Terminado
+            {% elif restaurante.estado_suscripcion == 'vencida' %}
+                Suscripción Vencida
+            {% elif restaurante.estado_suscripcion == 'activa' and dias_vencido <= 0 %}
+                Renovar Suscripción
+            {% elif restaurante.estado_suscripcion == 'suspendida' %}
+                Cuenta Suspendida
+            {% else %}
+                Gestionar Suscripción
+            {% endif %}
         </h1>
         
         <p style="font-size: 16px; opacity: 0.9; margin-bottom: 30px;">
             {% if dias_vencido > 0 %}
-                Tu período de prueba expiró hace <strong>{{ dias_vencido }} día(s)</strong>
+                Tu suscripción venció hace <strong>{{ dias_vencido }} día(s)</strong>
+            {% elif dias_vencido == 0 %}
+                Tu suscripción vence <strong>hoy</strong>
             {% else %}
-                Tu período de prueba ha expirado
+                Tu suscripción vence en <strong>{{ (-dias_vencido) }} día(s)</strong>
             {% endif %}
         </p>
         
         <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: left;">
             <p><strong>Restaurante:</strong> {{ restaurante.nombre }}</p>
-            <p><strong>Estado:</strong> <span style="background: #f44336; padding: 4px 8px; border-radius: 4px;">{{ restaurante.estado_suscripcion|upper }}</span></p>
-            <p><strong>Vencimiento:</strong> {{ restaurante.fecha_vencimiento }}</p>
+            <p><strong>Estado:</strong> 
+                {% set estado_color = {'activa': '#27ae60', 'prueba': '#3498db', 'vencida': '#e74c3c', 'suspendida': '#f39c12'} %}
+                <span style="background: {{ estado_color.get(restaurante.estado_suscripcion, '#95a5a6') }}; padding: 4px 8px; border-radius: 4px;">{{ restaurante.estado_suscripcion|upper }}</span>
+            </p>
+            <p><strong>Vencimiento:</strong> {{ restaurante.fecha_vencimiento.strftime('%d/%m/%Y') if restaurante.fecha_vencimiento else 'No definido' }}</p>
         </div>
         
         <div style="background: rgba(255, 255, 255, 0.15); padding: 20px; border-radius: 8px; margin-bottom: 30px;">
