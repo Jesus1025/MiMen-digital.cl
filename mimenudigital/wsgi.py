@@ -8,11 +8,11 @@
 #    con TUS valores reales:
 # 
 # import os
-# os.environ['MYSQL_PASSWORD'] = '***REMOVED***'
-# os.environ['SECRET_KEY'] = '***REMOVED***'
-# os.environ['CLOUDINARY_URL'] = 'cloudinary://***REMOVED***:***REMOVED***@tu_cloud_name'
-# os.environ['MERCADO_PAGO_ACCESS_TOKEN'] = '***REMOVED***'
-# os.environ['MERCADO_PAGO_PUBLIC_KEY'] = '***REMOVED***'
+# os.environ['MYSQL_PASSWORD'] = 'tu_password_mysql_aqui'
+# os.environ['SECRET_KEY'] = 'tu_clave_secreta_segura_aqui_minimo_32_caracteres'
+# os.environ['CLOUDINARY_URL'] = 'cloudinary://tu_api_key:tu_api_secret@tu_cloud_name'
+# os.environ['MERCADO_PAGO_ACCESS_TOKEN'] = 'tu_access_token_aqui'
+# os.environ['MERCADO_PAGO_PUBLIC_KEY'] = 'tu_public_key_aqui'
 #
 # 3. Guarda y recarga la aplicación
 # ============================================================
