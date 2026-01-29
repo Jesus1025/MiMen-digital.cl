@@ -149,6 +149,80 @@
         }
 
         /* ============================================
+           TEMA: HIPSTER COFFEE
+           ============================================ */
+        [data-tema="hipster"] {
+            --primary-color: #8b6914;
+            --primary-dark: #5d4e37;
+            --secondary-color: #2c2c2c;
+            --bg-light: #f5f0e8;
+            --bg-white: #fffdf8;
+            --header-gradient: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+            --accent-color: #d4a574;
+        }
+
+        /* ============================================
+           TEMA: INDUSTRIAL
+           ============================================ */
+        [data-tema="industrial"] {
+            --primary-color: #ff5722;
+            --primary-dark: #e64a19;
+            --secondary-color: #37474f;
+            --bg-light: #eceff1;
+            --header-gradient: linear-gradient(135deg, #37474f 0%, #263238 100%);
+            --accent-color: #ff7043;
+        }
+
+        /* ============================================
+           TEMA: VINTAGE
+           ============================================ */
+        [data-tema="vintage"] {
+            --primary-color: #795548;
+            --primary-dark: #5d4037;
+            --bg-light: #efebe9;
+            --bg-white: #faf8f6;
+            --header-gradient: linear-gradient(135deg, #5d4037 0%, #4e342e 100%);
+            --accent-color: #a1887f;
+        }
+
+        /* ============================================
+           TEMA: NÓRDICO
+           ============================================ */
+        [data-tema="nordico"] {
+            --primary-color: #546e7a;
+            --primary-dark: #455a64;
+            --bg-light: #fafafa;
+            --bg-white: #ffffff;
+            --header-gradient: linear-gradient(135deg, #546e7a 0%, #455a64 100%);
+            --accent-color: #90a4ae;
+        }
+
+        /* ============================================
+           TEMA: BOTÁNICO
+           ============================================ */
+        [data-tema="botanico"] {
+            --primary-color: #2e7d32;
+            --primary-dark: #1b5e20;
+            --bg-light: #e8f5e9;
+            --bg-white: #f1f8e9;
+            --header-gradient: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+            --accent-color: #81c784;
+        }
+
+        /* ============================================
+           TEMA: MINIMALISTA
+           ============================================ */
+        [data-tema="minimalista"] {
+            --primary-color: #212121;
+            --primary-dark: #000000;
+            --bg-light: #fafafa;
+            --bg-white: #ffffff;
+            --border-color: #e0e0e0;
+            --header-gradient: linear-gradient(135deg, #212121 0%, #424242 100%);
+            --accent-color: #757575;
+        }
+
+        /* ============================================
            ESTILOS BASE
            ============================================ */
         * {
@@ -1713,12 +1787,29 @@
         }
         
         function cargarHorarios() {
-            const horarioStr = '{{ restaurante.horario | e | safe }}';
+            // Usar tojson para evitar problemas de escape de comillas
+            const horarioRaw = {{ restaurante.horario | tojson | safe }};
             const container = document.getElementById('horariosContent');
-            if (!container || !horarioStr) return;
+            if (!container || !horarioRaw) return;
             
             try {
-                const horarios = JSON.parse(horarioStr);
+                // Si es string, intentar parsear como JSON
+                let horarios;
+                if (typeof horarioRaw === 'string') {
+                    // Intentar parsear si es un string JSON
+                    try {
+                        horarios = JSON.parse(horarioRaw);
+                    } catch {
+                        // Es texto libre (formato antiguo)
+                        container.innerHTML = `<div class="horario-row"><span>${escapeHtml(horarioRaw)}</span></div>`;
+                        return;
+                    }
+                } else if (typeof horarioRaw === 'object' && horarioRaw !== null) {
+                    horarios = horarioRaw;
+                } else {
+                    return;
+                }
+                
                 const hoy = new Date().getDay(); // 0 = Domingo
                 
                 let html = '';
@@ -1728,11 +1819,11 @@
                     
                     if (info) {
                         const horasText = info.abierto !== false 
-                            ? `${info.apertura} - ${info.cierre}` 
+                            ? `${info.apertura || '00:00'} - ${info.cierre || '00:00'}` 
                             : '<span class="horario-cerrado">Cerrado</span>';
                         
                         html += `
-                            <div class="horario-row ${esHoy ? 'hoy' : ''}"  role="row">>
+                            <div class="horario-row ${esHoy ? 'hoy' : ''}" role="row">
                                 <span class="horario-dia">${DIAS_NOMBRES[index]}${esHoy ? ' (Hoy)' : ''}</span>
                                 <span class="horario-horas">${horasText}</span>
                             </div>
@@ -1740,11 +1831,22 @@
                     }
                 });
                 
-                container.innerHTML = html;
+                if (html) {
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
+                }
             } catch (e) {
-                // Formato antiguo (texto libre)
-                container.innerHTML = `<div class="horario-row"><span>${horarioStr}</span></div>`;
+                console.error('Error parsing horarios:', e);
+                container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no disponibles</span></div>';
             }
+        }
+        
+        // Helper para escapar HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         // Cargar horarios al iniciar
