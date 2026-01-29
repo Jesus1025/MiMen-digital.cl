@@ -539,6 +539,14 @@ def invalidate_menu_cache(restaurante_id, url_slug=None):
         return count
 
 
+def clear_all_menu_cache():
+    """Limpia todo el cache de menús."""
+    pattern = "menu:"
+    count = _cache.invalidate_pattern(pattern)
+    logger.info("Cleared all menu cache: %d entries removed", count)
+    return count
+
+
 # ============================================================
 # INIT FUNCTION - Registra middleware con la app
 # ============================================================
