@@ -460,13 +460,27 @@
         document.getElementById('fechaEspecifica').value = '';
         document.getElementById('notasExtension').value = '';
         
-        // Cargar planes con iconos
+        // Cargar solo 2 planes (Gratuito y Premium)
         const selectPlan = document.getElementById('nuevoPlan');
-        selectPlan.innerHTML = Object.entries(planes).map(([id, nombre]) => {
-            const icon = nombre.toLowerCase().includes('gratuito') || nombre.toLowerCase().includes('gratis') ? '🎁' : '👑';
-            const displayName = nombre.toLowerCase().includes('gratuito') || nombre.toLowerCase().includes('gratis') ? 'Gratuito' : 'Premium';
-            return `<option value="${id}" ${id == planActual ? 'selected' : ''}>${icon} Plan ${displayName}</option>`;
-        }).join('');
+        
+        // Encontrar IDs de los planes Gratuito y Premium
+        let gratuiID = null;
+        let premiumID = null;
+        
+        Object.entries(planes).forEach(([planeId, planNombre]) => {
+            if (planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis')) {
+                if (!gratuiID) gratuiID = planeId;
+            } else if (planNombre.toLowerCase().includes('premium')) {
+                if (!premiumID) premiumID = planeId;
+            }
+        });
+        
+        // Crear opciones solo para los 2 planes principales
+        let optionsHTML = '';
+        if (gratuiID) optionsHTML += `<option value="${gratuiID}" ${gratuiID == planActual ? 'selected' : ''}>🎁 Plan Gratuito</option>`;
+        if (premiumID) optionsHTML += `<option value="${premiumID}" ${premiumID == planActual ? 'selected' : ''}>👑 Plan Premium</option>`;
+        
+        selectPlan.innerHTML = optionsHTML;
         
         // Establecer estado actual
         document.getElementById('nuevoEstado').value = estadoActual || 'activa';
