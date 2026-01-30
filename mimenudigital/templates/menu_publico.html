@@ -1262,7 +1262,8 @@
                     {% if categoria.platos %}
                         <div class="dishes-grid" id="dishes-{{ loop.index }}" role="list">
                             {% for plato in categoria.platos %}
-                                <article class="dish-card" role="listitem" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}" tabindex="0" aria-label="{{ plato.nombre }}, ${{ '{:,.0f}'.format(plato.precio)|replace(',', '.') }}">
+                                <article class="dish-card" role="listitem" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}" tabindex="0" aria-label="{{ plato.nombre }}{% if restaurante.mostrar_precios != 0 %}, ${{ '{:,.0f}'.format(plato.precio)|replace(',', '.') }}{% endif %}">
+                                    {% if restaurante.mostrar_imagenes != 0 %}
                                     <div class="dish-image-wrapper">
                                         {% if plato.imagenes and plato.imagenes|length > 1 %}
                                             <!-- Carrusel para múltiples imágenes -->
@@ -1306,6 +1307,7 @@
                                             </div>
                                         {% endif %}
                                     </div>
+                                    {% endif %}
                                     <div class="dish-content">
                                         {% if plato.etiquetas %}
                                             <div class="dish-tags">
@@ -1318,14 +1320,16 @@
                                             </div>
                                         {% endif %}
                                         <h3 class="dish-name">{{ plato.nombre }}</h3>
-                                        {% if plato.descripcion %}
+                                        {% if restaurante.mostrar_descripciones != 0 and plato.descripcion %}
                                             <p class="dish-description">{{ plato.descripcion }}</p>
                                         {% endif %}
+                                        {% if restaurante.mostrar_precios != 0 %}
                                         <div class="dish-footer">
                                             <span class="dish-price">
                                                 <span class="currency">$</span>{{ "{:,.0f}".format(plato.precio)|replace(",", ".") }}
                                             </span>
                                         </div>
+                                        {% endif %}
                                     </div>
                                 </article>
                             {% endfor %}
