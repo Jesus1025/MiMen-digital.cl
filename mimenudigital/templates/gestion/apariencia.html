@@ -390,11 +390,11 @@
             </div>
             
             <div class="preview-frame">
-                <iframe id="previewFrame" src="/menu/{{ restaurante.url_slug }}"></iframe>
+                <iframe id="previewFrame" src="/menu/{{ restaurante.url_slug }}?nocache={{ range(100000, 999999) | random }}"></iframe>
             </div>
             
             <div style="text-align: center; margin-top: 1rem;">
-                <a href="/menu/{{ restaurante.url_slug }}" target="_blank" class="btn-secondary">
+                <a href="/menu/{{ restaurante.url_slug }}?nocache={{ range(100000, 999999) | random }}" target="_blank" class="btn-secondary">
                     <i class="fas fa-external-link-alt"></i> Abrir en nueva pestaña
                 </a>
             </div>
@@ -456,15 +456,9 @@ function seleccionarTema(tema) {
     }
     temaSeleccionado = tema;
     
-    // Actualizar preview en tiempo real usando postMessage
+    // Actualizar preview en tiempo real - siempre recargar con cache-busting
     const iframe = document.getElementById('previewFrame');
-    try {
-        // Cambiar el atributo data-tema del HTML en el iframe
-        iframe.contentDocument.documentElement.setAttribute('data-tema', tema);
-    } catch (e) {
-        // Si hay error de cross-origin, recargar con parámetro
-        iframe.src = menuUrl + '?preview_tema=' + tema + '&t=' + Date.now();
-    }
+    iframe.src = menuUrl + '?preview_tema=' + tema + '&t=' + Date.now();
 }
 
 async function guardarApariencia() {
@@ -489,8 +483,12 @@ async function guardarApariencia() {
         
         if (result.success) {
             alert('¡Apariencia guardada correctamente!');
-            // Recargar página para reflejar cambios
-            location.reload();
+            // Recargar iframe con cache-busting para ver cambios inmediatamente
+            const iframe = document.getElementById('previewFrame');
+            iframe.src = menuUrl + '?nocache=' + Date.now();
+            
+            // Recargar página después de 1 segundo para reflejar cambios en UI
+            setTimeout(() => location.reload(), 1000);
         } else {
             alert('Error: ' + result.error);
         }
