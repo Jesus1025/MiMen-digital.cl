@@ -3379,7 +3379,15 @@ def superadmin_restaurantes():
 def superadmin_usuarios():
     db = get_db()
     with db.cursor() as cur:
-        cur.execute("SELECT id, nombre, email, rol, fecha_creacion FROM usuarios_admin WHERE rol != 'superadmin' ORDER BY fecha_creacion DESC")
+        cur.execute("""
+            SELECT u.id, u.username, u.nombre, u.email, u.rol, u.activo, 
+                   u.ultimo_login, u.fecha_creacion,
+                   r.nombre as restaurante_nombre
+            FROM usuarios_admin u
+            LEFT JOIN restaurantes r ON u.restaurante_id = r.id
+            WHERE u.rol != 'superadmin' 
+            ORDER BY u.fecha_creacion DESC
+        """)
         usuarios = list_from_rows(cur.fetchall())
     return render_template('superadmin/usuarios.html', usuarios=usuarios)
 
@@ -3467,6 +3475,7 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
             # Determinar el nuevo estado
             # Si se especifica explícitamente, usar ese. Si no, cambiar a 'activa'
             nuevo_estado = data.get('estado_suscripcion', 'activa')
+            nuevo_plan_id = data.get('plan_id')
             
             # Si la fecha nueva es válida (futura), y el estado actual es 'vencida', cambiar a 'activa'
             if isinstance(nueva_fecha, str):
@@ -3479,11 +3488,19 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
             if nueva_fecha_date >= date.today() and estado_actual == 'vencida' and nuevo_estado == 'vencida':
                 nuevo_estado = 'activa'
             
-            cur.execute('''
-                UPDATE restaurantes 
-                SET fecha_vencimiento = %s, estado_suscripcion = %s, fecha_actualizacion = NOW()
-                WHERE id = %s
-            ''', (nueva_fecha, nuevo_estado, restaurante_id))
+            # Construir la consulta dinámicamente según si se actualiza el plan
+            if nuevo_plan_id:
+                cur.execute('''
+                    UPDATE restaurantes 
+                    SET fecha_vencimiento = %s, estado_suscripcion = %s, plan_id = %s, fecha_actualizacion = NOW()
+                    WHERE id = %s
+                ''', (nueva_fecha, nuevo_estado, nuevo_plan_id, restaurante_id))
+            else:
+                cur.execute('''
+                    UPDATE restaurantes 
+                    SET fecha_vencimiento = %s, estado_suscripcion = %s, fecha_actualizacion = NOW()
+                    WHERE id = %s
+                ''', (nueva_fecha, nuevo_estado, restaurante_id))
             db.commit()
             
             logger.info("Suscripción actualizada: restaurante=%s, nueva_fecha=%s, estado=%s (anterior: %s)", 

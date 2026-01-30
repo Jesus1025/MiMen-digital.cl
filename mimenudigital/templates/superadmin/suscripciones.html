@@ -296,6 +296,17 @@
                     <select id="nuevoEstado" class="form-input">
                         <option value="activa">Activa</option>
                         <option value="prueba">Prueba</option>
+                        <option value="vencida">Vencida</option>
+                        <option value="suspendida">Suspendida</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Cambiar plan a:</label>
+                <div class="select is-fullwidth">
+                    <select id="nuevoPlan" class="form-input">
+                        <!-- Se llena con JS -->
                     </select>
                 </div>
             </div>
@@ -392,7 +403,7 @@
                     <td><span class="days-remaining ${diasClass}">${dias !== null ? dias : '-'}</span></td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn-sm btn-extend" onclick="abrirModalExtender(${s.id}, '${s.nombre.replace(/'/g, "\\'")}', '${s.fecha_vencimiento || ''}')">
+                            <button class="btn-sm btn-extend" onclick="abrirModalExtender(${s.id}, '${s.nombre.replace(/'/g, "\\'")}', '${s.fecha_vencimiento || ''}', ${s.plan_id || 'null'}, '${s.estado_suscripcion || 'activa'}')">
                                 <i class="fas fa-calendar-plus"></i> Extender
                             </button>
                         </div>
@@ -427,13 +438,23 @@
         renderizarSuscripciones(filtradas);
     }
 
-    function abrirModalExtender(id, nombre, fechaActual) {
+    function abrirModalExtender(id, nombre, fechaActual, planActual, estadoActual) {
         document.getElementById('modalRestauranteId').value = id;
         document.getElementById('modalRestauranteNombre').textContent = nombre;
         document.getElementById('modalFechaActual').textContent = fechaActual ? new Date(fechaActual).toLocaleDateString('es-CL') : 'Sin fecha';
         document.getElementById('diasExtension').value = '30';
         document.getElementById('fechaEspecifica').value = '';
         document.getElementById('notasExtension').value = '';
+        
+        // Cargar planes
+        const selectPlan = document.getElementById('nuevoPlan');
+        selectPlan.innerHTML = Object.entries(planes).map(([id, nombre]) => 
+            `<option value="${id}" ${id == planActual ? 'selected' : ''}>${nombre}</option>`
+        ).join('');
+        
+        // Establecer estado actual
+        document.getElementById('nuevoEstado').value = estadoActual || 'activa';
+        
         document.getElementById('modalExtender').classList.add('active');
     }
 
@@ -446,6 +467,7 @@
         const dias = document.getElementById('diasExtension').value;
         const fechaEspecifica = document.getElementById('fechaEspecifica').value;
         const estado = document.getElementById('nuevoEstado').value;
+        const planId = document.getElementById('nuevoPlan').value;
         
         try {
             const res = await fetch(`/api/superadmin/suscripciones/${id}`, {
@@ -454,7 +476,8 @@
                 body: JSON.stringify({
                     dias_extension: fechaEspecifica ? null : parseInt(dias),
                     fecha_especifica: fechaEspecifica || null,
-                    estado_suscripcion: estado
+                    estado_suscripcion: estado,
+                    plan_id: planId ? parseInt(planId) : null
                 })
             });
             const result = await res.json();
