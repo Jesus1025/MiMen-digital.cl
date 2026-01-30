@@ -356,20 +356,32 @@
         const hoy = new Date();
         const en7dias = new Date();
         en7dias.setDate(hoy.getDate() + 7);
-        let activas = 0, porVencer = 0, vencidas = 0, prueba = 0;
+        let activas = 0, porVencer = 0, vencidas = 0, enPrueba = 0;
         
         suscripciones.forEach(s => {
             const venc = s.fecha_vencimiento ? new Date(s.fecha_vencimiento) : null;
-            if (s.estado_suscripcion === 'prueba') { prueba++; }
-            else if (!venc || venc < hoy) { vencidas++; }
-            else if (venc <= en7dias) { porVencer++; }
-            else { activas++; }
+            const planNombre = planes[s.plan_id] || '';
+            const esPlanGratuito = planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis');
+            
+            if (esPlanGratuito) {
+                // Plan Gratuito = En Prueba
+                enPrueba++;
+            } else {
+                // Plan Premium - verificar estado según fecha
+                if (!venc || venc < hoy) { 
+                    vencidas++; 
+                } else if (venc <= en7dias) { 
+                    porVencer++; 
+                } else { 
+                    activas++; 
+                }
+            }
         });
         
         document.getElementById('statActivas').textContent = activas;
         document.getElementById('statPorVencer').textContent = porVencer;
         document.getElementById('statVencidas').textContent = vencidas;
-        document.getElementById('statPrueba').textContent = prueba;
+        document.getElementById('statPrueba').textContent = enPrueba;
     }
 
     function renderizarSuscripciones(lista) {
@@ -383,30 +395,51 @@
             const venc = s.fecha_vencimiento ? new Date(s.fecha_vencimiento) : null;
             const dias = venc ? Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24)) : null;
             
-            let statusClass = 'trial', statusText = 'Prueba', statusIcon = 'fa-flask';
-            if (s.estado_suscripcion === 'activa' || s.estado_suscripcion === 'pagada') {
-                if (!venc || dias < 0) { statusClass = 'expired'; statusText = 'Vencida'; statusIcon = 'fa-times-circle'; }
-                else if (dias <= 7) { statusClass = 'expiring'; statusText = 'Por Vencer'; statusIcon = 'fa-exclamation-triangle'; }
-                else { statusClass = 'active'; statusText = 'Activa'; statusIcon = 'fa-check-circle'; }
-            } else if (s.estado_suscripcion === 'vencida') {
-                statusClass = 'expired'; statusText = 'Vencida'; statusIcon = 'fa-times-circle';
-            }
+            // Determinar el plan basado en el nombre del plan en la BD
+            const planNombreBD = planes[s.plan_id] || '';
+            const esPlanGratuito = planNombreBD.toLowerCase().includes('gratuito') || planNombreBD.toLowerCase().includes('gratis');
             
-            let diasClass = dias === null ? '' : (dias < 0 ? 'negative' : dias <= 7 ? 'warning' : 'positive');
+            // Determinar estado basado en el PLAN, no en estado_suscripcion
+            let statusClass, statusText, statusIcon;
+            let planIcon, planStyle, planNombre;
             
-            // Determinar el nombre del plan con icono
-            let planNombre = planes[s.plan_id] || 'Sin plan';
-            let planIcon = '';
-            let planStyle = '';
-            if (planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis') || s.estado_suscripcion === 'prueba') {
+            if (esPlanGratuito) {
+                // Plan Gratuito - siempre muestra "En Prueba" o "Prueba Vencida"
                 planIcon = '<i class="fas fa-gift" style="margin-right: 4px;"></i>';
                 planStyle = 'background: #3498db; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;';
                 planNombre = 'Gratuito';
+                
+                if (!venc || dias < 0) {
+                    statusClass = 'expired'; 
+                    statusText = 'Prueba Vencida'; 
+                    statusIcon = 'fa-times-circle';
+                } else {
+                    statusClass = 'trial'; 
+                    statusText = 'En Prueba'; 
+                    statusIcon = 'fa-flask';
+                }
             } else {
+                // Plan Premium - muestra estados de suscripción pagada
                 planIcon = '<i class="fas fa-crown" style="margin-right: 4px;"></i>';
                 planStyle = 'background: #9b59b6; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;';
                 planNombre = 'Premium';
+                
+                if (!venc || dias < 0) { 
+                    statusClass = 'expired'; 
+                    statusText = 'Vencida'; 
+                    statusIcon = 'fa-times-circle'; 
+                } else if (dias <= 7) { 
+                    statusClass = 'expiring'; 
+                    statusText = 'Por Vencer'; 
+                    statusIcon = 'fa-exclamation-triangle'; 
+                } else { 
+                    statusClass = 'active'; 
+                    statusText = 'Activa'; 
+                    statusIcon = 'fa-check-circle'; 
+                }
             }
+            
+            let diasClass = dias === null ? '' : (dias < 0 ? 'negative' : dias <= 7 ? 'warning' : 'positive');
             
             return `
                 <tr>
@@ -418,7 +451,7 @@
                     <td>
                         <div class="action-buttons">
                             <button class="btn-sm btn-extend" onclick="abrirModalExtender(${s.id}, '${s.nombre.replace(/'/g, "\\'")}', '${s.fecha_vencimiento || ''}', ${s.plan_id || 'null'}, '${s.estado_suscripcion || 'activa'}')">
-                                <i class="fas fa-calendar-plus"></i> Gestionar
+                                <i class="fas fa-cog"></i> Gestionar
                             </button>
                         </div>
                     </td>
@@ -437,11 +470,23 @@
         if (estado) {
             filtradas = filtradas.filter(s => {
                 const venc = s.fecha_vencimiento ? new Date(s.fecha_vencimiento) : null;
+                const planNombre = planes[s.plan_id] || '';
+                const esPlanGratuito = planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis');
+                const dias = venc ? Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24)) : null;
+                
                 switch(estado) {
-                    case 'activa': return venc && venc > en7dias && s.estado_suscripcion !== 'prueba';
-                    case 'por_vencer': return venc && venc > hoy && venc <= en7dias;
-                    case 'vencida': return !venc || venc < hoy;
-                    case 'prueba': return s.estado_suscripcion === 'prueba';
+                    case 'activa': 
+                        // Premium con más de 7 días
+                        return !esPlanGratuito && venc && dias > 7;
+                    case 'por_vencer': 
+                        // Premium con 7 días o menos
+                        return !esPlanGratuito && venc && dias > 0 && dias <= 7;
+                    case 'vencida': 
+                        // Premium vencida o Gratuito vencido
+                        return !esPlanGratuito && (!venc || dias < 0);
+                    case 'prueba': 
+                        // Plan Gratuito (en prueba)
+                        return esPlanGratuito;
                     default: return true;
                 }
             });
