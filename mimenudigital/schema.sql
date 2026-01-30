@@ -23,11 +23,10 @@ CREATE TABLE IF NOT EXISTS planes (
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insertar planes por defecto
+-- Insertar planes por defecto (solo 2 planes: Gratuito y Premium)
 INSERT INTO planes (nombre, precio_mensual, max_platos, max_categorias, tiene_pdf, tiene_qr_personalizado, tiene_estadisticas) VALUES
-('Gratis', 0, 20, 5, 1, 0, 0),
-('Básico', 9990, 50, 10, 1, 0, 1),
-('Premium', 19990, 200, 50, 1, 1, 1);
+('Gratuito', 0, 20, 5, 1, 0, 0),
+('Premium', 14990, 200, 50, 1, 1, 1);
 
 -- ============================================================
 -- TABLA: RESTAURANTES

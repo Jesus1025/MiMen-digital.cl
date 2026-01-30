@@ -294,10 +294,10 @@
                 <label class="form-label">Cambiar estado a:</label>
                 <div class="select is-fullwidth">
                     <select id="nuevoEstado" class="form-input">
-                        <option value="activa">Activa</option>
-                        <option value="prueba">Prueba</option>
-                        <option value="vencida">Vencida</option>
-                        <option value="suspendida">Suspendida</option>
+                        <option value="activa">✅ Activa (suscripción pagada y vigente)</option>
+                        <option value="prueba">🎁 Prueba (período gratuito)</option>
+                        <option value="vencida">❌ Vencida (requiere pago)</option>
+                        <option value="suspendida">⛔ Suspendida (cuenta bloqueada)</option>
                     </select>
                 </div>
             </div>
@@ -394,17 +394,31 @@
             
             let diasClass = dias === null ? '' : (dias < 0 ? 'negative' : dias <= 7 ? 'warning' : 'positive');
             
+            // Determinar el nombre del plan con icono
+            let planNombre = planes[s.plan_id] || 'Sin plan';
+            let planIcon = '';
+            let planStyle = '';
+            if (planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis') || s.estado_suscripcion === 'prueba') {
+                planIcon = '<i class="fas fa-gift" style="margin-right: 4px;"></i>';
+                planStyle = 'background: #3498db; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;';
+                planNombre = 'Gratuito';
+            } else {
+                planIcon = '<i class="fas fa-crown" style="margin-right: 4px;"></i>';
+                planStyle = 'background: #9b59b6; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;';
+                planNombre = 'Premium';
+            }
+            
             return `
                 <tr>
                     <td><strong>${s.nombre}</strong><br><small style="color: #7f8c8d;">${s.email || '-'}</small></td>
-                    <td>${planes[s.plan_id] || 'Sin plan'}</td>
+                    <td><span style="${planStyle}">${planIcon}${planNombre}</span></td>
                     <td><span class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i> ${statusText}</span></td>
                     <td>${venc ? venc.toLocaleDateString('es-CL') : '-'}</td>
                     <td><span class="days-remaining ${diasClass}">${dias !== null ? dias : '-'}</span></td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn-sm btn-extend" onclick="abrirModalExtender(${s.id}, '${s.nombre.replace(/'/g, "\\'")}', '${s.fecha_vencimiento || ''}', ${s.plan_id || 'null'}, '${s.estado_suscripcion || 'activa'}')">
-                                <i class="fas fa-calendar-plus"></i> Extender
+                                <i class="fas fa-calendar-plus"></i> Gestionar
                             </button>
                         </div>
                     </td>
@@ -446,11 +460,13 @@
         document.getElementById('fechaEspecifica').value = '';
         document.getElementById('notasExtension').value = '';
         
-        // Cargar planes
+        // Cargar planes con iconos
         const selectPlan = document.getElementById('nuevoPlan');
-        selectPlan.innerHTML = Object.entries(planes).map(([id, nombre]) => 
-            `<option value="${id}" ${id == planActual ? 'selected' : ''}>${nombre}</option>`
-        ).join('');
+        selectPlan.innerHTML = Object.entries(planes).map(([id, nombre]) => {
+            const icon = nombre.toLowerCase().includes('gratuito') || nombre.toLowerCase().includes('gratis') ? '🎁' : '👑';
+            const displayName = nombre.toLowerCase().includes('gratuito') || nombre.toLowerCase().includes('gratis') ? 'Gratuito' : 'Premium';
+            return `<option value="${id}" ${id == planActual ? 'selected' : ''}>${icon} Plan ${displayName}</option>`;
+        }).join('');
         
         // Establecer estado actual
         document.getElementById('nuevoEstado').value = estadoActual || 'activa';

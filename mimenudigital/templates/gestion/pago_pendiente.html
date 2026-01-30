@@ -38,9 +38,29 @@
         
         <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: left;">
             <p><strong>Restaurante:</strong> {{ restaurante.nombre }}</p>
+            <p><strong>Plan actual:</strong> 
+                {% if restaurante.estado_suscripcion == 'prueba' %}
+                    <span style="background: #3498db; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-gift" style="margin-right: 5px;"></i>Plan Gratuito</span>
+                {% else %}
+                    <span style="background: #9b59b6; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-crown" style="margin-right: 5px;"></i>Plan Premium</span>
+                {% endif %}
+            </p>
             <p><strong>Estado:</strong> 
-                {% set estado_color = {'activa': '#27ae60', 'prueba': '#3498db', 'vencida': '#e74c3c', 'suspendida': '#f39c12'} %}
-                <span style="background: {{ estado_color.get(restaurante.estado_suscripcion, '#95a5a6') }}; padding: 4px 8px; border-radius: 4px;">{{ restaurante.estado_suscripcion|upper }}</span>
+                {% if restaurante.estado_suscripcion == 'activa' and dias_vencido < 0 %}
+                    <span style="background: #27ae60; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-check-circle" style="margin-right: 5px;"></i>Activa</span>
+                {% elif restaurante.estado_suscripcion == 'activa' and dias_vencido >= 0 and dias_vencido <= 7 %}
+                    <span style="background: #f39c12; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-exclamation-triangle" style="margin-right: 5px;"></i>Por Vencer</span>
+                {% elif restaurante.estado_suscripcion == 'prueba' and dias_vencido < 0 %}
+                    <span style="background: #3498db; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-clock" style="margin-right: 5px;"></i>En Período de Prueba</span>
+                {% elif restaurante.estado_suscripcion == 'prueba' and dias_vencido >= 0 %}
+                    <span style="background: #e74c3c; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-times-circle" style="margin-right: 5px;"></i>Prueba Terminada</span>
+                {% elif restaurante.estado_suscripcion == 'vencida' %}
+                    <span style="background: #e74c3c; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-times-circle" style="margin-right: 5px;"></i>Vencida</span>
+                {% elif restaurante.estado_suscripcion == 'suspendida' %}
+                    <span style="background: #95a5a6; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-ban" style="margin-right: 5px;"></i>Suspendida</span>
+                {% else %}
+                    <span style="background: #95a5a6; padding: 4px 12px; border-radius: 4px;">{{ restaurante.estado_suscripcion|capitalize }}</span>
+                {% endif %}
             </p>
             <p><strong>Vencimiento:</strong> {{ restaurante.fecha_vencimiento.strftime('%d/%m/%Y') if restaurante.fecha_vencimiento else 'No definido' }}</p>
         </div>
