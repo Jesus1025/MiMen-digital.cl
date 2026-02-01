@@ -123,7 +123,7 @@
                          class="qr-image"
                          id="qrImage">
                     <div class="qr-restaurant-name">{{ restaurante.nombre }}</div>
-                    <div class="qr-url">{{ menu_url }}</div>
+                    <div class="qr-url">{{ menu_url_display|default(menu_url|replace('?qr=1', '')) }}</div>
                 </div>
                 
                 <div class="qr-actions no-print">
@@ -233,7 +233,10 @@
 
 {% block extra_js %}
 <script>
-const MENU_URL = '{{ menu_url }}';
+// URL con tracking para el QR (incluye ?qr=1)
+const MENU_URL_QR = '{{ menu_url }}';
+// URL limpia para mostrar y copiar
+const MENU_URL = '{{ menu_url_display|default(menu_url|replace("?qr=1", "")) }}';
 const RESTAURANTE_NOMBRE = '{{ restaurante.nombre }}';
 
 // Cargar estadísticas
