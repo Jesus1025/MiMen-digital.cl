@@ -1383,6 +1383,11 @@ def registrar_visita(restaurante_id, req):
     """
     Registra una visita/escaneo QR para el restaurante.
     
+    Detecta escaneos QR/NFC basándose en:
+    - Parámetro ?qr=1 en la URL (más confiable)
+    - Referer vacío o nulo desde móvil (típico de escaneo QR)
+    - User-Agent de apps de cámara/QR scanner
+    
     Args:
         restaurante_id (int): ID del restaurante
         req: Flask request object
@@ -1398,9 +1403,36 @@ def registrar_visita(restaurante_id, req):
             user_agent = req.headers.get('User-Agent', '')[:500]
             referer = req.headers.get('Referer', '')[:500]
             
-            # Detectar dispositivo y origen
-            es_movil = any(x in user_agent.lower() for x in ['mobile', 'android', 'iphone', 'ipad'])
-            es_qr = 'qr' in referer.lower() or req.args.get('qr') == '1'
+            # Detectar dispositivo móvil
+            ua_lower = user_agent.lower()
+            es_movil = any(x in ua_lower for x in ['mobile', 'android', 'iphone', 'ipad', 'ipod'])
+            
+            # ============================================================
+            # DETECCIÓN DE ESCANEO QR/NFC
+            # ============================================================
+            # Un escaneo QR típicamente tiene estas características:
+            # 1. Parámetro explícito ?qr=1 (si el QR incluye este parámetro)
+            # 2. Referer vacío + dispositivo móvil (el usuario abrió el link desde cámara/app QR)
+            # 3. User-Agent de apps de escaneo conocidas
+            
+            es_qr = False
+            
+            # Método 1: Parámetro explícito en URL
+            if req.args.get('qr') == '1' or req.args.get('src') == 'qr':
+                es_qr = True
+            
+            # Método 2: Referer vacío desde móvil = muy probable escaneo QR
+            # (Cuando abres un link desde la cámara o app QR, no hay referer)
+            elif es_movil and (not referer or referer == ''):
+                es_qr = True
+            
+            # Método 3: User-Agent de apps de escaneo QR conocidas
+            elif any(x in ua_lower for x in ['qr', 'scanner', 'barcode', 'zxing', 'nfc']):
+                es_qr = True
+            
+            # Método 4: Referer contiene 'qr' (compatibilidad con código anterior)
+            elif referer and 'qr' in referer.lower():
+                es_qr = True
             
             # Insertar registro de visita
             cur.execute('''
@@ -1431,7 +1463,8 @@ def registrar_visita(restaurante_id, req):
             ))
             
             db.commit()
-            logger.debug("Visit registered for restaurant %s (mobile=%s, qr=%s)", restaurante_id, es_movil, es_qr)
+            logger.debug("Visit registered for restaurant %s (mobile=%s, qr=%s, referer=%s)", 
+                        restaurante_id, es_movil, es_qr, 'empty' if not referer else 'present')
             
     except Exception:
         logger.exception("Error registrando visita para restaurante %s", restaurante_id)
@@ -1863,17 +1896,28 @@ def gestion_codigo_qr():
         restaurante = dict_from_row(cur.fetchone())
     
     base_url = request.host_url.rstrip('/')
-    menu_url = f"{base_url}/menu/{restaurante['url_slug']}"
+    # URL del menú con parámetro qr=1 para tracking de escaneos
+    menu_url = f"{base_url}/menu/{restaurante['url_slug']}?qr=1"
+    # URL sin parámetro para mostrar al usuario (más limpia)
+    menu_url_display = f"{base_url}/menu/{restaurante['url_slug']}"
     
-    # Generar QR
+    # Generar QR con el parámetro de tracking
     qr_filename = f"{restaurante['id']}_qr.png"
     try:
+        # Forzar regeneración para incluir el parámetro ?qr=1
+        qr_path = os.path.join(base_dir, 'static', 'uploads', 'qrs', qr_filename)
+        if os.path.exists(qr_path):
+            os.remove(qr_path)  # Eliminar QR antiguo sin parámetro
         generar_qr_restaurante(menu_url, qr_filename)
     except Exception as e:
         logger.error("Error generando QR: %s", e)
         qr_filename = None
     
-    return render_template('gestion/codigo_qr.html', restaurante=restaurante, menu_url=menu_url, qr_filename=qr_filename)
+    return render_template('gestion/codigo_qr.html', 
+                          restaurante=restaurante, 
+                          menu_url=menu_url,
+                          menu_url_display=menu_url_display,
+                          qr_filename=qr_filename)
 
 
 @app.route('/gestion/apariencia')
