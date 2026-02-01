@@ -46,6 +46,10 @@
     <link rel="dns-prefetch" href="https://api.qrserver.com">
     
     <!-- CSS crítico inline para First Contentful Paint rápido -->
+        <!-- Preload fuentes y CSS para mejorar FCP móvil -->
+        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" as="style">
+        <link rel="preload" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" as="style">
+        <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
     <style>
         body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f8f9fa}
         .menu-header{background:linear-gradient(135deg,#e74c3c 0%,#c0392b 100%);color:#fff;padding:2rem 1rem;text-align:center}
@@ -1005,6 +1009,15 @@
             animation: fadeInUp 0.4s ease forwards;
         }
 
+        @media (max-width: 600px) {
+            .dish-card {
+                animation: none !important;
+            }
+            .dish-card:nth-child(n) {
+                animation-delay: 0s !important;
+            }
+        }
+
         .dish-card:nth-child(1) { animation-delay: 0.05s; }
         .dish-card:nth-child(2) { animation-delay: 0.1s; }
         .dish-card:nth-child(3) { animation-delay: 0.15s; }
@@ -1273,7 +1286,9 @@
                                                         src="{{ img.imagen_src or img.imagen_url }}"
                                                         alt="{{ plato.nombre }} - imagen {{ loop.index }} de {{ plato.imagenes|length }}" 
                                                         class="dish-image carousel-image {% if loop.first %}active{% endif %}"
-                                                        loading="lazy"
+                                                        loading="lazy" fetchpriority="low"
+                                                        sizes="(max-width: 600px) 100vw, 33vw"
+                                                        {% if img.imagen_srcset %} srcset="{{ img.imagen_srcset }}" {% endif %}
                                                     >
                                                 {% endfor %}
                                                 <div class="carousel-indicators" role="tablist">
@@ -1290,7 +1305,9 @@
                                                 src="{{ plato.imagenes[0].imagen_src or plato.imagenes[0].imagen_url }}"
                                                 alt="{{ plato.nombre }}" 
                                                 class="dish-image"
-                                                loading="lazy"
+                                                loading="lazy" fetchpriority="low"
+                                                sizes="(max-width: 600px) 100vw, 33vw"
+                                                {% if plato.imagenes[0].imagen_srcset %} srcset="{{ plato.imagenes[0].imagen_srcset }}" {% endif %}
                                             >
                                         {% elif plato.imagen_src %}
                                             <!-- Fallback: imagen de la tabla platos -->
@@ -1299,7 +1316,8 @@
                                                 {% if plato.imagen_srcset %} srcset="{{ plato.imagen_srcset }}" sizes="(max-width: 600px) 100vw, 33vw" {% endif %}
                                                 alt="{{ plato.nombre }}" 
                                                 class="dish-image"
-                                                loading="lazy"
+                                                loading="lazy" fetchpriority="low"
+                                                sizes="(max-width: 600px) 100vw, 33vw"
                                             >
                                         {% else %}
                                             <div class="dish-image-placeholder">
