@@ -687,17 +687,30 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Optional: enable CSRF via Flask-WTF if available
+CSRF_EXEMPT_VIEWS = set()  # Views to exempt from CSRF
 try:
     from flask_wtf.csrf import CSRFProtect, generate_csrf
     csrf = CSRFProtect()
     csrf.init_app(app)
     # Registrar csrf_token en el contexto global de Jinja2
     app.jinja_env.globals['csrf_token'] = generate_csrf
+    CSRF_ENABLED = True
     logger.info('CSRF protection enabled via Flask-WTF')
+        
 except Exception as e:
     logger.warning('Flask-WTF not available; CSRF protection not enabled: %s', e)
     # Registrar función dummy para que los templates no fallen
     app.jinja_env.globals['csrf_token'] = lambda: ''
+    csrf = None
+    CSRF_ENABLED = False
+
+
+def csrf_exempt(view_function):
+    """Decorador para eximir una vista de la verificación CSRF."""
+    CSRF_EXEMPT_VIEWS.add(view_function.__name__)
+    if csrf:
+        return csrf.exempt(view_function)
+    return view_function
 
 # Optional: integrate Sentry if SENTRY_DSN present
 if os.environ.get('SENTRY_DSN'):
@@ -2257,7 +2270,9 @@ def admin_mercadopago_test_preference():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# Webhook de Mercado Pago - Exento de CSRF ya que Mercado Pago no puede enviar el token
 @app.route('/webhook/mercado-pago', methods=['POST'])
+@csrf_exempt
 def webhook_mercado_pago():
     """Webhook para recibir notificaciones de Mercado Pago."""
     try:
@@ -4509,6 +4524,217 @@ def healthz():
             components['cloudinary']['init_error'] = str(e)
     
     return jsonify({'ok': ok, 'components': components}), (200 if ok else 500)
+
+
+@app.route('/api/diagnostico')
+@login_required
+@superadmin_required
+def api_diagnostico_completo():
+    """
+    Diagnóstico completo del sistema para superadmin.
+    Verifica TODAS las variables de entorno y servicios críticos.
+    """
+    import sys
+    
+    diagnostico = {
+        'timestamp': datetime.utcnow().isoformat(),
+        'entorno': os.environ.get('FLASK_ENV', 'development'),
+        'servicios': {},
+        'variables_entorno': {},
+        'problemas': [],
+        'recomendaciones': []
+    }
+    
+    # ============================================================
+    # 1. VARIABLES DE ENTORNO CRÍTICAS
+    # ============================================================
+    env_vars = {
+        'SECRET_KEY': {
+            'valor': os.environ.get('SECRET_KEY'),
+            'requerido': True,
+            'descripcion': 'Clave secreta para sesiones y CSRF'
+        },
+        'MYSQL_HOST': {
+            'valor': os.environ.get('MYSQL_HOST'),
+            'requerido': True,
+            'descripcion': 'Host de la base de datos MySQL'
+        },
+        'MYSQL_USER': {
+            'valor': os.environ.get('MYSQL_USER'),
+            'requerido': True,
+            'descripcion': 'Usuario de MySQL'
+        },
+        'MYSQL_PASSWORD': {
+            'valor': os.environ.get('MYSQL_PASSWORD'),
+            'requerido': True,
+            'descripcion': 'Contraseña de MySQL',
+            'ocultar': True
+        },
+        'MYSQL_DB': {
+            'valor': os.environ.get('MYSQL_DB'),
+            'requerido': True,
+            'descripcion': 'Nombre de la base de datos'
+        },
+        'CLOUDINARY_URL': {
+            'valor': os.environ.get('CLOUDINARY_URL'),
+            'requerido': True,
+            'descripcion': 'URL de configuración de Cloudinary',
+            'ocultar': True
+        },
+        'MERCADO_PAGO_ACCESS_TOKEN': {
+            'valor': os.environ.get('MERCADO_PAGO_ACCESS_TOKEN'),
+            'requerido': True,
+            'descripcion': 'Access Token de Mercado Pago (servidor)',
+            'ocultar': True
+        },
+        'MERCADO_PAGO_PUBLIC_KEY': {
+            'valor': os.environ.get('MERCADO_PAGO_PUBLIC_KEY'),
+            'requerido': True,
+            'descripcion': 'Public Key de Mercado Pago (cliente)'
+        },
+        'BASE_URL': {
+            'valor': os.environ.get('BASE_URL'),
+            'requerido': False,
+            'descripcion': 'URL base de la aplicación'
+        },
+        'API_PROXY': {
+            'valor': os.environ.get('API_PROXY'),
+            'requerido': False,
+            'descripcion': 'Proxy para APIs externas (PythonAnywhere)'
+        },
+        'MAIL_USERNAME': {
+            'valor': os.environ.get('MAIL_USERNAME'),
+            'requerido': False,
+            'descripcion': 'Email para envío de correos'
+        },
+        'MAIL_PASSWORD': {
+            'valor': os.environ.get('MAIL_PASSWORD'),
+            'requerido': False,
+            'descripcion': 'Contraseña de email',
+            'ocultar': True
+        },
+        'SENTRY_DSN': {
+            'valor': os.environ.get('SENTRY_DSN'),
+            'requerido': False,
+            'descripcion': 'DSN de Sentry para monitoreo de errores'
+        }
+    }
+    
+    for nombre, config in env_vars.items():
+        valor = config['valor']
+        tiene_valor = bool(valor)
+        
+        # Mostrar preview seguro (ocultar credenciales sensibles)
+        if config.get('ocultar') and valor:
+            preview = valor[:8] + '...' + valor[-4:] if len(valor) > 12 else '***'
+        elif valor:
+            preview = valor[:30] + '...' if len(valor) > 30 else valor
+        else:
+            preview = None
+        
+        estado = '✅' if tiene_valor else ('❌' if config['requerido'] else '⚠️')
+        
+        diagnostico['variables_entorno'][nombre] = {
+            'configurada': tiene_valor,
+            'requerida': config['requerido'],
+            'preview': preview,
+            'descripcion': config['descripcion'],
+            'estado': estado
+        }
+        
+        if config['requerido'] and not tiene_valor:
+            diagnostico['problemas'].append(f"Variable {nombre} no configurada (requerida)")
+    
+    # ============================================================
+    # 2. SERVICIOS
+    # ============================================================
+    
+    # Base de datos
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("SELECT 1")
+            cur.execute("SHOW TABLES")
+            tablas = [row[list(row.keys())[0]] for row in cur.fetchall()]
+        diagnostico['servicios']['mysql'] = {
+            'estado': '✅ Conectado',
+            'host': os.environ.get('MYSQL_HOST', 'not set'),
+            'database': os.environ.get('MYSQL_DB', 'not set'),
+            'tablas_encontradas': len(tablas),
+            'tablas': tablas
+        }
+    except Exception as e:
+        diagnostico['servicios']['mysql'] = {
+            'estado': '❌ Error',
+            'error': str(e)
+        }
+        diagnostico['problemas'].append(f"MySQL: {str(e)}")
+    
+    # Cloudinary
+    diagnostico['servicios']['cloudinary'] = {
+        'estado': '✅ Configurado' if CLOUDINARY_CONFIGURED else '❌ No configurado',
+        'sdk_disponible': CLOUDINARY_AVAILABLE,
+        'configurado': CLOUDINARY_CONFIGURED
+    }
+    if _cloudinary_config:
+        diagnostico['servicios']['cloudinary']['cloud_name'] = _cloudinary_config.get('cloud_name')
+    if not CLOUDINARY_CONFIGURED:
+        diagnostico['problemas'].append("Cloudinary no está configurado - las imágenes no se subirán")
+    
+    # Mercado Pago
+    diagnostico['servicios']['mercadopago'] = {
+        'estado': '✅ Inicializado' if MERCADOPAGO_CLIENT else '❌ No inicializado',
+        'sdk_disponible': MERCADOPAGO_AVAILABLE,
+        'cliente_activo': bool(MERCADOPAGO_CLIENT),
+        'public_key_configurada': bool(os.environ.get('MERCADO_PAGO_PUBLIC_KEY')),
+        'access_token_configurado': bool(os.environ.get('MERCADO_PAGO_ACCESS_TOKEN'))
+    }
+    if MERCADOPAGO_IMPORT_ERROR:
+        diagnostico['servicios']['mercadopago']['error_importacion'] = MERCADOPAGO_IMPORT_ERROR
+    if not MERCADOPAGO_CLIENT:
+        diagnostico['problemas'].append("Mercado Pago no está inicializado - los pagos no funcionarán")
+    
+    # Email
+    diagnostico['servicios']['email'] = {
+        'estado': '✅ Configurado' if EMAIL_SERVICE_AVAILABLE else '⚠️ No configurado',
+        'disponible': EMAIL_SERVICE_AVAILABLE
+    }
+    
+    # CSRF
+    diagnostico['servicios']['csrf'] = {
+        'estado': '✅ Activo' if CSRF_ENABLED else '⚠️ Inactivo',
+        'habilitado': CSRF_ENABLED
+    }
+    
+    # ============================================================
+    # 3. RECOMENDACIONES
+    # ============================================================
+    if os.environ.get('FLASK_ENV') != 'production':
+        diagnostico['recomendaciones'].append("Establece FLASK_ENV=production en producción")
+    
+    secret_key = os.environ.get('SECRET_KEY', '')
+    if secret_key and len(secret_key) < 32:
+        diagnostico['recomendaciones'].append("SECRET_KEY debería tener al menos 32 caracteres")
+    
+    if not os.environ.get('API_PROXY') and os.environ.get('FLASK_ENV') == 'production':
+        diagnostico['recomendaciones'].append("En PythonAnywhere free tier, configura API_PROXY para APIs externas")
+    
+    if not EMAIL_SERVICE_AVAILABLE:
+        diagnostico['recomendaciones'].append("Configura MAIL_USERNAME y MAIL_PASSWORD para envío de emails")
+    
+    # ============================================================
+    # 4. RESUMEN
+    # ============================================================
+    total_vars_requeridas = sum(1 for v in env_vars.values() if v['requerido'])
+    vars_configuradas = sum(1 for v in env_vars.values() if v['requerido'] and v['valor'])
+    
+    diagnostico['resumen'] = {
+        'variables_requeridas': f"{vars_configuradas}/{total_vars_requeridas}",
+        'problemas_encontrados': len(diagnostico['problemas']),
+        'listo_para_produccion': len(diagnostico['problemas']) == 0
+    }
+    
+    return jsonify(diagnostico)
 
 
 # ============================================================

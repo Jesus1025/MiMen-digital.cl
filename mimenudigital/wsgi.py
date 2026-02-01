@@ -1,37 +1,55 @@
 # ============================================================
-# WSGI CONFIGURATION FOR PYTHONANYWHERE (PLAN GRATUITO)
+# WSGI CONFIGURATION FOR PYTHONANYWHERE (PRODUCCIÓN)
 # ============================================================
-# INSTRUCCIONES PARA PLAN GRATUITO (sin variables de entorno):
-# 
-# 1. En PythonAnywhere ve a: Web → Código → WSGI configuration file
-# 2. Al INICIO del archivo (antes de todo), pega estas líneas
-#    con TUS valores reales:
-# 
-# import os
-# os.environ['MYSQL_PASSWORD'] = 'tu_password_mysql_aqui'
-# os.environ['SECRET_KEY'] = 'tu_clave_secreta_segura_aqui_minimo_32_caracteres'
-# os.environ['CLOUDINARY_URL'] = 'cloudinary://tu_api_key:tu_api_secret@tu_cloud_name'
-# os.environ['MERCADO_PAGO_ACCESS_TOKEN'] = 'tu_access_token_aqui'
-# os.environ['MERCADO_PAGO_PUBLIC_KEY'] = 'tu_public_key_aqui'
-#
-# 3. Guarda y recarga la aplicación
+# Menú Digital SaaS - Divergent Studio
+# Última actualización: Febrero 2026
 # ============================================================
 
 import sys
 import os
 
-# 1. ESTABLECER VARIABLES DE ENTORNO NO SENSIBLES
-os.environ.setdefault('MYSQL_HOST', 'MiMenudigital.mysql.pythonanywhere-services.com')
-os.environ.setdefault('MYSQL_USER', 'MiMenudigital')
-os.environ.setdefault('MYSQL_DB', 'MiMenudigital$menu_digital')
-os.environ.setdefault('MYSQL_PORT', '3306')
-os.environ.setdefault('FLASK_ENV', 'production')
-os.environ.setdefault('BASE_URL', 'https://mimenudigital.pythonanywhere.com')
+# ============================================================
+# 1. CREDENCIALES (¡CRÍTICO! Antes de cualquier import)
+# ============================================================
+# En PythonAnywhere free tier, las variables de entorno se definen aquí
+# porque no hay acceso al panel de Environment Variables.
+
+# --- Base de Datos MySQL ---
+os.environ['MYSQL_HOST'] = 'MiMenudigital.mysql.pythonanywhere-services.com'
+os.environ['MYSQL_USER'] = 'MiMenudigital'
+os.environ['MYSQL_PASSWORD'] = '19101810Aa'
+os.environ['MYSQL_DB'] = 'MiMenudigital$menu_digital'
+os.environ['MYSQL_PORT'] = '3306'
+
+# --- Configuración de Flask ---
+os.environ['FLASK_ENV'] = 'production'
+os.environ['BASE_URL'] = 'https://mimenudigital.pythonanywhere.com'
+
+# --- Clave Secreta (para sesiones y CSRF) ---
+# ⚠️ IMPORTANTE: Esta clave debe ser única y secreta
+os.environ['SECRET_KEY'] = 'a3f8c2e9d4b7a1f6c8e3d2b5a9f7c4e1d8b6a3f9c2e5d7b4a1f8c3e6d9b2a5f7'
+
+# --- Mercado Pago (Pagos Online) ---
+os.environ['MERCADO_PAGO_ACCESS_TOKEN'] = 'APP_USR-130838446303286-122321-7a32fce25e8565b16490762a1b0f2254-3090066666'
+os.environ['MERCADO_PAGO_PUBLIC_KEY'] = 'APP_USR-56d00f49-c4e2-4b01-8670-d17bf4b841ad'
+
+# --- Cloudinary (Almacenamiento de Imágenes) ---
+os.environ['CLOUDINARY_URL'] = 'cloudinary://211225241664362:CV4Q_UfQR9A1GqKUmK02SzE4YiQ@dtrjravmg'
+
+# --- Email (Opcional - Descomenta y configura si lo necesitas) ---
+# os.environ['MAIL_USERNAME'] = 'tu_email@gmail.com'
+# os.environ['MAIL_PASSWORD'] = 'xxxx xxxx xxxx xxxx'  # Contraseña de aplicación de Gmail
+# os.environ['SUPERADMIN_EMAIL'] = 'tu_email@gmail.com'
+
+# --- Sentry (Opcional - Monitoreo de errores) ---
+# os.environ['SENTRY_DSN'] = 'https://xxx@xxx.ingest.sentry.io/xxx'
 
 # ============================================================
-# PROXY PARA PYTHONANYWHERE FREE TIER - CRÍTICO
-# Debe configurarse ANTES de importar cualquier librería HTTP
+# 2. PROXY PARA PYTHONANYWHERE FREE TIER
 # ============================================================
+# El free tier de PythonAnywhere requiere proxy para conexiones externas
+# (Cloudinary, Mercado Pago, etc.)
+
 _api_proxy = 'http://proxy.server:3128'
 os.environ['API_PROXY'] = _api_proxy
 os.environ['HTTP_PROXY'] = _api_proxy
@@ -39,61 +57,93 @@ os.environ['HTTPS_PROXY'] = _api_proxy
 os.environ['http_proxy'] = _api_proxy
 os.environ['https_proxy'] = _api_proxy
 os.environ['ALL_PROXY'] = _api_proxy
-os.environ['no_proxy'] = ''  # No excluir ningún dominio del proxy
+os.environ['no_proxy'] = 'localhost,127.0.0.1,.pythonanywhere.com'
 
 # ============================================================
-# ⚠️ CREDENCIALES - VER INSTRUCCIONES ARRIBA
+# 3. RUTA DEL PROYECTO
 # ============================================================
-# Las credenciales se configuran AL INICIO del archivo WSGI
-# en PythonAnywhere (Web → WSGI configuration file)
-# ============================================================
-
-# Verificar que las credenciales críticas estén configuradas
-_missing_vars = []
-if not os.environ.get('MYSQL_PASSWORD'):
-    _missing_vars.append('MYSQL_PASSWORD')
-if not os.environ.get('SECRET_KEY'):
-    _missing_vars.append('SECRET_KEY')
-if not os.environ.get('CLOUDINARY_URL'):
-    _missing_vars.append('CLOUDINARY_URL')
-
-if _missing_vars and os.environ.get('FLASK_ENV') == 'production':
-    import logging
-    logging.warning("⚠️ CREDENCIALES FALTANTES: %s - Configúralas en PythonAnywhere", ', '.join(_missing_vars))
-
-import logging
-logger = logging.getLogger(__name__)
-logger.info("WSGI initialized: %s@%s/%s", os.environ.get('MYSQL_USER'), os.environ.get('MYSQL_HOST'), os.environ.get('MYSQL_DB'))
-
-# 2. AÑADIR RUTA DEL PROYECTO
-# CORRECCIÓN: Tu código está dentro de la carpeta 'mimenudigital'
 path = '/home/MiMenudigital/MiMen-digital.cl/mimenudigital'
 if path not in sys.path:
     sys.path.insert(0, path)
 
-# Cambiar al directorio de trabajo para que Flask encuentre las carpetas static/templates
+# Cambiar al directorio del proyecto
 os.chdir(path)
 
-# 3. CARGAR .env si existe (desarrollo)
-try:
-    from dotenv import load_dotenv
-    env_file = os.path.join(path, '.env')
-    if os.path.exists(env_file):
-        load_dotenv(env_file)
-except ImportError:
-    pass
-except Exception:
-    pass
+# ============================================================
+# 4. CONFIGURAR LOGGING TEMPRANO
+# ============================================================
+import logging
 
-# 4. IMPORTAR LA APP
+# Configurar logging antes de importar la app
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger('wsgi')
+
+logger.info("=" * 60)
+logger.info("🍽️  MENÚ DIGITAL SAAS - Iniciando...")
+logger.info("=" * 60)
+logger.info("Entorno: %s", os.environ.get('FLASK_ENV'))
+logger.info("Base URL: %s", os.environ.get('BASE_URL'))
+logger.info("MySQL: %s@%s", os.environ.get('MYSQL_USER'), os.environ.get('MYSQL_HOST'))
+logger.info("Proxy: %s", _api_proxy)
+logger.info("=" * 60)
+
+# ============================================================
+# 5. IMPORTAR LA APLICACIÓN FLASK
+# ============================================================
 try:
     from app_menu import app as application
+    
+    # Configuración adicional de producción
+    application.config['PROPAGATE_EXCEPTIONS'] = True
+    
+    logger.info("✅ Aplicación cargada correctamente")
+    logger.info("✅ Cloudinary configurado: %s", bool(os.environ.get('CLOUDINARY_URL')))
+    logger.info("✅ Mercado Pago configurado: %s", bool(os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')))
+    
 except Exception as e:
     import traceback
     from flask import Flask
+    
+    # Crear app de emergencia que muestra el error
     application = Flask(__name__)
     error_msg = f"Error importando app_menu: {str(e)}\n{traceback.format_exc()}"
-    logger.error("ERROR: %s", error_msg)
+    logger.error("❌ ERROR CRÍTICO: %s", error_msg)
+    
     @application.route('/')
     def error():
-        return f"<pre>Import Error:\n{error_msg}</pre>", 500
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Error de Servidor</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }}
+                .error-box {{ background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }}
+                h1 {{ color: #e74c3c; }}
+                pre {{ background: #2c3e50; color: #ecf0f1; padding: 20px; border-radius: 5px; overflow-x: auto; }}
+            </style>
+        </head>
+        <body>
+            <div class="error-box">
+                <h1>⚠️ Error de Inicialización</h1>
+                <p>La aplicación no pudo inicializarse correctamente.</p>
+                <pre>{error_msg}</pre>
+                <p><strong>Posibles causas:</strong></p>
+                <ul>
+                    <li>Dependencias faltantes (pip install -r requirements.txt)</li>
+                    <li>Error de sintaxis en el código</li>
+                    <li>Variables de entorno incorrectas</li>
+                    <li>Problema de conexión a la base de datos</li>
+                </ul>
+            </div>
+        </body>
+        </html>
+        """, 500
+    
+    @application.route('/health')
+    def health():
+        return {{'status': 'error', 'message': str(e)}}, 500
