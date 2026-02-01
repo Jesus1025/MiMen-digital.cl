@@ -2050,11 +2050,13 @@ def api_menu_pdf():
             
             # Renderizar HTML
             base_url = request.host_url.rstrip('/')
+            fecha_generacion = datetime.now().strftime('%d/%m/%Y')
             html_content = render_template(
                 'menu_pdf.html',
                 restaurante=restaurante,
                 menu=menu,
-                base_url=base_url
+                base_url=base_url,
+                fecha_generacion=fecha_generacion
             )
             
             # Generar PDF usando pdfkit
