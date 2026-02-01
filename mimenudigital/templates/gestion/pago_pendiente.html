@@ -224,11 +224,15 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
             
+            // Obtener CSRF token
+            const csrfToken = '{{ csrf_token() }}';
+            
             // Crear preferencia de pago
             fetch('/api/pago/crear-preferencia', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
                     plan_type: 'mensual'

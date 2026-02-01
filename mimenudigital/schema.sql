@@ -57,6 +57,12 @@ CREATE TABLE IF NOT EXISTS restaurantes (
     activo TINYINT(1) DEFAULT 1,
     estado_suscripcion VARCHAR(20) DEFAULT 'prueba',
     fecha_vencimiento DATE,
+    -- Columnas para Mercado Pago
+    ultima_preferencia_pago VARCHAR(255),
+    ultimo_pago_mercadopago VARCHAR(255),
+    fecha_ultimo_pago TIMESTAMP NULL,
+    fecha_ultimo_intento_pago TIMESTAMP NULL,
+    -- Timestamps
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
