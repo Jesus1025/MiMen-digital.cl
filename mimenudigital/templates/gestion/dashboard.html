@@ -413,9 +413,8 @@
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
         
         try {
-            const res = await fetch('/api/tickets', {
+            const res = await fetchWithCSRF('/api/tickets', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tipo, asunto, mensaje })
             });
             

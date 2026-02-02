@@ -468,9 +468,8 @@
             const url = id ? `/api/restaurantes/${id}` : '/api/restaurantes';
             const method = id ? 'PUT' : 'POST';
             
-            const res = await fetch(url, {
+            const res = await fetchWithCSRF(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             
@@ -504,9 +503,8 @@
             // Actualizamos solo el estado
             restData.activo = nuevoEstado;
             
-            const res = await fetch(`/api/restaurantes/${id}`, {
+            const res = await fetchWithCSRF(`/api/restaurantes/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(restData)
             });
             
@@ -529,7 +527,7 @@
         }
         
         try {
-            const res = await fetch(`/api/restaurantes/${id}`, {
+            const res = await fetchWithCSRF(`/api/restaurantes/${id}`, {
                 method: 'DELETE'
             });
             
@@ -670,9 +668,8 @@
             
             userData.activo = nuevoEstado;
             
-            const res = await fetch(`/api/usuarios/${id}`, {
+            const res = await fetchWithCSRF(`/api/usuarios/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData)
             });
             
@@ -732,9 +729,8 @@
             
             userData.password = nuevaPassword;
             
-            const res = await fetch(`/api/usuarios/${id}`, {
+            const res = await fetchWithCSRF(`/api/usuarios/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData)
             });
             
@@ -757,7 +753,7 @@
         }
         
         try {
-            const res = await fetch(`/api/usuarios/${id}`, {
+            const res = await fetchWithCSRF(`/api/usuarios/${id}`, {
                 method: 'DELETE'
             });
             
@@ -835,9 +831,8 @@
             const url = id ? `/api/usuarios/${id}` : '/api/usuarios';
             const method = id ? 'PUT' : 'POST';
             
-            const res = await fetch(url, {
+            const res = await fetchWithCSRF(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             

@@ -472,9 +472,8 @@ async function guardarApariencia() {
     console.log('Guardando apariencia:', data);
     
     try {
-        const response = await fetch('/api/mi-restaurante/apariencia', {
+        const response = await fetchWithCSRF('/api/mi-restaurante/apariencia', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         

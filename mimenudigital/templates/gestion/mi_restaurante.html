@@ -539,6 +539,7 @@ async function subirLogoFile(file) {
     try {
         const response = await fetch('/api/mi-restaurante/logo', {
             method: 'POST',
+            headers: { 'X-CSRFToken': window.csrfToken },
             body: formData
         });
         
@@ -584,9 +585,8 @@ async function guardarLogoUrl() {
     }
     
     try {
-        const response = await fetch('/api/mi-restaurante', {
+        const response = await fetchWithCSRF('/api/mi-restaurante', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 nombre: document.getElementById('nombre').value,
                 logo_url: url 
@@ -652,9 +652,8 @@ document.getElementById('formRestaurante').addEventListener('submit', async func
     console.log('Datos completos a enviar:', JSON.stringify(data, null, 2));
     
     try {
-        const response = await fetch('/api/mi-restaurante', {
+        const response = await fetchWithCSRF('/api/mi-restaurante', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         

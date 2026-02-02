@@ -697,9 +697,8 @@
             const url = id ? `/api/platos/${id}` : '/api/platos';
             const method = id ? 'PUT' : 'POST';
             
-            const res = await fetch(url, {
+            const res = await fetchWithCSRF(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             
@@ -722,7 +721,7 @@
         if (!confirm('¿Estás seguro de eliminar este plato?')) return;
         
         try {
-            const res = await fetch(`/api/platos/${id}`, { method: 'DELETE' });
+            const res = await fetchWithCSRF(`/api/platos/${id}`, { method: 'DELETE' });
             const result = await res.json();
             
             if (result.success) {
@@ -746,9 +745,8 @@
         };
         
         try {
-            const res = await fetch(`/api/platos/${id}`, {
+            const res = await fetchWithCSRF(`/api/platos/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             
@@ -780,9 +778,8 @@
         }
 
         try {
-            const res = await fetch('/api/categorias', {
+            const res = await fetchWithCSRF('/api/categorias', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nombre: nombre })
             });
             
@@ -898,6 +895,7 @@
             try {
                 const response = await fetch('/api/upload-image', {
                     method: 'POST',
+                    headers: { 'X-CSRFToken': window.csrfToken },
                     body: formData
                 });
                 

@@ -234,9 +234,8 @@ async function guardarCategoria() {
         const url = id ? `/api/categorias/${id}` : '/api/categorias';
         const method = id ? 'PUT' : 'POST';
         
-        const response = await fetch(url, {
+        const response = await fetchWithCSRF(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         
@@ -261,7 +260,7 @@ async function eliminarCategoria(id, nombre) {
     }
     
     try {
-        const response = await fetch(`/api/categorias/${id}`, {
+        const response = await fetchWithCSRF(`/api/categorias/${id}`, {
             method: 'DELETE'
         });
         
