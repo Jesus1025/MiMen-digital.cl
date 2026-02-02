@@ -545,9 +545,8 @@
         const planId = document.getElementById('nuevoPlan').value;
         
         try {
-            const res = await fetch(`/api/superadmin/suscripciones/${id}`, {
+            const res = await fetchWithCSRF(`/api/superadmin/suscripciones/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     dias_extension: fechaEspecifica ? null : parseInt(dias),
                     fecha_especifica: fechaEspecifica || null,

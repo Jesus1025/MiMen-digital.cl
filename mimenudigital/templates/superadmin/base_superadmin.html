@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}SuperAdmin - Divergent Studio{% endblock %}</title>
     
     <!-- Preconnect para acelerar conexiones -->
@@ -526,6 +527,27 @@
         }
     </style>
     {% block extra_css %}{% endblock %}
+    <script>
+        // Helper global para fetch con CSRF token
+        window.csrfToken = '{{ csrf_token() }}';
+        window.fetchWithCSRF = async function(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.csrfToken
+                }
+            };
+            const mergedOptions = {
+                ...defaultOptions,
+                ...options,
+                headers: {
+                    ...defaultOptions.headers,
+                    ...(options.headers || {})
+                }
+            };
+            return fetch(url, mergedOptions);
+        };
+    </script>
 </head>
 <body>
     <!-- Overlay móvil -->
@@ -925,9 +947,8 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
             
             try {
-                const response = await fetch('/superadmin/cambiar-password', {
+                const response = await fetchWithCSRF('/superadmin/cambiar-password', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         password_nuevo: passwordNuevo,
                         password_confirmar: passwordConfirmar
