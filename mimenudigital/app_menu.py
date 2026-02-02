@@ -3506,48 +3506,79 @@ def api_superadmin_suscripciones():
 @superadmin_required
 def api_superadmin_actualizar_suscripcion(restaurante_id):
     """API para actualizar/extender suscripción de un restaurante."""
-    db = get_db()
-    data = request.get_json()
-    
     try:
+        db = get_db()
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
+        
         with db.cursor() as cur:
             # Obtener fecha actual de vencimiento
-            cur.execute("SELECT fecha_vencimiento, estado_suscripcion FROM restaurantes WHERE id = %s", (restaurante_id,))
+            cur.execute("SELECT fecha_vencimiento, estado_suscripcion, nombre FROM restaurantes WHERE id = %s", (restaurante_id,))
             row = cur.fetchone()
             if not row:
                 return jsonify({'success': False, 'error': 'Restaurante no encontrado'}), 404
             
             fecha_actual = row['fecha_vencimiento']
             estado_actual = row['estado_suscripcion']
+            nombre_rest = row['nombre']
+            
+            hoy = date.today()
+            nueva_fecha = None
             
             # Calcular nueva fecha
             if data.get('fecha_especifica'):
-                nueva_fecha = data['fecha_especifica']
+                # Fecha específica proporcionada
+                fecha_str = data['fecha_especifica']
+                try:
+                    if isinstance(fecha_str, str):
+                        nueva_fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+                    else:
+                        nueva_fecha = fecha_str
+                except ValueError:
+                    return jsonify({'success': False, 'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
+                    
             elif data.get('dias_extension'):
+                # Extensión por días
+                try:
+                    dias = int(data['dias_extension'])
+                    if dias <= 0:
+                        return jsonify({'success': False, 'error': 'Los días deben ser mayor a 0'}), 400
+                except (ValueError, TypeError):
+                    return jsonify({'success': False, 'error': 'Días de extensión inválidos'}), 400
+                
                 # Si ya tiene fecha y no está vencida, extender desde ahí
-                if fecha_actual and fecha_actual >= date.today():
-                    base = fecha_actual
+                if fecha_actual:
+                    # Convertir a date si es datetime
+                    if hasattr(fecha_actual, 'date'):
+                        fecha_actual = fecha_actual.date()
+                    
+                    if fecha_actual >= hoy:
+                        base = fecha_actual
+                    else:
+                        base = hoy
                 else:
-                    base = date.today()
-                nueva_fecha = base + timedelta(days=int(data['dias_extension']))
+                    base = hoy
+                    
+                nueva_fecha = base + timedelta(days=dias)
             else:
-                return jsonify({'success': False, 'error': 'Debe especificar días o fecha'}), 400
+                return jsonify({'success': False, 'error': 'Debe especificar días de extensión o fecha específica'}), 400
             
             # Determinar el nuevo estado
-            # Si se especifica explícitamente, usar ese. Si no, cambiar a 'activa'
             nuevo_estado = data.get('estado_suscripcion', 'activa')
             nuevo_plan_id = data.get('plan_id')
             
-            # Si la fecha nueva es válida (futura), y el estado actual es 'vencida', cambiar a 'activa'
-            if isinstance(nueva_fecha, str):
-                from datetime import datetime as _dt
-                nueva_fecha_date = _dt.strptime(nueva_fecha, '%Y-%m-%d').date()
-            else:
-                nueva_fecha_date = nueva_fecha
-                
-            # Solo forzar 'activa' si el estado actual es 'vencida' y la fecha es válida
-            if nueva_fecha_date >= date.today() and estado_actual == 'vencida' and nuevo_estado == 'vencida':
+            # Si la fecha es futura y el estado sería 'vencida', forzar 'activa'
+            if nueva_fecha >= hoy and nuevo_estado == 'vencida':
                 nuevo_estado = 'activa'
+            
+            # Si el estado actual es 'vencida' o 'suspendida' y la fecha es válida, activar
+            if nueva_fecha >= hoy and estado_actual in ('vencida', 'suspendida') and nuevo_estado not in ('suspendida',):
+                nuevo_estado = 'activa'
+            
+            # Formatear fecha para MySQL
+            fecha_mysql = nueva_fecha.strftime('%Y-%m-%d')
             
             # Construir la consulta dinámicamente según si se actualiza el plan
             if nuevo_plan_id:
@@ -3555,27 +3586,33 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
                     UPDATE restaurantes 
                     SET fecha_vencimiento = %s, estado_suscripcion = %s, plan_id = %s, fecha_actualizacion = NOW()
                     WHERE id = %s
-                ''', (nueva_fecha, nuevo_estado, nuevo_plan_id, restaurante_id))
+                ''', (fecha_mysql, nuevo_estado, nuevo_plan_id, restaurante_id))
             else:
                 cur.execute('''
                     UPDATE restaurantes 
                     SET fecha_vencimiento = %s, estado_suscripcion = %s, fecha_actualizacion = NOW()
                     WHERE id = %s
-                ''', (nueva_fecha, nuevo_estado, restaurante_id))
+                ''', (fecha_mysql, nuevo_estado, restaurante_id))
+            
             db.commit()
             
-            logger.info("Suscripción actualizada: restaurante=%s, nueva_fecha=%s, estado=%s (anterior: %s)", 
-                       restaurante_id, nueva_fecha, nuevo_estado, estado_actual)
+            logger.info("Suscripción actualizada: restaurante=%s (%s), nueva_fecha=%s, estado=%s (anterior: %s)", 
+                       restaurante_id, nombre_rest, fecha_mysql, nuevo_estado, estado_actual)
             
             return jsonify({
                 'success': True, 
-                'nueva_fecha': str(nueva_fecha),
-                'nuevo_estado': nuevo_estado
+                'nueva_fecha': fecha_mysql,
+                'nuevo_estado': nuevo_estado,
+                'mensaje': f'Suscripción de {nombre_rest} actualizada correctamente'
             })
             
     except Exception as e:
-        logger.exception("Error actualizando suscripción")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.exception("Error actualizando suscripción del restaurante %s", restaurante_id)
+        try:
+            db.rollback()
+        except:
+            pass
+        return jsonify({'success': False, 'error': f'Error interno: {str(e)}'}), 500
 
 
 
