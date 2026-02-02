@@ -1,217 +1,611 @@
 {% extends "superadmin/base_superadmin.html" %}
 
 {% block title %}Estadísticas Generales - SuperAdmin{% endblock %}
-{% block page_title %}Estadísticas Generales{% endblock %}
+{% block page_title %}📊 Estadísticas Generales{% endblock %}
 
 {% block extra_css %}
 <style>
-    .stats-grid {
+    /* ============================================
+       DASHBOARD DE ESTADÍSTICAS MEJORADO
+       ============================================ */
+    
+    .stats-hero {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 1rem;
         margin-bottom: 2rem;
     }
     
-    .mini-stat {
-        background: linear-gradient(135deg, #f8f9fa, #ffffff);
-        border: 1px solid #ecf0f1;
-        border-radius: 10px;
-        padding: 1rem;
+    .hero-stat {
+        background: linear-gradient(135deg, var(--color-start), var(--color-end));
+        border-radius: 16px;
+        padding: 1.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .hero-stat::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50%;
+    }
+    
+    .hero-stat .icon {
+        font-size: 2.5rem;
+        opacity: 0.3;
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+    }
+    
+    .hero-stat .value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+    
+    .hero-stat .label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .hero-stat .trend {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        background: rgba(255,255,255,0.2);
+        border-radius: 20px;
+    }
+    
+    .hero-stat .trend.up { color: #d4edda; }
+    .hero-stat .trend.down { color: #f8d7da; }
+    
+    /* Colores de tarjetas hero */
+    .hero-stat.purple { --color-start: #8e44ad; --color-end: #9b59b6; }
+    .hero-stat.blue { --color-start: #2980b9; --color-end: #3498db; }
+    .hero-stat.green { --color-start: #27ae60; --color-end: #2ecc71; }
+    .hero-stat.orange { --color-start: #d35400; --color-end: #e67e22; }
+    .hero-stat.red { --color-start: #c0392b; --color-end: #e74c3c; }
+    .hero-stat.teal { --color-start: #16a085; --color-end: #1abc9c; }
+    
+    /* Tarjetas de contenido */
+    .content-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    
+    .content-card .card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #ecf0f1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fafbfc;
+    }
+    
+    .content-card .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
         display: flex;
         align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+    }
+    
+    .content-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Mini stats grid */
+    .mini-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 1rem;
     }
     
-    .mini-stat .icon {
-        width: 50px;
-        height: 50px;
+    .mini-stat-item {
+        text-align: center;
+        padding: 1rem;
         border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        color: white;
+        background: linear-gradient(135deg, #f8f9fa, #ffffff);
+        border: 1px solid #ecf0f1;
     }
     
-    .mini-stat .info h4 {
-        font-size: 1.5rem;
+    .mini-stat-item .value {
+        font-size: 1.75rem;
         font-weight: 700;
         color: #2c3e50;
-        margin: 0;
     }
     
-    .mini-stat .info p {
+    .mini-stat-item .label {
         font-size: 0.8rem;
         color: #7f8c8d;
+        margin-top: 0.25rem;
+    }
+    
+    /* Suscripciones */
+    .subs-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+    
+    .sub-card {
+        text-align: center;
+        padding: 1.25rem;
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    
+    .sub-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .sub-card .count {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .sub-card .label {
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        opacity: 0.9;
+    }
+    
+    .sub-card.activa {
+        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        color: #155724;
+    }
+    
+    .sub-card.prueba {
+        background: linear-gradient(135deg, #cce5ff, #b8daff);
+        color: #004085;
+    }
+    
+    .sub-card.vencida {
+        background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+        color: #721c24;
+    }
+    
+    .sub-card.suspendida {
+        background: linear-gradient(135deg, #fff3cd, #ffeeba);
+        color: #856404;
+    }
+    
+    /* Ingresos */
+    .income-display {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .income-item {
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .income-item .amount {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #27ae60;
+    }
+    
+    .income-item .period {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+    }
+    
+    .income-item.annual .amount {
+        color: #3498db;
+    }
+    
+    /* Por vencer */
+    .alert-list {
+        list-style: none;
+        padding: 0;
         margin: 0;
     }
     
-    .export-buttons {
+    .alert-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #ecf0f1;
+        transition: background 0.2s;
+    }
+    
+    .alert-list li:last-child {
+        border-bottom: none;
+    }
+    
+    .alert-list li:hover {
+        background: #fafbfc;
+    }
+    
+    .alert-list .name {
+        font-weight: 500;
+        color: #2c3e50;
+    }
+    
+    .alert-list .date {
+        font-size: 0.85rem;
+        color: #e74c3c;
+        font-weight: 500;
+    }
+    
+    /* Charts */
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    
+    .chart-tabs {
         display: flex;
         gap: 0.5rem;
         margin-bottom: 1rem;
     }
     
-    .export-btn {
+    .chart-tab {
         padding: 0.5rem 1rem;
         border: none;
-        border-radius: 6px;
+        background: #ecf0f1;
+        border-radius: 20px;
         cursor: pointer;
         font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
         transition: all 0.2s;
     }
     
-    .export-btn:hover { transform: translateY(-2px); }
-    .export-btn.pdf { background: #e74c3c; color: white; }
+    .chart-tab.active {
+        background: #8e44ad;
+        color: white;
+    }
+    
+    .chart-tab:hover:not(.active) {
+        background: #bdc3c7;
+    }
+    
+    /* Export buttons */
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .export-btn {
+        padding: 0.4rem 0.8rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        transition: all 0.2s;
+    }
+    
+    .export-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
     .export-btn.csv { background: #27ae60; color: white; }
+    .export-btn.pdf { background: #e74c3c; color: white; }
     
-    .subs-breakdown {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem;
-        margin-top: 1rem;
+    /* Tables */
+    .ranking-table {
+        width: 100%;
+        border-collapse: collapse;
     }
     
-    .subs-item {
-        text-align: center;
-        padding: 1rem;
-        border-radius: 8px;
-        background: #f8f9fa;
+    .ranking-table th,
+    .ranking-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid #ecf0f1;
     }
     
-    .subs-item .count {
-        font-size: 2rem;
-        font-weight: bold;
-    }
-    
-    .subs-item .label {
+    .ranking-table th {
+        font-weight: 600;
+        color: #7f8c8d;
         font-size: 0.85rem;
+        text-transform: uppercase;
+    }
+    
+    .ranking-table tbody tr:hover {
+        background: #fafbfc;
+    }
+    
+    .ranking-table .rank {
+        font-weight: 700;
+        color: #8e44ad;
+        width: 40px;
+    }
+    
+    .ranking-table .rank.gold { color: #f1c40f; }
+    .ranking-table .rank.silver { color: #95a5a6; }
+    .ranking-table .rank.bronze { color: #e67e22; }
+    
+    /* Activity feed */
+    .activity-feed {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .activity-feed li {
+        display: flex;
+        gap: 1rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    
+    .activity-feed li:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-feed .feed-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+    }
+    
+    .activity-feed .feed-icon.new-restaurant {
+        background: #d4edda;
+        color: #27ae60;
+    }
+    
+    .activity-feed .feed-icon.ticket {
+        background: #cce5ff;
+        color: #3498db;
+    }
+    
+    .activity-feed .content {
+        flex: 1;
+    }
+    
+    .activity-feed .title {
+        font-weight: 500;
+        color: #2c3e50;
+        font-size: 0.9rem;
+    }
+    
+    .activity-feed .time {
+        font-size: 0.75rem;
+        color: #95a5a6;
+    }
+    
+    /* Device stats */
+    .device-stats {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    
+    .device-item {
+        text-align: center;
+    }
+    
+    .device-item .device-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .device-item .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+    
+    .device-item .label {
+        font-size: 0.8rem;
         color: #7f8c8d;
     }
     
-    .subs-item.activa .count { color: #27ae60; }
-    .subs-item.prueba .count { color: #3498db; }
-    .subs-item.vencida .count { color: #e74c3c; }
-    .subs-item.suspendida .count { color: #f39c12; }
+    .device-item .percent {
+        font-size: 0.85rem;
+        color: #8e44ad;
+        font-weight: 500;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stats-hero {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .subs-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .income-display {
+            flex-direction: column;
+            gap: 1rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Stats Cards -->
-<div class="columns is-multiline" style="margin-bottom: 2rem;">
-    <div class="column is-3">
-        <div class="stat-card">
-            <div class="stat-icon bg-purple">
-                <i class="fas fa-store"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="totalRestaurantes">--</h3>
-                <p>Total Restaurantes</p>
-            </div>
-        </div>
-    </div>
-    <div class="column is-3">
-        <div class="stat-card">
-            <div class="stat-icon bg-green">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="totalUsuarios">--</h3>
-                <p>Usuarios Registrados</p>
-            </div>
-        </div>
-    </div>
-    <div class="column is-3">
-        <div class="stat-card">
-            <div class="stat-icon bg-blue">
-                <i class="fas fa-eye"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="totalVisitas">--</h3>
-                <p>Visitas Totales</p>
-            </div>
-        </div>
-    </div>
-    <div class="column is-3">
-        <div class="stat-card">
-            <div class="stat-icon bg-orange">
-                <i class="fas fa-qrcode"></i>
-            </div>
-            <div class="stat-info">
-                <h3 id="totalEscaneos">--</h3>
-                <p>Escaneos QR/NFC Totales</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Ingresos y Suscripciones -->
-<div class="columns">
-    <div class="column is-6">
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h2 class="card-title"><i class="fas fa-dollar-sign"></i> Ingresos Estimados</h2>
-            </div>
-            <div class="stats-grid">
-                <div class="mini-stat">
-                    <div class="icon" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
-                    <div class="info">
-                        <h4 id="ingresoMensual">$--</h4>
-                        <p>Ingreso Mensual</p>
-                    </div>
-                </div>
-                <div class="mini-stat">
-                    <div class="icon" style="background: linear-gradient(135deg, #3498db, #5dade2);">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="info">
-                        <h4 id="ingresoAnual">$--</h4>
-                        <p>Proyección Anual</p>
-                    </div>
-                </div>
-            </div>
-            <p style="font-size: 0.8rem; color: #95a5a6; margin-top: 0.5rem;">
-                <i class="fas fa-info-circle"></i> Basado en suscripciones activas × precio mensual configurado
-            </p>
+<!-- Hero Stats -->
+<div class="stats-hero">
+    <div class="hero-stat purple">
+        <i class="fas fa-store icon"></i>
+        <div class="value" id="totalRestaurantes">--</div>
+        <div class="label">Restaurantes</div>
+        <div class="trend" id="trendRestaurantes">
+            <i class="fas fa-plus"></i> <span id="nuevosEsteMes">0</span> este mes
         </div>
     </div>
     
-    <div class="column is-6">
-        <div class="dashboard-card">
+    <div class="hero-stat blue">
+        <i class="fas fa-eye icon"></i>
+        <div class="value" id="totalVisitas">--</div>
+        <div class="label">Visitas Totales</div>
+        <div class="trend" id="trendVisitas">
+            <i class="fas fa-arrow-up"></i> <span>--</span>%
+        </div>
+    </div>
+    
+    <div class="hero-stat green">
+        <i class="fas fa-qrcode icon"></i>
+        <div class="value" id="totalEscaneos">--</div>
+        <div class="label">Escaneos QR/NFC</div>
+        <div class="trend" id="trendEscaneos">
+            <i class="fas fa-arrow-up"></i> <span>--</span>%
+        </div>
+    </div>
+    
+    <div class="hero-stat orange">
+        <i class="fas fa-dollar-sign icon"></i>
+        <div class="value" id="ingresoMensual">$--</div>
+        <div class="label">Ingreso Mensual</div>
+        <div class="trend">
+            <i class="fas fa-crown"></i> <span id="subsActivasHero">0</span> activas
+        </div>
+    </div>
+</div>
+
+<!-- Row: Visitas Hoy + Dispositivos -->
+<div class="columns">
+    <div class="column is-4">
+        <div class="content-card">
             <div class="card-header">
-                <h2 class="card-title"><i class="fas fa-chart-pie"></i> Estado de Suscripciones</h2>
+                <h3 class="card-title"><i class="fas fa-calendar-day"></i> Hoy</h3>
             </div>
-            <div class="subs-breakdown">
-                <div class="subs-item activa">
-                    <div class="count" id="subsActivas">--</div>
-                    <div class="label">✅ Activas</div>
+            <div class="card-body">
+                <div class="mini-stats-grid">
+                    <div class="mini-stat-item">
+                        <div class="value" id="visitasHoy">--</div>
+                        <div class="label">Visitas</div>
+                    </div>
+                    <div class="mini-stat-item">
+                        <div class="value" id="escaneosHoy">--</div>
+                        <div class="label">Escaneos</div>
+                    </div>
                 </div>
-                <div class="subs-item prueba">
-                    <div class="count" id="subsPrueba">--</div>
-                    <div class="label">🎁 Gratuitas</div>
-                </div>
-                <div class="subs-item vencida">
-                    <div class="count" id="subsVencidas">--</div>
-                    <div class="label">❌ Vencidas</div>
-                </div>
-                <div class="subs-item suspendida">
-                    <div class="count" id="subsSuspendidas">--</div>
-                    <div class="label">⛔ Suspendidas</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-8">
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-mobile-alt"></i> Dispositivos</h3>
+            </div>
+            <div class="card-body">
+                <div class="device-stats">
+                    <div class="device-item">
+                        <div class="device-icon">📱</div>
+                        <div class="value" id="totalMovil">--</div>
+                        <div class="label">Móvil</div>
+                        <div class="percent" id="percentMovil">--%</div>
+                    </div>
+                    <div class="device-item">
+                        <div class="device-icon">💻</div>
+                        <div class="value" id="totalDesktop">--</div>
+                        <div class="label">Desktop</div>
+                        <div class="percent" id="percentDesktop">--%</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Gráfico de Visitas -->
-<div class="dashboard-card">
-    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h2 class="card-title"><i class="fas fa-chart-bar"></i> Evolución de Visitas (Últimos 30 días)</h2>
+<!-- Suscripciones e Ingresos -->
+<div class="columns">
+    <div class="column is-7">
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-chart-pie"></i> Estado de Suscripciones</h3>
+            </div>
+            <div class="card-body">
+                <div class="subs-grid">
+                    <div class="sub-card activa">
+                        <div class="count" id="subsActivas">--</div>
+                        <div class="label">✅ Activas</div>
+                    </div>
+                    <div class="sub-card prueba">
+                        <div class="count" id="subsPrueba">--</div>
+                        <div class="label">🎁 Prueba</div>
+                    </div>
+                    <div class="sub-card vencida">
+                        <div class="count" id="subsVencidas">--</div>
+                        <div class="label">❌ Vencidas</div>
+                    </div>
+                    <div class="sub-card suspendida">
+                        <div class="count" id="subsSuspendidas">--</div>
+                        <div class="label">⛔ Suspendidas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-5">
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-coins"></i> Ingresos</h3>
+            </div>
+            <div class="card-body">
+                <div class="income-display">
+                    <div class="income-item">
+                        <div class="amount" id="ingresoMensualCard">$--</div>
+                        <div class="period">Mensual</div>
+                    </div>
+                    <div class="income-item annual">
+                        <div class="amount" id="ingresoAnual">$--</div>
+                        <div class="period">Proyección Anual</div>
+                    </div>
+                </div>
+                <p style="font-size: 0.8rem; color: #95a5a6; margin-top: 1rem;">
+                    <i class="fas fa-info-circle"></i> Basado en <span id="precioMensual">$14.990</span>/mes por suscripción
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Por Vencer (alerta) -->
+<div class="content-card" id="porVencerCard" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i> Vencen en los próximos 7 días</h3>
+    </div>
+    <div class="card-body">
+        <ul class="alert-list" id="listaPorVencer">
+            <!-- Se llena con JS -->
+        </ul>
+    </div>
+</div>
+
+<!-- Gráfico Principal -->
+<div class="content-card">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-chart-line"></i> Evolución (Últimos 30 días)</h3>
         <div class="export-buttons">
             <button class="export-btn csv" onclick="exportarCSV()">
                 <i class="fas fa-file-csv"></i> CSV
@@ -221,29 +615,93 @@
             </button>
         </div>
     </div>
-    <canvas id="chartVisitas" height="80"></canvas>
+    <div class="card-body">
+        <div class="chart-tabs">
+            <button class="chart-tab active" onclick="switchChart('visitas', this)">Visitas</button>
+            <button class="chart-tab" onclick="switchChart('escaneos', this)">Escaneos QR</button>
+            <button class="chart-tab" onclick="switchChart('comparativo', this)">Comparativo</button>
+        </div>
+        <div class="chart-container">
+            <canvas id="chartPrincipal"></canvas>
+        </div>
+    </div>
 </div>
 
-<!-- Tabla de Restaurantes Top -->
-<div class="dashboard-card" style="margin-top: 1.5rem;">
-    <div class="card-header">
-        <h2 class="card-title"><i class="fas fa-trophy"></i> Top 10 Restaurantes por Visitas</h2>
+<!-- Top Restaurantes -->
+<div class="columns">
+    <div class="column is-6">
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-trophy" style="color: #f1c40f;"></i> Top 10 por Visitas</h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Restaurante</th>
+                            <th>Visitas</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaTopVisitas">
+                        <!-- Se llena con JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-    <div class="table-container">
-        <table class="table is-fullwidth is-striped is-hoverable" id="tablaTopRestaurantes">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Restaurante</th>
-                    <th>Visitas</th>
-                    <th>Escaneos QR/NFC</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Se llena con JS -->
-            </tbody>
-        </table>
+    
+    <div class="column is-6">
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-qrcode" style="color: #9b59b6;"></i> Top 10 por Escaneos QR</h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Restaurante</th>
+                            <th>Escaneos</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaTopEscaneos">
+                        <!-- Se llena con JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actividad Reciente -->
+<div class="columns">
+    <div class="column is-6">
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-clock"></i> Últimos Restaurantes</h3>
+            </div>
+            <div class="card-body">
+                <ul class="activity-feed" id="ultimosRestaurantes">
+                    <!-- Se llena con JS -->
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-6">
+        <div class="content-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-ticket-alt"></i> Últimos Tickets</h3>
+            </div>
+            <div class="card-body">
+                <ul class="activity-feed" id="ultimosTickets">
+                    <!-- Se llena con JS -->
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -253,40 +711,95 @@
 <script>
 let statsData = {};
 let chartInstance = null;
+let currentChartType = 'visitas';
 
 document.addEventListener('DOMContentLoaded', function() {
     cargarEstadisticas();
+    // Auto-refresh cada 5 minutos
+    setInterval(cargarEstadisticas, 300000);
 });
 
 async function cargarEstadisticas() {
     try {
         const res = await fetch('/api/superadmin/stats-extended');
+        if (!res.ok) throw new Error('Error al cargar estadísticas');
         statsData = await res.json();
-        
-        // Actualizar contadores principales
-        document.getElementById('totalRestaurantes').textContent = statsData.total_restaurantes;
-        document.getElementById('totalUsuarios').textContent = statsData.total_usuarios;
-        document.getElementById('totalVisitas').textContent = formatNumber(statsData.total_visitas);
-        document.getElementById('totalEscaneos').textContent = formatNumber(statsData.total_escaneos);
-        
-        // Ingresos
-        document.getElementById('ingresoMensual').textContent = formatCurrency(statsData.ingreso_mensual);
-        document.getElementById('ingresoAnual').textContent = formatCurrency(statsData.ingreso_mensual * 12);
-        
-        // Suscripciones
-        document.getElementById('subsActivas').textContent = statsData.subs_activas || 0;
-        document.getElementById('subsPrueba').textContent = statsData.subs_prueba || 0;
-        document.getElementById('subsVencidas').textContent = statsData.subs_vencidas || 0;
-        document.getElementById('subsSuspendidas').textContent = statsData.subs_suspendidas || 0;
-        
-        // Gráfico
-        renderChart(statsData.visitas_30dias);
-        
-        // Top restaurantes
-        renderTopRestaurantes(statsData.top_restaurantes);
+        actualizarUI();
     } catch (error) {
         console.error('Error cargando estadísticas:', error);
     }
+}
+
+function actualizarUI() {
+    // Hero stats
+    document.getElementById('totalRestaurantes').textContent = statsData.total_restaurantes || 0;
+    document.getElementById('totalVisitas').textContent = formatNumber(statsData.total_visitas);
+    document.getElementById('totalEscaneos').textContent = formatNumber(statsData.total_escaneos);
+    document.getElementById('ingresoMensual').textContent = formatCurrency(statsData.ingreso_mensual);
+    document.getElementById('nuevosEsteMes').textContent = statsData.nuevos_este_mes || 0;
+    document.getElementById('subsActivasHero').textContent = statsData.subs_activas || 0;
+    
+    // Tendencias
+    actualizarTendencia('trendVisitas', statsData.tendencia_visitas);
+    actualizarTendencia('trendEscaneos', statsData.tendencia_escaneos);
+    
+    // Hoy
+    document.getElementById('visitasHoy').textContent = formatNumber(statsData.visitas_hoy);
+    document.getElementById('escaneosHoy').textContent = formatNumber(statsData.escaneos_hoy);
+    
+    // Dispositivos
+    const totalDispositivos = (statsData.total_movil || 0) + (statsData.total_desktop || 0);
+    document.getElementById('totalMovil').textContent = formatNumber(statsData.total_movil);
+    document.getElementById('totalDesktop').textContent = formatNumber(statsData.total_desktop);
+    document.getElementById('percentMovil').textContent = totalDispositivos > 0 
+        ? Math.round((statsData.total_movil / totalDispositivos) * 100) + '%' 
+        : '0%';
+    document.getElementById('percentDesktop').textContent = totalDispositivos > 0 
+        ? Math.round((statsData.total_desktop / totalDispositivos) * 100) + '%' 
+        : '0%';
+    
+    // Suscripciones
+    document.getElementById('subsActivas').textContent = statsData.subs_activas || 0;
+    document.getElementById('subsPrueba').textContent = statsData.subs_prueba || 0;
+    document.getElementById('subsVencidas').textContent = statsData.subs_vencidas || 0;
+    document.getElementById('subsSuspendidas').textContent = statsData.subs_suspendidas || 0;
+    
+    // Ingresos
+    document.getElementById('ingresoMensualCard').textContent = formatCurrency(statsData.ingreso_mensual);
+    document.getElementById('ingresoAnual').textContent = formatCurrency(statsData.ingreso_anual_proyectado);
+    document.getElementById('precioMensual').textContent = formatCurrency(statsData.precio_mensual);
+    
+    // Por vencer
+    renderPorVencer(statsData.por_vencer);
+    
+    // Gráfico
+    renderChart(currentChartType);
+    
+    // Tablas
+    renderTopVisitas(statsData.top_restaurantes);
+    renderTopEscaneos(statsData.top_escaneos);
+    
+    // Actividad reciente
+    renderUltimosRestaurantes(statsData.ultimos_restaurantes);
+    renderUltimosTickets(statsData.ultimos_tickets);
+}
+
+function actualizarTendencia(elementId, tendencia) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const span = el.querySelector('span');
+    const icon = el.querySelector('i');
+    
+    if (tendencia >= 0) {
+        el.classList.add('up');
+        el.classList.remove('down');
+        icon.className = 'fas fa-arrow-up';
+    } else {
+        el.classList.add('down');
+        el.classList.remove('up');
+        icon.className = 'fas fa-arrow-down';
+    }
+    span.textContent = Math.abs(tendencia || 0);
 }
 
 function formatNumber(num) {
@@ -294,142 +807,349 @@ function formatNumber(num) {
 }
 
 function formatCurrency(num) {
-    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(num || 0);
+    return new Intl.NumberFormat('es-CL', { 
+        style: 'currency', 
+        currency: 'CLP', 
+        maximumFractionDigits: 0 
+    }).format(num || 0);
 }
 
-function renderChart(visitas) {
-    const ctx = document.getElementById('chartVisitas').getContext('2d');
-    const labels = visitas.map(v => v.fecha);
-    const data = visitas.map(v => v.visitas);
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+}
+
+function formatDateTime(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderPorVencer(items) {
+    const container = document.getElementById('porVencerCard');
+    const lista = document.getElementById('listaPorVencer');
+    
+    if (!items || items.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'block';
+    lista.innerHTML = items.map(item => {
+        const fecha = new Date(item.fecha_vencimiento);
+        const hoy = new Date();
+        const dias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
+        return `
+            <li>
+                <span class="name">${item.nombre}</span>
+                <span class="date">${dias <= 0 ? '¡Hoy!' : dias + ' días'}</span>
+            </li>
+        `;
+    }).join('');
+}
+
+function switchChart(type, btn) {
+    currentChartType = type;
+    
+    // Actualizar tabs
+    document.querySelectorAll('.chart-tab').forEach(tab => tab.classList.remove('active'));
+    btn.classList.add('active');
+    
+    renderChart(type);
+}
+
+function renderChart(type) {
+    const ctx = document.getElementById('chartPrincipal').getContext('2d');
+    const visitas = statsData.visitas_30dias || [];
     
     if (chartInstance) chartInstance.destroy();
     
+    const labels = visitas.map(v => formatDate(v.fecha));
+    
+    let datasets = [];
+    
+    if (type === 'visitas') {
+        datasets = [{
+            label: 'Visitas',
+            data: visitas.map(v => v.visitas || 0),
+            borderColor: '#8e44ad',
+            backgroundColor: 'rgba(142, 68, 173, 0.1)',
+            fill: true,
+            tension: 0.4
+        }];
+    } else if (type === 'escaneos') {
+        datasets = [{
+            label: 'Escaneos QR/NFC',
+            data: visitas.map(v => v.escaneos || 0),
+            borderColor: '#27ae60',
+            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+            fill: true,
+            tension: 0.4
+        }];
+    } else if (type === 'comparativo') {
+        datasets = [
+            {
+                label: 'Visitas',
+                data: visitas.map(v => v.visitas || 0),
+                borderColor: '#8e44ad',
+                backgroundColor: 'transparent',
+                tension: 0.4
+            },
+            {
+                label: 'Escaneos QR',
+                data: visitas.map(v => v.escaneos || 0),
+                borderColor: '#27ae60',
+                backgroundColor: 'transparent',
+                tension: 0.4
+            }
+        ];
+    }
+    
     chartInstance = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Visitas',
-                data: data,
-                borderColor: '#8e44ad',
-                backgroundColor: 'rgba(142,68,173,0.1)',
-                fill: true,
-                tension: 0.3
-            }]
-        },
+        data: { labels, datasets },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }
+                legend: { display: type === 'comparativo' }
             },
             scales: {
-                x: { display: true },
-                y: { beginAtZero: true }
+                x: { 
+                    display: true,
+                    grid: { display: false }
+                },
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: '#ecf0f1' }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
             }
         }
     });
 }
 
-function renderTopRestaurantes(restaurantes) {
-    const tbody = document.querySelector('#tablaTopRestaurantes tbody');
+function renderTopVisitas(restaurantes) {
+    const tbody = document.getElementById('tablaTopVisitas');
     if (!restaurantes || restaurantes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#95a5a6;">Sin datos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#95a5a6;padding:2rem;">Sin datos</td></tr>';
         return;
     }
     
     tbody.innerHTML = restaurantes.map((r, i) => {
-        const badgeClass = r.estado_suscripcion === 'activa' ? 'is-success' : 
-                          r.estado_suscripcion === 'prueba' ? 'is-info' : 'is-danger';
+        const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+        const badge = getBadgeClass(r.estado_suscripcion);
         return `
             <tr>
-                <td><strong>${i + 1}</strong></td>
+                <td class="rank ${rankClass}">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</td>
                 <td>${r.nombre}</td>
-                <td>${formatNumber(r.total_visitas)}</td>
-                <td>${formatNumber(r.total_escaneos)}</td>
-                <td><span class="tag ${badgeClass}">${r.estado_suscripcion}</span></td>
+                <td><strong>${formatNumber(r.total_visitas)}</strong></td>
+                <td><span class="tag ${badge}">${r.estado_suscripcion}</span></td>
             </tr>
         `;
     }).join('');
 }
 
+function renderTopEscaneos(restaurantes) {
+    const tbody = document.getElementById('tablaTopEscaneos');
+    if (!restaurantes || restaurantes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#95a5a6;padding:2rem;">Sin datos de escaneos</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = restaurantes.map((r, i) => {
+        const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+        const badge = getBadgeClass(r.estado_suscripcion);
+        return `
+            <tr>
+                <td class="rank ${rankClass}">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</td>
+                <td>${r.nombre}</td>
+                <td><strong>${formatNumber(r.total_escaneos)}</strong></td>
+                <td><span class="tag ${badge}">${r.estado_suscripcion}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function getBadgeClass(estado) {
+    switch(estado) {
+        case 'activa': return 'is-success';
+        case 'prueba': return 'is-info';
+        case 'vencida': return 'is-danger';
+        case 'suspendida': return 'is-warning';
+        default: return '';
+    }
+}
+
+function renderUltimosRestaurantes(items) {
+    const lista = document.getElementById('ultimosRestaurantes');
+    if (!items || items.length === 0) {
+        lista.innerHTML = '<li style="text-align:center;color:#95a5a6;padding:1rem;">Sin actividad reciente</li>';
+        return;
+    }
+    
+    lista.innerHTML = items.map(item => `
+        <li>
+            <div class="feed-icon new-restaurant"><i class="fas fa-store"></i></div>
+            <div class="content">
+                <div class="title">${item.nombre}</div>
+                <div class="time">${formatDateTime(item.created_at)} · ${item.estado_suscripcion}</div>
+            </div>
+        </li>
+    `).join('');
+}
+
+function renderUltimosTickets(items) {
+    const lista = document.getElementById('ultimosTickets');
+    if (!items || items.length === 0) {
+        lista.innerHTML = '<li style="text-align:center;color:#95a5a6;padding:1rem;">Sin tickets recientes</li>';
+        return;
+    }
+    
+    lista.innerHTML = items.map(item => `
+        <li>
+            <div class="feed-icon ticket"><i class="fas fa-ticket-alt"></i></div>
+            <div class="content">
+                <div class="title">#${item.id} - ${item.asunto}</div>
+                <div class="time">${formatDateTime(item.created_at)} · <span class="tag is-small">${item.estado}</span></div>
+            </div>
+        </li>
+    `).join('');
+}
+
 function exportarCSV() {
     if (!statsData.visitas_30dias) return alert('No hay datos para exportar');
     
-    let csv = 'Fecha,Visitas\n';
+    let csv = 'Fecha,Visitas,Escaneos QR,Móvil,Desktop\n';
     statsData.visitas_30dias.forEach(v => {
-        csv += `${v.fecha},${v.visitas}\n`;
+        csv += `${v.fecha},${v.visitas || 0},${v.escaneos || 0},${v.movil || 0},${v.desktop || 0}\n`;
     });
     
-    // Agregar resumen
-    csv += '\nResumen\n';
+    csv += '\n\nResumen General\n';
     csv += `Total Restaurantes,${statsData.total_restaurantes}\n`;
+    csv += `Restaurantes Activos,${statsData.restaurantes_activos}\n`;
     csv += `Total Usuarios,${statsData.total_usuarios}\n`;
     csv += `Total Visitas,${statsData.total_visitas}\n`;
-    csv += `Total Escaneos,${statsData.total_escaneos}\n`;
-    csv += `Suscripciones Activas,${statsData.subs_activas}\n`;
-    csv += `Ingreso Mensual Estimado,${statsData.ingreso_mensual}\n`;
+    csv += `Total Escaneos QR,${statsData.total_escaneos}\n`;
+    csv += `Visitas Móvil,${statsData.total_movil}\n`;
+    csv += `Visitas Desktop,${statsData.total_desktop}\n`;
     
-    const blob = new Blob([csv], { type: 'text/csv' });
+    csv += '\nSuscripciones\n';
+    csv += `Activas,${statsData.subs_activas}\n`;
+    csv += `Prueba,${statsData.subs_prueba}\n`;
+    csv += `Vencidas,${statsData.subs_vencidas}\n`;
+    csv += `Suspendidas,${statsData.subs_suspendidas}\n`;
+    
+    csv += '\nIngresos\n';
+    csv += `Ingreso Mensual,${statsData.ingreso_mensual}\n`;
+    csv += `Proyección Anual,${statsData.ingreso_anual_proyectado}\n`;
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `estadisticas_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `estadisticas_mimenudigital_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+    URL.revokeObjectURL(url);
 }
 
 function exportarPDF() {
-    // Abrir ventana de impresión con el gráfico
     const printWindow = window.open('', '_blank');
+    const totalDispositivos = (statsData.total_movil || 0) + (statsData.total_desktop || 0);
+    const percentMovil = totalDispositivos > 0 ? Math.round((statsData.total_movil / totalDispositivos) * 100) : 0;
+    
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Estadísticas - Mi Menú Digital</title>
+            <title>Reporte de Estadísticas - Mi Menú Digital</title>
             <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                h1 { color: #2c3e50; }
-                .stats { display: flex; gap: 20px; margin: 20px 0; }
-                .stat { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }
-                .stat h3 { margin: 0; font-size: 24px; color: #8e44ad; }
-                .stat p { margin: 5px 0 0; color: #7f8c8d; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-                th { background: #f8f9fa; }
-                .footer { margin-top: 30px; font-size: 12px; color: #95a5a6; }
+                body { font-family: Arial, sans-serif; padding: 30px; color: #2c3e50; }
+                h1 { color: #8e44ad; border-bottom: 2px solid #8e44ad; padding-bottom: 10px; }
+                h2 { color: #34495e; margin-top: 25px; }
+                .stats-row { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
+                .stat-box { 
+                    background: #f8f9fa; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    text-align: center;
+                    min-width: 150px;
+                    flex: 1;
+                }
+                .stat-box h3 { margin: 0; font-size: 28px; color: #8e44ad; }
+                .stat-box p { margin: 5px 0 0; color: #7f8c8d; font-size: 14px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ecf0f1; }
+                th { background: #f8f9fa; font-weight: 600; }
+                .footer { 
+                    margin-top: 40px; 
+                    padding-top: 20px; 
+                    border-top: 1px solid #ecf0f1; 
+                    font-size: 12px; 
+                    color: #95a5a6; 
+                    text-align: center;
+                }
             </style>
         </head>
         <body>
             <h1>📊 Reporte de Estadísticas</h1>
-            <p>Generado el ${new Date().toLocaleDateString('es-CL')}</p>
+            <p>Generado el ${new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
             
-            <div class="stats">
-                <div class="stat"><h3>${statsData.total_restaurantes}</h3><p>Restaurantes</p></div>
-                <div class="stat"><h3>${statsData.total_usuarios}</h3><p>Usuarios</p></div>
-                <div class="stat"><h3>${formatNumber(statsData.total_visitas)}</h3><p>Visitas</p></div>
-                <div class="stat"><h3>${formatNumber(statsData.total_escaneos)}</h3><p>Escaneos QR/NFC</p></div>
+            <h2>📈 Métricas Principales</h2>
+            <div class="stats-row">
+                <div class="stat-box"><h3>${statsData.total_restaurantes}</h3><p>Restaurantes</p></div>
+                <div class="stat-box"><h3>${formatNumber(statsData.total_visitas)}</h3><p>Visitas Totales</p></div>
+                <div class="stat-box"><h3>${formatNumber(statsData.total_escaneos)}</h3><p>Escaneos QR/NFC</p></div>
+                <div class="stat-box"><h3>${statsData.total_usuarios}</h3><p>Usuarios</p></div>
             </div>
             
-            <h2>💰 Ingresos</h2>
-            <p><strong>Ingreso Mensual Estimado:</strong> ${formatCurrency(statsData.ingreso_mensual)}</p>
-            <p><strong>Proyección Anual:</strong> ${formatCurrency(statsData.ingreso_mensual * 12)}</p>
+            <h2>📱 Dispositivos</h2>
+            <div class="stats-row">
+                <div class="stat-box"><h3>${formatNumber(statsData.total_movil)}</h3><p>Visitas Móvil (${percentMovil}%)</p></div>
+                <div class="stat-box"><h3>${formatNumber(statsData.total_desktop)}</h3><p>Visitas Desktop (${100 - percentMovil}%)</p></div>
+            </div>
             
-            <h2>📈 Suscripciones</h2>
+            <h2>💳 Suscripciones</h2>
             <table>
                 <tr><th>Estado</th><th>Cantidad</th></tr>
-                <tr><td>Activas</td><td>${statsData.subs_activas}</td></tr>
-                <tr><td>Prueba</td><td>${statsData.subs_prueba}</td></tr>
-                <tr><td>Vencidas</td><td>${statsData.subs_vencidas}</td></tr>
-                <tr><td>Suspendidas</td><td>${statsData.subs_suspendidas}</td></tr>
+                <tr><td>✅ Activas</td><td>${statsData.subs_activas}</td></tr>
+                <tr><td>🎁 Prueba</td><td>${statsData.subs_prueba}</td></tr>
+                <tr><td>❌ Vencidas</td><td>${statsData.subs_vencidas}</td></tr>
+                <tr><td>⛔ Suspendidas</td><td>${statsData.subs_suspendidas}</td></tr>
+            </table>
+            
+            <h2>💰 Ingresos</h2>
+            <div class="stats-row">
+                <div class="stat-box"><h3 style="color: #27ae60;">${formatCurrency(statsData.ingreso_mensual)}</h3><p>Ingreso Mensual</p></div>
+                <div class="stat-box"><h3 style="color: #3498db;">${formatCurrency(statsData.ingreso_anual_proyectado)}</h3><p>Proyección Anual</p></div>
+            </div>
+            
+            <h2>🏆 Top 5 Restaurantes por Visitas</h2>
+            <table>
+                <tr><th>#</th><th>Restaurante</th><th>Visitas</th><th>Estado</th></tr>
+                ${(statsData.top_restaurantes || []).slice(0, 5).map((r, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${r.nombre}</td>
+                        <td>${formatNumber(r.total_visitas)}</td>
+                        <td>${r.estado_suscripcion}</td>
+                    </tr>
+                `).join('')}
             </table>
             
             <div class="footer">
                 <p>Mi Menú Digital - Panel de Administración</p>
+                <p>© ${new Date().getFullYear()} Divergent Studio</p>
             </div>
         </body>
         </html>
     `);
     printWindow.document.close();
-    printWindow.print();
+    setTimeout(() => printWindow.print(), 500);
 }
 </script>
 {% endblock %}
