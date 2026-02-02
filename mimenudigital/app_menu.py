@@ -3026,6 +3026,16 @@ def api_categorias():
                 
             if request.method == 'POST':
                 data = request.get_json()
+                nuevo_orden = int(data.get('orden', 0))
+                
+                # Desplazar categorías existentes si el nuevo orden ya está ocupado
+                if nuevo_orden > 0:
+                    cur.execute('''
+                        UPDATE categorias 
+                        SET orden = orden + 1 
+                        WHERE restaurante_id = %s AND orden >= %s
+                        ORDER BY orden DESC
+                    ''', (restaurante_id, nuevo_orden))
                 
                 cur.execute('''
                     INSERT INTO categorias (restaurante_id, nombre, descripcion, icono, orden, activo)
@@ -3035,7 +3045,7 @@ def api_categorias():
                     data.get('nombre'),
                     data.get('descripcion', ''),
                     data.get('icono', ''),
-                    data.get('orden', 0)
+                    nuevo_orden
                 ))
                 db.commit()
                 # Invalidar cache del menú público
@@ -3071,6 +3081,31 @@ def api_categoria(categoria_id):
                 
             if request.method == 'PUT':
                 data = request.get_json()
+                nuevo_orden = int(data.get('orden', 0))
+                
+                # Obtener el orden actual de la categoría
+                cur.execute("SELECT orden FROM categorias WHERE id = %s AND restaurante_id = %s", 
+                           (categoria_id, restaurante_id))
+                cat_actual = cur.fetchone()
+                orden_actual = cat_actual['orden'] if cat_actual else 0
+                
+                # Si el orden cambió, desplazar las demás categorías
+                if nuevo_orden != orden_actual and nuevo_orden > 0:
+                    if nuevo_orden > orden_actual:
+                        # Moviendo hacia abajo: decrementar las que están en el rango
+                        cur.execute('''
+                            UPDATE categorias 
+                            SET orden = orden - 1 
+                            WHERE restaurante_id = %s AND orden > %s AND orden <= %s AND id != %s
+                        ''', (restaurante_id, orden_actual, nuevo_orden, categoria_id))
+                    else:
+                        # Moviendo hacia arriba: incrementar las que están en el rango
+                        cur.execute('''
+                            UPDATE categorias 
+                            SET orden = orden + 1 
+                            WHERE restaurante_id = %s AND orden >= %s AND orden < %s AND id != %s
+                        ''', (restaurante_id, nuevo_orden, orden_actual, categoria_id))
+                
                 cur.execute('''
                     UPDATE categorias SET 
                         nombre = %s, descripcion = %s, icono = %s, orden = %s, activo = %s
@@ -3079,7 +3114,7 @@ def api_categoria(categoria_id):
                     data.get('nombre'),
                     data.get('descripcion', ''),
                     data.get('icono', ''),
-                    data.get('orden', 0),
+                    nuevo_orden,
                     data.get('activo', 1),
                     categoria_id, restaurante_id
                 ))
@@ -4290,16 +4325,21 @@ def api_superadmin_stats_extended():
             subs_vencidas = 0
             subs_suspendidas = 0
             for r in subs_rows:
-                estado = r['estado_suscripcion']
+                estado = (r['estado_suscripcion'] or '').lower().strip()
                 count = r['count'] or 0
-                if estado == 'activa':
-                    subs_activas = count
-                elif estado == 'prueba':
-                    subs_prueba = count
-                elif estado == 'vencida':
-                    subs_vencidas = count
-                elif estado == 'suspendida':
-                    subs_suspendidas = count
+                # Considerar variaciones de nombres de estado
+                if estado in ('activa', 'activo', 'premium', 'active'):
+                    subs_activas += count
+                elif estado in ('prueba', 'trial', 'gratuito', 'gratis', 'free'):
+                    subs_prueba += count
+                elif estado in ('vencida', 'vencido', 'expired', 'expirada'):
+                    subs_vencidas += count
+                elif estado in ('suspendida', 'suspendido', 'suspended', 'inactiva', 'inactivo'):
+                    subs_suspendidas += count
+                else:
+                    # Estado desconocido, contar como prueba por defecto
+                    subs_prueba += count
+                    logger.warning(f"Estado de suscripción desconocido: '{estado}' - contado como prueba")
             
             # Restaurantes que vencen en los próximos 7 días
             try:

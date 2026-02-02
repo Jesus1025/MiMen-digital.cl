@@ -91,12 +91,12 @@
                     <div class="column is-full-mobile is-one-third-tablet">
                         <div class="stat-box" style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
                             <div style="font-size: 2rem; font-weight: bold; color: #3498db; margin-bottom: 0.5rem;">
-                                {# Calcular total de platos sumando la longitud de la lista de platos por categoría #}
-                                {% set total_platos = 0 %}
+                                {# Calcular total de platos usando namespace para permitir modificación dentro del loop #}
+                                {% set ns = namespace(total_platos=0) %}
                                 {% for categoria in menu %}
-                                    {% set total_platos = total_platos + (categoria.platos|length) %}
+                                    {% set ns.total_platos = ns.total_platos + (categoria.platos|length) %}
                                 {% endfor %}
-                                {{ total_platos }}
+                                {{ ns.total_platos }}
                             </div>
                             <div style="color: #7f8c8d; font-size: 0.9rem;">
                                 Platos activos
