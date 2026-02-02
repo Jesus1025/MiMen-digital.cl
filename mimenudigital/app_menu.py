@@ -4078,26 +4078,61 @@ def api_superadmin_stats():
 @login_required
 @superadmin_required
 def api_superadmin_stats_extended():
-    """API extendida de estadísticas con ingresos y desglose de suscripciones."""
+    """API extendida de estadísticas con ingresos, tendencias y desglose completo."""
     db = get_db()
     with db.cursor() as cur:
+        # ============================================
+        # MÉTRICAS BÁSICAS
+        # ============================================
+        
         # Total restaurantes
         cur.execute("SELECT COUNT(*) as total FROM restaurantes")
         total_restaurantes = cur.fetchone()['total']
+        
+        # Restaurantes activos (con actividad en últimos 30 días)
+        cur.execute("""
+            SELECT COUNT(DISTINCT restaurante_id) as activos 
+            FROM estadisticas_diarias 
+            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        """)
+        restaurantes_activos = cur.fetchone()['activos']
         
         # Total usuarios (sin superadmin)
         cur.execute("SELECT COUNT(*) as total FROM usuarios_admin WHERE rol != 'superadmin'")
         total_usuarios = cur.fetchone()['total']
         
-        # Total visitas y escaneos
-        cur.execute("SELECT COALESCE(SUM(visitas),0) as visitas, COALESCE(SUM(escaneos_qr),0) as escaneos FROM estadisticas_diarias")
+        # Total platos y categorías
+        cur.execute("SELECT COUNT(*) as total FROM platos WHERE activo = 1")
+        total_platos = cur.fetchone()['total']
+        
+        cur.execute("SELECT COUNT(*) as total FROM categorias WHERE activo = 1")
+        total_categorias = cur.fetchone()['total']
+        
+        # ============================================
+        # VISITAS Y ESCANEOS
+        # ============================================
+        
+        # Total histórico
+        cur.execute("""
+            SELECT COALESCE(SUM(visitas),0) as visitas, 
+                   COALESCE(SUM(escaneos_qr),0) as escaneos,
+                   COALESCE(SUM(visitas_movil),0) as movil,
+                   COALESCE(SUM(visitas_desktop),0) as desktop
+            FROM estadisticas_diarias
+        """)
         row = cur.fetchone()
         total_visitas = row['visitas']
         total_escaneos = row['escaneos']
+        total_movil = row['movil']
+        total_desktop = row['desktop']
         
         # Visitas últimos 30 días
         cur.execute("""
-            SELECT fecha, COALESCE(SUM(visitas),0) as visitas
+            SELECT fecha, 
+                   COALESCE(SUM(visitas),0) as visitas,
+                   COALESCE(SUM(escaneos_qr),0) as escaneos,
+                   COALESCE(SUM(visitas_movil),0) as movil,
+                   COALESCE(SUM(visitas_desktop),0) as desktop
             FROM estadisticas_diarias
             WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
             GROUP BY fecha
@@ -4105,7 +4140,66 @@ def api_superadmin_stats_extended():
         """)
         visitas_30dias = list_from_rows(cur.fetchall())
         
-        # Desglose de suscripciones por estado
+        # Totales de los últimos 30 días
+        cur.execute("""
+            SELECT COALESCE(SUM(visitas),0) as visitas,
+                   COALESCE(SUM(escaneos_qr),0) as escaneos
+            FROM estadisticas_diarias
+            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        """)
+        row_30 = cur.fetchone()
+        visitas_mes_actual = row_30['visitas']
+        escaneos_mes_actual = row_30['escaneos']
+        
+        # Totales del mes anterior (para comparar)
+        cur.execute("""
+            SELECT COALESCE(SUM(visitas),0) as visitas,
+                   COALESCE(SUM(escaneos_qr),0) as escaneos
+            FROM estadisticas_diarias
+            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+              AND fecha < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        """)
+        row_ant = cur.fetchone()
+        visitas_mes_anterior = row_ant['visitas']
+        escaneos_mes_anterior = row_ant['escaneos']
+        
+        # Calcular tendencia (%)
+        if visitas_mes_anterior > 0:
+            tendencia_visitas = round(((visitas_mes_actual - visitas_mes_anterior) / visitas_mes_anterior) * 100, 1)
+        else:
+            tendencia_visitas = 100 if visitas_mes_actual > 0 else 0
+            
+        if escaneos_mes_anterior > 0:
+            tendencia_escaneos = round(((escaneos_mes_actual - escaneos_mes_anterior) / escaneos_mes_anterior) * 100, 1)
+        else:
+            tendencia_escaneos = 100 if escaneos_mes_actual > 0 else 0
+        
+        # Visitas de hoy
+        cur.execute("""
+            SELECT COALESCE(SUM(visitas),0) as visitas,
+                   COALESCE(SUM(escaneos_qr),0) as escaneos
+            FROM estadisticas_diarias
+            WHERE fecha = CURDATE()
+        """)
+        row_hoy = cur.fetchone()
+        visitas_hoy = row_hoy['visitas']
+        escaneos_hoy = row_hoy['escaneos']
+        
+        # Visitas por día de la semana (últimos 30 días)
+        cur.execute("""
+            SELECT DAYOFWEEK(fecha) as dia, 
+                   COALESCE(AVG(visitas),0) as promedio
+            FROM estadisticas_diarias
+            WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            GROUP BY DAYOFWEEK(fecha)
+            ORDER BY dia
+        """)
+        visitas_por_dia = list_from_rows(cur.fetchall())
+        
+        # ============================================
+        # SUSCRIPCIONES
+        # ============================================
+        
         cur.execute("""
             SELECT estado_suscripcion, COUNT(*) as count 
             FROM restaurantes 
@@ -4127,39 +4221,131 @@ def api_superadmin_stats_extended():
             elif estado == 'suspendida':
                 subs_suspendidas = r['count']
         
-        # Obtener precio mensual de configuración
+        # Restaurantes que vencen en los próximos 7 días
+        cur.execute("""
+            SELECT id, nombre, fecha_vencimiento, estado_suscripcion
+            FROM restaurantes
+            WHERE fecha_vencimiento BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+              AND estado_suscripcion IN ('activa', 'prueba')
+            ORDER BY fecha_vencimiento
+            LIMIT 10
+        """)
+        por_vencer = list_from_rows(cur.fetchall())
+        
+        # Nuevos restaurantes este mes
+        cur.execute("""
+            SELECT COUNT(*) as nuevos
+            FROM restaurantes
+            WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+        """)
+        result = cur.fetchone()
+        nuevos_este_mes = result['nuevos'] if result else 0
+        
+        # ============================================
+        # INGRESOS
+        # ============================================
+        
         config = get_config_global()
         precio_mensual = int(config.get('precio_mensual', 14990))
-        
-        # Ingreso mensual estimado = suscripciones activas × precio
         ingreso_mensual = subs_activas * precio_mensual
+        ingreso_anual_proyectado = ingreso_mensual * 12
         
-        # Top 10 restaurantes por visitas
+        # ============================================
+        # TOP RESTAURANTES
+        # ============================================
+        
         cur.execute("""
-            SELECT r.id, r.nombre, r.estado_suscripcion,
+            SELECT r.id, r.nombre, r.estado_suscripcion, r.url_slug,
                    COALESCE(SUM(e.visitas), 0) as total_visitas,
                    COALESCE(SUM(e.escaneos_qr), 0) as total_escaneos
             FROM restaurantes r
             LEFT JOIN estadisticas_diarias e ON r.id = e.restaurante_id
-            GROUP BY r.id, r.nombre, r.estado_suscripcion
+            GROUP BY r.id, r.nombre, r.estado_suscripcion, r.url_slug
             ORDER BY total_visitas DESC
             LIMIT 10
         """)
         top_restaurantes = list_from_rows(cur.fetchall())
         
+        # Top restaurantes por escaneos QR
+        cur.execute("""
+            SELECT r.id, r.nombre, r.estado_suscripcion,
+                   COALESCE(SUM(e.escaneos_qr), 0) as total_escaneos
+            FROM restaurantes r
+            LEFT JOIN estadisticas_diarias e ON r.id = e.restaurante_id
+            GROUP BY r.id, r.nombre, r.estado_suscripcion
+            HAVING total_escaneos > 0
+            ORDER BY total_escaneos DESC
+            LIMIT 10
+        """)
+        top_escaneos = list_from_rows(cur.fetchall())
+        
+        # ============================================
+        # ACTIVIDAD RECIENTE
+        # ============================================
+        
+        # Últimos restaurantes creados
+        cur.execute("""
+            SELECT id, nombre, created_at, estado_suscripcion
+            FROM restaurantes
+            ORDER BY created_at DESC
+            LIMIT 5
+        """)
+        ultimos_restaurantes = list_from_rows(cur.fetchall())
+        
+        # Tickets recientes
+        cur.execute("""
+            SELECT id, asunto, estado, created_at, tipo
+            FROM tickets_soporte
+            ORDER BY created_at DESC
+            LIMIT 5
+        """)
+        ultimos_tickets = list_from_rows(cur.fetchall())
+        
+        tickets_pendientes = sum(1 for t in ultimos_tickets if t.get('estado') in ('abierto', 'en_proceso'))
+        
     return jsonify({
+        # Métricas básicas
         'total_restaurantes': total_restaurantes,
+        'restaurantes_activos': restaurantes_activos,
         'total_usuarios': total_usuarios,
+        'total_platos': total_platos,
+        'total_categorias': total_categorias,
+        
+        # Visitas y escaneos
         'total_visitas': total_visitas,
         'total_escaneos': total_escaneos,
+        'total_movil': total_movil,
+        'total_desktop': total_desktop,
+        'visitas_hoy': visitas_hoy,
+        'escaneos_hoy': escaneos_hoy,
+        'visitas_mes_actual': visitas_mes_actual,
+        'escaneos_mes_actual': escaneos_mes_actual,
+        'tendencia_visitas': tendencia_visitas,
+        'tendencia_escaneos': tendencia_escaneos,
         'visitas_30dias': visitas_30dias,
+        'visitas_por_dia': visitas_por_dia,
+        
+        # Suscripciones
         'subs_activas': subs_activas,
         'subs_prueba': subs_prueba,
         'subs_vencidas': subs_vencidas,
         'subs_suspendidas': subs_suspendidas,
+        'por_vencer': por_vencer,
+        'nuevos_este_mes': nuevos_este_mes,
+        
+        # Ingresos
         'ingreso_mensual': ingreso_mensual,
+        'ingreso_anual_proyectado': ingreso_anual_proyectado,
         'precio_mensual': precio_mensual,
-        'top_restaurantes': top_restaurantes
+        
+        # Rankings
+        'top_restaurantes': top_restaurantes,
+        'top_escaneos': top_escaneos,
+        
+        # Actividad reciente
+        'ultimos_restaurantes': ultimos_restaurantes,
+        'ultimos_tickets': ultimos_tickets,
+        'tickets_pendientes': tickets_pendientes
     })
 
 
