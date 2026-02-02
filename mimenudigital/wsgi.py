@@ -146,4 +146,4 @@ except Exception as e:
     
     @application.route('/health')
     def health():
-        return {{'status': 'error', 'message': str(e)}}, 500
+        return {'status': 'error', 'message': str(e)}, 500
