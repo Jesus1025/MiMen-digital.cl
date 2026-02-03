@@ -20,6 +20,7 @@
 
 import os
 import sys
+import atexit  # Para limpiar conexiones al cerrar
 
 # Intentar cargar variables de entorno desde .env (solo si existe)
 # En PythonAnywhere, las variables se configuran en Web -> Environment variables
@@ -368,12 +369,17 @@ if not secret_key:
 app.secret_key = secret_key
 app.config['FLASK_ENV'] = os.environ.get('FLASK_ENV', 'development')
 
-# Configuración de sesiones (mejorada)
+# Configuración de sesiones (optimizada para rendimiento)
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora
-app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+app.config['SESSION_REFRESH_EACH_REQUEST'] = False  # Reduce overhead de sesiones
+
+# Configuración de rendimiento
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 año para archivos estáticos
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False  # JSON compacto en producción
+app.config['JSON_SORT_KEYS'] = False  # No ordenar keys JSON (más rápido)
 
 # ============================================================
 # INICIALIZAR MIDDLEWARE DE SEGURIDAD Y PERFORMANCE
@@ -746,11 +752,22 @@ if MERCADO_WEBHOOK_KEY:
 # DATABASE - usar `database.py` centralizado
 # ============================================================
 # Importar las utilidades desde el módulo `database.py` y registrar teardown
-from database import init_app as db_init_app, get_db as db_get_db, get_cursor as db_get_cursor, execute_query as db_execute_query
+from database import init_app as db_init_app, get_db as db_get_db, get_cursor as db_get_cursor, execute_query as db_execute_query, _pool as db_pool, get_pool_status
 
 # Registrar el teardown handler para cerrar conexiones (se delega a database.init_app)
 db_init_app(app)
 logger.info("Database module initialized via database.init_app")
+
+# Registrar limpieza de conexiones al cerrar la aplicación
+def cleanup_db_connections():
+    """Limpia todas las conexiones del pool al cerrar la aplicación."""
+    try:
+        db_pool.close_all()
+        logger.info("Database connections cleaned up on shutdown")
+    except Exception as e:
+        logger.warning("Error cleaning up database connections: %s", e)
+
+atexit.register(cleanup_db_connections)
 
 # ============================================================
 # INICIALIZAR SERVICIO DE EMAIL
@@ -1379,99 +1396,162 @@ def verificar_suscripcion(f):
 # TRACKING DE VISITAS Y ESCANEOS QR/NFC
 # ============================================================
 
+# Cola de visitas para procesamiento asíncrono
+from queue import Queue
+from threading import Thread
+import threading
+
+_visitas_queue = Queue(maxsize=1000)
+_visita_worker_running = False
+_visita_worker_lock = threading.Lock()
+
+def _visita_worker():
+    """Worker thread que procesa visitas en segundo plano."""
+    global _visita_worker_running
+    
+    while _visita_worker_running:
+        try:
+            # Esperar por una visita (timeout de 5 segundos para poder terminar)
+            try:
+                visita_data = _visitas_queue.get(timeout=5)
+            except:
+                continue
+            
+            if visita_data is None:  # Señal de terminación
+                break
+            
+            # Procesar la visita
+            _procesar_visita_sync(visita_data)
+            _visitas_queue.task_done()
+            
+        except Exception as e:
+            logger.warning("Error in visita worker: %s", e)
+
+def _iniciar_visita_worker():
+    """Inicia el worker de visitas si no está corriendo."""
+    global _visita_worker_running
+    
+    with _visita_worker_lock:
+        if not _visita_worker_running:
+            _visita_worker_running = True
+            worker = Thread(target=_visita_worker, daemon=True, name="visita-worker")
+            worker.start()
+            logger.info("Visita worker thread started")
+
+def _procesar_visita_sync(visita_data):
+    """Procesa una visita de forma síncrona (llamado desde worker thread)."""
+    try:
+        restaurante_id = visita_data['restaurante_id']
+        ip_address = visita_data['ip_address']
+        user_agent = visita_data['user_agent']
+        referer = visita_data['referer']
+        es_movil = visita_data['es_movil']
+        es_qr = visita_data['es_qr']
+        hoy = visita_data['fecha']
+        
+        # Crear conexión nueva (estamos en otro thread)
+        import pymysql
+        from pymysql.cursors import DictCursor
+        
+        config = {
+            'host': os.environ.get('MYSQL_HOST'),
+            'user': os.environ.get('MYSQL_USER'),
+            'password': os.environ.get('MYSQL_PASSWORD'),
+            'database': os.environ.get('MYSQL_DB'),
+            'port': int(os.environ.get('MYSQL_PORT', 3306)),
+            'charset': 'utf8mb4',
+            'cursorclass': DictCursor,
+            'autocommit': True,  # Autocommit para simplicidad
+            'connect_timeout': 5
+        }
+        
+        conn = pymysql.connect(**config)
+        try:
+            with conn.cursor() as cur:
+                # Insertar registro de visita
+                cur.execute('''
+                    INSERT INTO visitas 
+                    (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, fecha)
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                ''', (restaurante_id, ip_address, user_agent, referer, 1 if es_movil else 0, 1 if es_qr else 0))
+                
+                # Actualizar estadísticas diarias
+                cur.execute('''
+                    INSERT INTO estadisticas_diarias 
+                    (restaurante_id, fecha, visitas, escaneos_qr, visitas_movil, visitas_desktop)
+                    VALUES (%s, %s, 1, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        visitas = visitas + 1,
+                        escaneos_qr = escaneos_qr + %s,
+                        visitas_movil = visitas_movil + %s,
+                        visitas_desktop = visitas_desktop + %s
+                ''', (
+                    restaurante_id, hoy, 
+                    1 if es_qr else 0, 
+                    1 if es_movil else 0, 
+                    0 if es_movil else 1,
+                    1 if es_qr else 0,
+                    1 if es_movil else 0,
+                    0 if es_movil else 1
+                ))
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.warning("Error processing async visit for restaurant %s: %s", 
+                      visita_data.get('restaurante_id'), e)
+
 def registrar_visita(restaurante_id, req):
     """
-    Registra una visita/escaneo QR para el restaurante.
-    
-    Detecta escaneos QR/NFC basándose en:
-    - Parámetro ?qr=1 en la URL (más confiable)
-    - Referer vacío o nulo desde móvil (típico de escaneo QR)
-    - User-Agent de apps de cámara/QR scanner
-    
-    Args:
-        restaurante_id (int): ID del restaurante
-        req: Flask request object
+    Registra una visita/escaneo QR para el restaurante de forma ASÍNCRONA.
+    La visita se encola y procesa en segundo plano para no bloquear la respuesta.
     """
     try:
-        db = get_db()
-        with db.cursor() as cur:
-            # Obtener información del visitante
-            ip_address = req.headers.get('X-Forwarded-For', req.remote_addr)
-            if ip_address:
-                ip_address = ip_address.split(',')[0].strip()[:45]
-            
-            user_agent = req.headers.get('User-Agent', '')[:500]
-            referer = req.headers.get('Referer', '')[:500]
-            
-            # Detectar dispositivo móvil
-            ua_lower = user_agent.lower()
-            es_movil = any(x in ua_lower for x in ['mobile', 'android', 'iphone', 'ipad', 'ipod'])
-            
-            # ============================================================
-            # DETECCIÓN DE ESCANEO QR/NFC
-            # ============================================================
-            # Un escaneo QR típicamente tiene estas características:
-            # 1. Parámetro explícito ?qr=1 (si el QR incluye este parámetro)
-            # 2. Referer vacío + dispositivo móvil (el usuario abrió el link desde cámara/app QR)
-            # 3. User-Agent de apps de escaneo conocidas
-            
-            es_qr = False
-            
-            # Método 1: Parámetro explícito en URL
-            if req.args.get('qr') == '1' or req.args.get('src') == 'qr':
-                es_qr = True
-            
-            # Método 2: Referer vacío desde móvil = muy probable escaneo QR
-            # (Cuando abres un link desde la cámara o app QR, no hay referer)
-            elif es_movil and (not referer or referer == ''):
-                es_qr = True
-            
-            # Método 3: User-Agent de apps de escaneo QR conocidas
-            elif any(x in ua_lower for x in ['qr', 'scanner', 'barcode', 'zxing', 'nfc']):
-                es_qr = True
-            
-            # Método 4: Referer contiene 'qr' (compatibilidad con código anterior)
-            elif referer and 'qr' in referer.lower():
-                es_qr = True
-            
-            # Insertar registro de visita
-            cur.execute('''
-                INSERT INTO visitas 
-                (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, fecha)
-                VALUES (%s, %s, %s, %s, %s, %s, NOW())
-            ''', (restaurante_id, ip_address, user_agent, referer, 1 if es_movil else 0, 1 if es_qr else 0))
-            
-            # Actualizar estadísticas diarias
-            hoy = date.today().isoformat()
-            cur.execute('''
-                INSERT INTO estadisticas_diarias 
-                (restaurante_id, fecha, visitas, escaneos_qr, visitas_movil, visitas_desktop)
-                VALUES (%s, %s, 1, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    visitas = visitas + 1,
-                    escaneos_qr = escaneos_qr + %s,
-                    visitas_movil = visitas_movil + %s,
-                    visitas_desktop = visitas_desktop + %s
-            ''', (
-                restaurante_id, hoy, 
-                1 if es_qr else 0, 
-                1 if es_movil else 0, 
-                0 if es_movil else 1,
-                1 if es_qr else 0,
-                1 if es_movil else 0,
-                0 if es_movil else 1
-            ))
-            
-            db.commit()
-            logger.debug("Visit registered for restaurant %s (mobile=%s, qr=%s, referer=%s)", 
-                        restaurante_id, es_movil, es_qr, 'empty' if not referer else 'present')
+        # Iniciar worker si no está corriendo
+        _iniciar_visita_worker()
+        
+        # Obtener información del visitante
+        ip_address = req.headers.get('X-Forwarded-For', req.remote_addr)
+        if ip_address:
+            ip_address = ip_address.split(',')[0].strip()[:45]
+        
+        user_agent = req.headers.get('User-Agent', '')[:500]
+        referer = req.headers.get('Referer', '')[:500]
+        
+        # Detectar dispositivo móvil
+        ua_lower = user_agent.lower()
+        es_movil = any(x in ua_lower for x in ['mobile', 'android', 'iphone', 'ipad', 'ipod'])
+        
+        # Detectar escaneo QR
+        es_qr = False
+        if req.args.get('qr') == '1' or req.args.get('src') == 'qr':
+            es_qr = True
+        elif es_movil and (not referer or referer == ''):
+            es_qr = True
+        elif any(x in ua_lower for x in ['qr', 'scanner', 'barcode', 'zxing', 'nfc']):
+            es_qr = True
+        elif referer and 'qr' in referer.lower():
+            es_qr = True
+        
+        # Encolar la visita (no bloquea)
+        visita_data = {
+            'restaurante_id': restaurante_id,
+            'ip_address': ip_address,
+            'user_agent': user_agent,
+            'referer': referer,
+            'es_movil': es_movil,
+            'es_qr': es_qr,
+            'fecha': date.today().isoformat()
+        }
+        
+        try:
+            _visitas_queue.put_nowait(visita_data)
+        except:
+            # Cola llena, ignorar (mejor que bloquear)
+            logger.warning("Visit queue full, dropping visit for restaurant %s", restaurante_id)
             
     except Exception:
-        logger.exception("Error registrando visita para restaurante %s", restaurante_id)
-        try:
-            db.rollback()
-        except Exception as rollback_err:
-            logger.warning("DB rollback failed while registering visit for %s: %s", restaurante_id, rollback_err, exc_info=True)
+        logger.exception("Error queuing visit for restaurant %s", restaurante_id)
 
 
 # ============================================================
@@ -3301,8 +3381,7 @@ def api_subir_logo():
 @app.route('/api/dashboard/stats')
 @login_required
 def api_dashboard_stats():
-    """Obtiene estadísticas del restaurante para el dashboard."""
-    db = get_db()
+    """Obtiene estadísticas del restaurante para el dashboard. OPTIMIZADO con query combinada."""
     restaurante_id = session.get('restaurante_id')
     
     if not restaurante_id:
@@ -3319,43 +3398,37 @@ def api_dashboard_stats():
         })
     
     try:
+        # Intentar obtener del caché (TTL corto de 30 segundos)
+        cache_key = f"dashboard_stats:{restaurante_id}"
+        if SECURITY_MIDDLEWARE_AVAILABLE:
+            cached = get_cache().get(cache_key)
+            if cached:
+                cached['base_url'] = request.host_url.rstrip('/')  # Actualizar base_url
+                return jsonify(cached)
+        
+        db = get_db()
+        hoy = date.today().isoformat()
+        primer_dia_mes = date.today().replace(day=1).isoformat()
+        
         with db.cursor() as cur:
-            # Contar platos activos
-            cur.execute("SELECT COUNT(*) as total FROM platos WHERE restaurante_id = %s AND activo = 1", 
-                       (restaurante_id,))
-            total_platos = cur.fetchone()['total']
-            
-            # Contar categorías
-            cur.execute("SELECT COUNT(*) as total FROM categorias WHERE restaurante_id = %s AND activo = 1", 
-                       (restaurante_id,))
-            total_categorias = cur.fetchone()['total']
-            
-            # Obtener url_slug
-            cur.execute("SELECT url_slug FROM restaurantes WHERE id = %s", (restaurante_id,))
-            row = cur.fetchone()
-            url_slug = row['url_slug'] if row else ''
-            
-            # Estadísticas del mes
-            primer_dia_mes = date.today().replace(day=1).isoformat()
+            # Query combinada para obtener todos los conteos en una sola operación
             cur.execute('''
-                SELECT COALESCE(SUM(visitas), 0) as visitas, COALESCE(SUM(escaneos_qr), 0) as scans
-                FROM estadisticas_diarias 
-                WHERE restaurante_id = %s AND fecha >= %s
-            ''', (restaurante_id, primer_dia_mes))
+                SELECT 
+                    (SELECT COUNT(*) FROM platos WHERE restaurante_id = %s AND activo = 1) as total_platos,
+                    (SELECT COUNT(*) FROM categorias WHERE restaurante_id = %s AND activo = 1) as total_categorias,
+                    (SELECT url_slug FROM restaurantes WHERE id = %s) as url_slug,
+                    (SELECT COALESCE(SUM(visitas), 0) FROM estadisticas_diarias WHERE restaurante_id = %s AND fecha >= %s) as total_vistas,
+                    (SELECT COALESCE(SUM(escaneos_qr), 0) FROM estadisticas_diarias WHERE restaurante_id = %s AND fecha >= %s) as total_scans
+            ''', (restaurante_id, restaurante_id, restaurante_id, restaurante_id, primer_dia_mes, restaurante_id, primer_dia_mes))
             stats = cur.fetchone()
-            total_vistas = stats['visitas'] if stats else 0
-            total_scans = stats['scans'] if stats else 0
             
-            # Estadísticas de hoy
-            hoy = date.today().isoformat()
+            # Estadísticas de hoy (query separada porque es más simple)
             cur.execute('''
                 SELECT COALESCE(visitas, 0) as visitas, COALESCE(escaneos_qr, 0) as scans
                 FROM estadisticas_diarias 
                 WHERE restaurante_id = %s AND fecha = %s
             ''', (restaurante_id, hoy))
             hoy_row = cur.fetchone()
-            visitas_hoy = hoy_row['visitas'] if hoy_row else 0
-            scans_hoy = hoy_row['scans'] if hoy_row else 0
             
             # Últimos 7 días
             cur.execute('''
@@ -3366,19 +3439,26 @@ def api_dashboard_stats():
             ''', (restaurante_id,))
             ultimos_7_dias = list_from_rows(cur.fetchall())
             
-            return jsonify({
-                'total_platos': total_platos,
-                'total_categorias': total_categorias,
-                'total_vistas': total_vistas,
-                'total_scans': total_scans,
-                'visitas_hoy': visitas_hoy,
-                'scans_hoy': scans_hoy,
+            result = {
+                'total_platos': stats['total_platos'] if stats else 0,
+                'total_categorias': stats['total_categorias'] if stats else 0,
+                'total_vistas': stats['total_vistas'] if stats else 0,
+                'total_scans': stats['total_scans'] if stats else 0,
+                'visitas_hoy': hoy_row['visitas'] if hoy_row else 0,
+                'scans_hoy': hoy_row['scans'] if hoy_row else 0,
                 'ultimos_7_dias': ultimos_7_dias,
-                'url_slug': url_slug,
+                'url_slug': stats['url_slug'] if stats else '',
                 'base_url': request.host_url.rstrip('/')
-            })
+            }
+            
+            # Guardar en caché por 30 segundos
+            if SECURITY_MIDDLEWARE_AVAILABLE:
+                get_cache().set(cache_key, result, ttl=30)
+            
+            return jsonify(result)
             
     except Exception as e:
+        logger.exception("Error getting dashboard stats: %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -4956,9 +5036,22 @@ def health_check():
 
 @app.route('/healthz', methods=['GET'])
 def healthz():
-    """Lightweight health check (for load balancers): checks DB connectivity and Cloudinary config."""
+    """Lightweight health check (for load balancers): checks DB, pool, cache and Cloudinary."""
     ok = True
     components = {}
+    
+    # Verificar pool de conexiones
+    try:
+        pool_status = get_pool_status()
+        components['db_pool'] = {
+            'size': pool_status['size'],
+            'available': pool_status['available'],
+            'max': pool_status['max'],
+            'utilization': f"{((pool_status['size'] - pool_status['available']) / max(pool_status['max'], 1)) * 100:.1f}%"
+        }
+    except Exception as e:
+        components['db_pool'] = str(e)
+    
     try:
         db = get_db()
         with db.cursor() as cur:
@@ -4967,6 +5060,26 @@ def healthz():
     except Exception as e:
         components['db'] = str(e)
         ok = False
+    
+    # Verificar caché
+    try:
+        if SECURITY_MIDDLEWARE_AVAILABLE:
+            cache_stats = get_cache().stats
+            components['cache'] = cache_stats
+        else:
+            components['cache'] = 'not available'
+    except Exception as e:
+        components['cache'] = str(e)
+    
+    # Verificar cola de visitas
+    try:
+        components['visit_queue'] = {
+            'size': _visitas_queue.qsize(),
+            'max': 1000,
+            'worker_running': _visita_worker_running
+        }
+    except Exception as e:
+        components['visit_queue'] = str(e)
 
     # Verificar Cloudinary con más detalle
     cloudinary_url = os.environ.get('CLOUDINARY_URL', '')

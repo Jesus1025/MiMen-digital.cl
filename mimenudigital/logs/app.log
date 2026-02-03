@@ -18,3 +18,23 @@
 2026-01-23 10:45:35 | INFO     | app_menu | <module>:668 | CSRF protection enabled via Flask-WTF
 2026-01-23 10:45:35 | INFO     | app_menu | <module>:710 | Database module initialized via database.init_app
 2026-01-23 10:45:35 | INFO     | app_menu | <module>:739 | Email service initialized: False
+2026-02-02 00:00:41 | INFO     | app_menu | <module>:351 | ============================================================
+2026-02-02 00:00:41 | INFO     | app_menu | <module>:352 | Iniciando aplicación Menu Digital
+2026-02-02 00:00:41 | INFO     | app_menu | <module>:353 | ============================================================
+2026-02-02 00:00:41 | INFO     | app_menu | <module>:394 | Security middleware loaded successfully
+2026-02-02 00:00:41 | WARNING  | app_menu | <module>:619 | MYSQL_PASSWORD not set in environment; verify your deployment configuration
+2026-02-02 00:00:41 | INFO     | app_menu | <module>:630 | Database config: MiMenudigital.mysql.pythonanywhere-services.com:3306/MiMenudigital$menu_digital
+2026-02-02 00:00:41 | INFO     | app_menu | <module>:635 | Base URL: http://localhost:5000
+2026-02-02 00:00:42 | INFO     | app_menu | <module>:698 | CSRF protection enabled via Flask-WTF
+2026-02-02 00:00:42 | INFO     | app_menu | <module>:753 | Database module initialized via database.init_app
+2026-02-02 00:00:42 | INFO     | app_menu | <module>:782 | Email service initialized: False
+2026-02-02 00:55:26 | INFO     | app_menu | <module>:351 | ============================================================
+2026-02-02 00:55:26 | INFO     | app_menu | <module>:352 | Iniciando aplicación Menu Digital
+2026-02-02 00:55:26 | INFO     | app_menu | <module>:353 | ============================================================
+2026-02-02 00:55:26 | INFO     | app_menu | <module>:394 | Security middleware loaded successfully
+2026-02-02 00:55:26 | WARNING  | app_menu | <module>:619 | MYSQL_PASSWORD not set in environment; verify your deployment configuration
+2026-02-02 00:55:26 | INFO     | app_menu | <module>:630 | Database config: MiMenudigital.mysql.pythonanywhere-services.com:3306/MiMenudigital$menu_digital
+2026-02-02 00:55:26 | INFO     | app_menu | <module>:635 | Base URL: http://localhost:5000
+2026-02-02 00:55:27 | INFO     | app_menu | <module>:698 | CSRF protection enabled via Flask-WTF
+2026-02-02 00:55:27 | INFO     | app_menu | <module>:753 | Database module initialized via database.init_app
+2026-02-02 00:55:27 | INFO     | app_menu | <module>:782 | Email service initialized: False
