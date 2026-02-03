@@ -347,7 +347,7 @@
     .etiqueta-btn[data-tag="vegetariano"], .etiqueta-selected[data-tag="vegetariano"] { background: #2ecc71; }
     .etiqueta-btn[data-tag="sin-gluten"], .etiqueta-selected[data-tag="sin-gluten"] { background: #8e44ad; }
     .etiqueta-btn[data-tag="sin-lactosa"], .etiqueta-selected[data-tag="sin-lactosa"] { background: #3498db; }
-    .etiqueta-btn[data-tag="keto"], .etiqueta-selected[data-tag="keto"] { background: #1abc9c; }
+    .etiqueta-btn[data-tag="light"], .etiqueta-selected[data-tag="light"] { background: #00bcd4; }
     .etiqueta-btn[data-tag="sin-azucar"], .etiqueta-selected[data-tag="sin-azucar"] { background: #16a085; }
     
     /* Características */
@@ -356,6 +356,7 @@
     .etiqueta-btn[data-tag="frio"], .etiqueta-selected[data-tag="frio"] { background: #00bcd4; }
     .etiqueta-btn[data-tag="caliente"], .etiqueta-selected[data-tag="caliente"] { background: #ff9800; }
     .etiqueta-btn[data-tag="casero"], .etiqueta-selected[data-tag="casero"] { background: #795548; }
+    .etiqueta-btn[data-tag="criollo"], .etiqueta-selected[data-tag="criollo"] { background: #d32f2f; }
     
     /* Café y Panadería */
     .etiqueta-btn[data-tag="cafe"], .etiqueta-selected[data-tag="cafe"] { background: #5d4037; }
@@ -371,12 +372,12 @@
     .etiqueta-btn[data-tag="pequeno"], .etiqueta-selected[data-tag="pequeno"] { background: #7986cb; }
     .etiqueta-btn[data-tag="para-compartir"], .etiqueta-selected[data-tag="para-compartir"] { background: #673ab7; }
     
-    /* Otros */
-    .etiqueta-btn[data-tag="organico"], .etiqueta-selected[data-tag="organico"] { background: #4caf50; }
-    .etiqueta-btn[data-tag="local"], .etiqueta-selected[data-tag="local"] { background: #607d8b; }
-    .etiqueta-btn[data-tag="temporada"], .etiqueta-selected[data-tag="temporada"] { background: #ff7043; }
-    .etiqueta-btn[data-tag="kosher"], .etiqueta-selected[data-tag="kosher"] { background: #5e35b1; }
-    .etiqueta-btn[data-tag="halal"], .etiqueta-selected[data-tag="halal"] { background: #00897b; }
+    /* Otros - Etiquetas útiles para Chile */
+    .etiqueta-btn[data-tag="sin-mariscos"], .etiqueta-selected[data-tag="sin-mariscos"] { background: #0097a7; }
+    .etiqueta-btn[data-tag="apto-ninos"], .etiqueta-selected[data-tag="apto-ninos"] { background: #ff9800; }
+    .etiqueta-btn[data-tag="rapido"], .etiqueta-selected[data-tag="rapido"] { background: #4caf50; }
+    .etiqueta-btn[data-tag="abundante"], .etiqueta-selected[data-tag="abundante"] { background: #ff5722; }
+    .etiqueta-btn[data-tag="del-dia"], .etiqueta-selected[data-tag="del-dia"] { background: #607d8b; }
     
     /* Etiquetas personalizadas */
     .etiqueta-btn.custom-tag, .etiqueta-selected.custom-tag { background: #34495e; }
@@ -531,11 +532,11 @@
                         <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
                             <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">⭐ Popularidad:</small>
                             <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="nuevo" style="background: #27ae60;">🆕 Nuevo</span>
-                                <span class="etiqueta-btn" data-tag="popular" style="background: #e74c3c;">🔥 Popular</span>
-                                <span class="etiqueta-btn" data-tag="recomendado" style="background: #f39c12;">👨‍🍳 Recomendado</span>
-                                <span class="etiqueta-btn" data-tag="oferta" style="background: #9b59b6;">💰 Oferta</span>
-                                <span class="etiqueta-btn" data-tag="destacado" style="background: #3498db;">⭐ Destacado</span>
+                                <span class="etiqueta-btn" data-tag="nuevo" onclick="toggleEtiqueta('nuevo')" style="background: #27ae60;">🆕 Nuevo</span>
+                                <span class="etiqueta-btn" data-tag="popular" onclick="toggleEtiqueta('popular')" style="background: #e74c3c;">🔥 Popular</span>
+                                <span class="etiqueta-btn" data-tag="recomendado" onclick="toggleEtiqueta('recomendado')" style="background: #f39c12;">👨‍🍳 Recomendado</span>
+                                <span class="etiqueta-btn" data-tag="oferta" onclick="toggleEtiqueta('oferta')" style="background: #9b59b6;">💰 Oferta</span>
+                                <span class="etiqueta-btn" data-tag="destacado" onclick="toggleEtiqueta('destacado')" style="background: #3498db;">⭐ Destacado</span>
                             </div>
                         </div>
                         
@@ -543,12 +544,12 @@
                         <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
                             <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">🥗 Dieta:</small>
                             <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="vegano" style="background: #2ecc71;">🌱 Vegano</span>
-                                <span class="etiqueta-btn" data-tag="vegetariano" style="background: #3498db;">🥬 Vegetariano</span>
-                                <span class="etiqueta-btn" data-tag="sin-gluten" style="background: #9b59b6;">🌾 Sin Gluten</span>
-                                <span class="etiqueta-btn" data-tag="sin-lactosa" style="background: #1abc9c;">🥛 Sin Lactosa</span>
-                                <span class="etiqueta-btn" data-tag="keto" style="background: #8e44ad;">🥑 Keto</span>
-                                <span class="etiqueta-btn" data-tag="sin-azucar" style="background: #16a085;">🍬 Sin Azúcar</span>
+                                <span class="etiqueta-btn" data-tag="vegano" onclick="toggleEtiqueta('vegano')" style="background: #2ecc71;">🌱 Vegano</span>
+                                <span class="etiqueta-btn" data-tag="vegetariano" onclick="toggleEtiqueta('vegetariano')" style="background: #3498db;">🥬 Vegetariano</span>
+                                <span class="etiqueta-btn" data-tag="sin-gluten" onclick="toggleEtiqueta('sin-gluten')" style="background: #9b59b6;">🌾 Sin Gluten</span>
+                                <span class="etiqueta-btn" data-tag="sin-lactosa" onclick="toggleEtiqueta('sin-lactosa')" style="background: #1abc9c;">🥛 Sin Lactosa</span>
+                                <span class="etiqueta-btn" data-tag="light" onclick="toggleEtiqueta('light')" style="background: #00bcd4;">🥗 Light</span>
+                                <span class="etiqueta-btn" data-tag="sin-azucar" onclick="toggleEtiqueta('sin-azucar')" style="background: #16a085;">🍬 Sin Azúcar</span>
                             </div>
                         </div>
                         
@@ -556,11 +557,12 @@
                         <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
                             <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">🌶️ Características:</small>
                             <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="picante" style="background: #e74c3c;">🌶️ Picante</span>
-                                <span class="etiqueta-btn" data-tag="muy-picante" style="background: #c0392b;">🔥 Muy Picante</span>
-                                <span class="etiqueta-btn" data-tag="frio" style="background: #3498db;">❄️ Frío</span>
-                                <span class="etiqueta-btn" data-tag="caliente" style="background: #e67e22;">♨️ Caliente</span>
-                                <span class="etiqueta-btn" data-tag="casero" style="background: #8d6e63;">🏠 Casero</span>
+                                <span class="etiqueta-btn" data-tag="picante" onclick="toggleEtiqueta('picante')" style="background: #e74c3c;">🌶️ Picante</span>
+                                <span class="etiqueta-btn" data-tag="muy-picante" onclick="toggleEtiqueta('muy-picante')" style="background: #c0392b;">🔥 Muy Picante</span>
+                                <span class="etiqueta-btn" data-tag="frio" onclick="toggleEtiqueta('frio')" style="background: #3498db;">❄️ Frío</span>
+                                <span class="etiqueta-btn" data-tag="caliente" onclick="toggleEtiqueta('caliente')" style="background: #e67e22;">♨️ Caliente</span>
+                                <span class="etiqueta-btn" data-tag="casero" onclick="toggleEtiqueta('casero')" style="background: #8d6e63;">🏠 Casero</span>
+                                <span class="etiqueta-btn" data-tag="criollo" onclick="toggleEtiqueta('criollo')" style="background: #d32f2f;">🇨🇱 Criollo</span>
                             </div>
                         </div>
                         
@@ -568,12 +570,12 @@
                         <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
                             <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">☕ Café / Panadería:</small>
                             <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="cafe" style="background: #795548;">☕ Café</span>
-                                <span class="etiqueta-btn" data-tag="te" style="background: #4caf50;">🍵 Té</span>
-                                <span class="etiqueta-btn" data-tag="dulce" style="background: #e91e63;">🍰 Dulce</span>
-                                <span class="etiqueta-btn" data-tag="salado" style="background: #ff9800;">🥐 Salado</span>
-                                <span class="etiqueta-btn" data-tag="artesanal" style="background: #8d6e63;">✨ Artesanal</span>
-                                <span class="etiqueta-btn" data-tag="recien-horneado" style="background: #ff7043;">🥖 Recién Horneado</span>
+                                <span class="etiqueta-btn" data-tag="cafe" onclick="toggleEtiqueta('cafe')" style="background: #795548;">☕ Café</span>
+                                <span class="etiqueta-btn" data-tag="te" onclick="toggleEtiqueta('te')" style="background: #4caf50;">🍵 Té</span>
+                                <span class="etiqueta-btn" data-tag="dulce" onclick="toggleEtiqueta('dulce')" style="background: #e91e63;">🍰 Dulce</span>
+                                <span class="etiqueta-btn" data-tag="salado" onclick="toggleEtiqueta('salado')" style="background: #ff9800;">🥐 Salado</span>
+                                <span class="etiqueta-btn" data-tag="artesanal" onclick="toggleEtiqueta('artesanal')" style="background: #8d6e63;">✨ Artesanal</span>
+                                <span class="etiqueta-btn" data-tag="recien-horneado" onclick="toggleEtiqueta('recien-horneado')" style="background: #ff7043;">🥖 Recién Horneado</span>
                             </div>
                         </div>
                         
@@ -581,10 +583,10 @@
                         <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
                             <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">📏 Porción:</small>
                             <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="grande" style="background: #3f51b5;">📦 Grande</span>
-                                <span class="etiqueta-btn" data-tag="mediano" style="background: #2196f3;">📦 Mediano</span>
-                                <span class="etiqueta-btn" data-tag="pequeno" style="background: #03a9f4;">📦 Pequeño</span>
-                                <span class="etiqueta-btn" data-tag="para-compartir" style="background: #673ab7;">👥 Para Compartir</span>
+                                <span class="etiqueta-btn" data-tag="grande" onclick="toggleEtiqueta('grande')" style="background: #3f51b5;">📦 Grande</span>
+                                <span class="etiqueta-btn" data-tag="mediano" onclick="toggleEtiqueta('mediano')" style="background: #2196f3;">📦 Mediano</span>
+                                <span class="etiqueta-btn" data-tag="pequeno" onclick="toggleEtiqueta('pequeno')" style="background: #03a9f4;">📦 Pequeño</span>
+                                <span class="etiqueta-btn" data-tag="para-compartir" onclick="toggleEtiqueta('para-compartir')" style="background: #673ab7;">👥 Para Compartir</span>
                             </div>
                         </div>
                         
@@ -592,11 +594,11 @@
                         <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
                             <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">📌 Otros:</small>
                             <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="organico" style="background: #27ae60;">🌿 Orgánico</span>
-                                <span class="etiqueta-btn" data-tag="local" style="background: #558b2f;">📍 Local</span>
-                                <span class="etiqueta-btn" data-tag="temporada" style="background: #ff6f00;">🍂 De Temporada</span>
-                                <span class="etiqueta-btn" data-tag="kosher" style="background: #1a237e;">✡️ Kosher</span>
-                                <span class="etiqueta-btn" data-tag="halal" style="background: #004d40;">☪️ Halal</span>
+                                <span class="etiqueta-btn" data-tag="sin-mariscos" onclick="toggleEtiqueta('sin-mariscos')" style="background: #0097a7;">🦐 Sin Mariscos</span>
+                                <span class="etiqueta-btn" data-tag="apto-ninos" onclick="toggleEtiqueta('apto-ninos')" style="background: #ff9800;">👶 Apto Niños</span>
+                                <span class="etiqueta-btn" data-tag="rapido" onclick="toggleEtiqueta('rapido')" style="background: #4caf50;">⚡ Rápido</span>
+                                <span class="etiqueta-btn" data-tag="abundante" onclick="toggleEtiqueta('abundante')" style="background: #ff5722;">💪 Abundante</span>
+                                <span class="etiqueta-btn" data-tag="del-dia" onclick="toggleEtiqueta('del-dia')" style="background: #607d8b;">📅 Del Día</span>
                             </div>
                         </div>
                     </div>
@@ -1169,11 +1171,11 @@
     
     const etiquetasEstandar = [
         'nuevo', 'popular', 'recomendado', 'oferta', 'destacado',
-        'vegano', 'vegetariano', 'sin-gluten', 'sin-lactosa', 'keto', 'sin-azucar',
-        'picante', 'muy-picante', 'frio', 'caliente', 'casero',
+        'vegano', 'vegetariano', 'sin-gluten', 'sin-lactosa', 'light', 'sin-azucar',
+        'picante', 'muy-picante', 'frio', 'caliente', 'casero', 'criollo',
         'cafe', 'te', 'dulce', 'salado', 'artesanal', 'recien-horneado',
         'grande', 'mediano', 'pequeno', 'para-compartir',
-        'organico', 'local', 'temporada', 'kosher', 'halal'
+        'sin-mariscos', 'apto-ninos', 'rapido', 'abundante', 'del-dia'
     ];
     
     function toggleEtiqueta(tag) {
