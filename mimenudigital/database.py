@@ -22,17 +22,21 @@ class ConnectionPool:
     """
     Pool de conexiones MySQL thread-safe.
     Reutiliza conexiones existentes para evitar el overhead de crear nuevas.
+    MEJORADO: Limpieza automática de conexiones zombies.
     """
     
-    def __init__(self, min_connections=2, max_connections=10, max_idle_time=300):
+    def __init__(self, min_connections=2, max_connections=10, max_idle_time=60):
         self.min_connections = min_connections
         self.max_connections = max_connections
-        self.max_idle_time = max_idle_time  # segundos antes de cerrar conexión inactiva
+        self.max_idle_time = max_idle_time  # Reducido a 60s para evitar conexiones zombies
+        self.max_connection_age = 300  # Máxima edad de una conexión (5 min)
         self._pool = Queue(maxsize=max_connections)
         self._size = 0
         self._lock = threading.Lock()
         self._config = None
         self._initialized = False
+        self._connection_ages = {}  # Track when each connection was created
+        self._last_cleanup = time.time()
         
     def init_app(self, app):
         """Inicializa el pool con la configuración de la app."""
@@ -45,9 +49,11 @@ class ConnectionPool:
             'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
             'cursorclass': DictCursor,
             'autocommit': False,
-            'connect_timeout': 10,
+            'connect_timeout': 5,   # Reducido para fallar rápido
             'read_timeout': 30,
-            'write_timeout': 30
+            'write_timeout': 30,
+            # Configuración MySQL para evitar conexiones zombies
+            'init_command': 'SET SESSION wait_timeout=120, SESSION interactive_timeout=120'
         }
         
         # Pre-crear conexiones mínimas
@@ -67,28 +73,101 @@ class ConnectionPool:
             raise RuntimeError("Connection pool not initialized. Call init_app first.")
         
         conn = pymysql.connect(**self._config)
+        conn_id = id(conn)
         with self._lock:
             self._size += 1
+            self._connection_ages[conn_id] = time.time()  # Track creation time
         logger.debug("Created new MySQL connection (pool size: %d)", self._size)
         return conn
     
-    def get_connection(self):
-        """
-        Obtiene una conexión del pool o crea una nueva si es necesario.
-        """
-        # Intentar obtener del pool
+    def _cleanup_stale_connections(self):
+        """Limpia conexiones viejas del pool periódicamente."""
+        now = time.time()
+        
+        # Solo ejecutar limpieza cada 30 segundos
+        if now - self._last_cleanup < 30:
+            return
+        
+        self._last_cleanup = now
+        cleaned = 0
+        temp_connections = []
+        
+        # Vaciar el pool y verificar cada conexión
         while True:
             try:
                 conn, last_used = self._pool.get_nowait()
+                conn_id = id(conn)
+                conn_age = now - self._connection_ages.get(conn_id, now)
+                idle_time = now - last_used
                 
-                # Verificar si la conexión es muy vieja
-                if time.time() - last_used > self.max_idle_time:
+                # Cerrar si: muy vieja, muy inactiva, o no responde ping
+                should_close = (
+                    conn_age > self.max_connection_age or
+                    idle_time > self.max_idle_time
+                )
+                
+                if should_close:
                     try:
                         conn.close()
                     except:
                         pass
                     with self._lock:
                         self._size -= 1
+                        self._connection_ages.pop(conn_id, None)
+                    cleaned += 1
+                else:
+                    # Verificar que sigue viva
+                    try:
+                        conn.ping(reconnect=False)
+                        temp_connections.append((conn, last_used))
+                    except:
+                        try:
+                            conn.close()
+                        except:
+                            pass
+                        with self._lock:
+                            self._size -= 1
+                            self._connection_ages.pop(conn_id, None)
+                        cleaned += 1
+            except Empty:
+                break
+        
+        # Devolver conexiones válidas al pool
+        for item in temp_connections:
+            try:
+                self._pool.put_nowait(item)
+            except:
+                pass
+        
+        if cleaned > 0:
+            logger.info("Cleaned %d stale connections from pool", cleaned)
+    
+    def get_connection(self):
+        """
+        Obtiene una conexión del pool o crea una nueva si es necesario.
+        """
+        # Ejecutar limpieza periódica
+        self._cleanup_stale_connections()
+        
+        # Intentar obtener del pool
+        while True:
+            try:
+                conn, last_used = self._pool.get_nowait()
+                conn_id = id(conn)
+                now = time.time()
+                
+                # Verificar si la conexión es muy vieja o inactiva
+                conn_age = now - self._connection_ages.get(conn_id, now)
+                idle_time = now - last_used
+                
+                if idle_time > self.max_idle_time or conn_age > self.max_connection_age:
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                    with self._lock:
+                        self._size -= 1
+                        self._connection_ages.pop(conn_id, None)
                     continue
                 
                 # Verificar que la conexión siga activa
@@ -102,6 +181,7 @@ class ConnectionPool:
                         pass
                     with self._lock:
                         self._size -= 1
+                        self._connection_ages.pop(conn_id, None)
                     continue
                     
             except Empty:
@@ -119,8 +199,10 @@ class ConnectionPool:
                 conn.ping(reconnect=True)
                 return conn
             except pymysql.Error:
+                conn_id = id(conn)
                 with self._lock:
                     self._size -= 1
+                    self._connection_ages.pop(conn_id, None)
                 return self._create_connection()
         except Empty:
             raise RuntimeError("Connection pool exhausted and timeout reached")
@@ -128,6 +210,23 @@ class ConnectionPool:
     def return_connection(self, conn):
         """Devuelve una conexión al pool."""
         if conn is None:
+            return
+        
+        conn_id = id(conn)
+        now = time.time()
+        
+        # Verificar edad de la conexión
+        conn_age = now - self._connection_ages.get(conn_id, now)
+        if conn_age > self.max_connection_age:
+            # Conexión muy vieja, cerrarla
+            logger.debug("Closing old connection (age: %.1fs)", conn_age)
+            try:
+                conn.close()
+            except:
+                pass
+            with self._lock:
+                self._size -= 1
+                self._connection_ages.pop(conn_id, None)
             return
             
         try:
@@ -145,6 +244,7 @@ class ConnectionPool:
                 conn.close()
                 with self._lock:
                     self._size -= 1
+                    self._connection_ages.pop(conn_id, None)
         except Exception as e:
             # Conexión corrupta, cerrar y decrementar
             logger.debug("Closing corrupted connection: %s", e)
@@ -154,6 +254,7 @@ class ConnectionPool:
                 pass
             with self._lock:
                 self._size -= 1
+                self._connection_ages.pop(conn_id, None)
     
     def close_all(self):
         """Cierra todas las conexiones del pool."""
@@ -168,6 +269,7 @@ class ConnectionPool:
                 break
         with self._lock:
             self._size = 0
+            self._connection_ages.clear()
         logger.info("Connection pool closed")
 
     @property
