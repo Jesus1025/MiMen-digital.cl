@@ -923,46 +923,15 @@ from werkzeug.exceptions import RequestEntityTooLarge
 def inject_subscription_info():
     """
     Inyecta información de suscripción en el contexto global de templates.
-    OPTIMIZADO: Solo ejecuta query para rutas de gestión, no para rutas públicas.
+    ULTRA-OPTIMIZADO: Solo carga de caché de sesión, NUNCA hace queries aquí.
     """
-    try:
-        g.subscription_info = None  # Default
-        
-        # Evitar llamadas a la base de datos durante tests
-        if app.config.get('TESTING'):
-            return
-        
-        # OPTIMIZACIÓN: No ejecutar para rutas públicas que no necesitan suscripción
-        # Esto ahorra una query por cada visita al menú público
-        if request.path.startswith(('/menu/', '/static/', '/api/health', '/healthz', '/')):
-            if request.path == '/' or request.path.startswith('/menu/') or request.path.startswith('/static/'):
-                return
-        
-        # Solo cargar info de suscripción si hay restaurante_id en sesión
-        restaurante_id = session.get('restaurante_id')
-        if restaurante_id:
-            # OPTIMIZACIÓN: Cachear en sesión por 5 minutos para evitar queries repetidas
-            cache_key = '_sub_info_cache'
-            cache_time_key = '_sub_info_cache_at'
-            ahora = time.time()
-            
-            cached_info = session.get(cache_key)
-            cached_time = session.get(cache_time_key, 0)
-            
-            if cached_info and (ahora - cached_time < 300):  # 5 minutos
-                g.subscription_info = cached_info
-                return
-            
-            subscription_info = get_subscription_info(restaurante_id)
-            g.subscription_info = subscription_info
-            
-            # Guardar en caché de sesión
-            session[cache_key] = subscription_info
-            session[cache_time_key] = ahora
-            
-    except Exception as e:
-        logger.exception("Error injecting subscription info")
-        g.subscription_info = None
+    g.subscription_info = None  # Default
+    
+    # OPTIMIZACIÓN AGRESIVA: Solo usar caché de sesión, sin queries
+    # La info se actualiza en verificar_suscripcion() cuando es necesario
+    cached_info = session.get('_sub_info_cache')
+    if cached_info:
+        g.subscription_info = cached_info
 
 
 @app.errorhandler(RequestEntityTooLarge)
@@ -979,31 +948,11 @@ def inject_globals():
     Inyecta variables globales en todos los templates.
     OPTIMIZADO: Cachea contador de tickets por 2 minutos para evitar queries excesivas.
     """
-    # Contador de tickets pendientes para superadmin
+    # ULTRA-OPTIMIZADO: Solo usar caché de sesión, NO hacer queries aquí
     tickets_pendientes = 0
     if session.get('rol') == 'superadmin':
-        try:
-            # OPTIMIZACIÓN: Cachear contador de tickets por 2 minutos
-            cache_key = '_tickets_count_cache'
-            cache_time_key = '_tickets_count_cache_at'
-            ahora = time.time()
-            
-            cached_count = session.get(cache_key)
-            cached_time = session.get(cache_time_key, 0)
-            
-            if cached_count is not None and (ahora - cached_time < 120):  # 2 minutos
-                tickets_pendientes = cached_count
-            else:
-                db = get_db()
-                with db.cursor() as cur:
-                    cur.execute("SELECT COUNT(*) as count FROM tickets_soporte WHERE estado IN ('abierto', 'en_proceso')")
-                    result = cur.fetchone()
-                    tickets_pendientes = result['count'] if result else 0
-                    # Guardar en caché
-                    session[cache_key] = tickets_pendientes
-                    session[cache_time_key] = ahora
-        except Exception:
-            pass  # Silenciar errores si la tabla no existe aún
+        # Solo usar valor cacheado - se actualiza en rutas de superadmin
+        tickets_pendientes = session.get('_tickets_count_cache', 0)
     
     return {
         'subscription_info': g.get('subscription_info', None),
@@ -1300,18 +1249,15 @@ def validate_image_file(file):
 # Context processor para inyectar menu_url en todos los templates
 @app.context_processor
 def inject_menu_url():
-    """Inyecta la URL del menú público en todos los templates."""
+    """
+    Inyecta la URL del menú público en todos los templates.
+    OPTIMIZADO: Usa url_slug cacheado en sesión, sin queries adicionales.
+    """
     menu_url = None
-    if 'restaurante_id' in session and session['restaurante_id']:
-        try:
-            db = get_db()
-            with db.cursor() as cur:
-                cur.execute("SELECT url_slug FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
-                row = cur.fetchone()
-                if row and row['url_slug']:
-                    menu_url = f"/menu/{row['url_slug']}"
-        except Exception as e:
-            logger.debug("Failed to inject menu_url: %s", e, exc_info=True)
+    # Usar url_slug de la sesión (se guarda al hacer login)
+    url_slug = session.get('url_slug')
+    if url_slug:
+        menu_url = f"/menu/{url_slug}"
     return {'menu_url_global': menu_url}
 
 
@@ -1370,7 +1316,7 @@ def superadmin_required(f):
 def verificar_suscripcion(f):
     """
     Decorador que verifica si la suscripción del restaurante está vigente.
-    OPTIMIZADO: Cachea el resultado en la sesión por 5 minutos para evitar queries repetitivas.
+    ULTRA-OPTIMIZADO: Usa caché de sesión de 10 minutos, mínimas queries.
     """
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -1383,88 +1329,74 @@ def verificar_suscripcion(f):
         if not restaurante_id:
             return f(*args, **kwargs)
         
-        # OPTIMIZACIÓN: Cachear verificación en sesión por 5 minutos
+        # OPTIMIZACIÓN AGRESIVA: Caché de 10 minutos
         cache_key = '_suscripcion_verificada'
         cache_time_key = '_suscripcion_verificada_at'
         ahora = time.time()
         
-        # Si ya verificamos recientemente (menos de 5 min), usar caché
-        if session.get(cache_key) and session.get(cache_time_key):
-            tiempo_cache = session.get(cache_time_key, 0)
-            if ahora - tiempo_cache < 300:  # 5 minutos
-                if session.get(cache_key) == 'ok':
-                    return f(*args, **kwargs)
-                elif session.get(cache_key) == 'vencida':
-                    flash('Tu período de prueba o suscripción ha terminado', 'warning')
-                    return redirect(url_for('gestion_pago_pendiente'))
+        # Si ya verificamos recientemente (10 min), usar caché SIN queries
+        tiempo_cache = session.get(cache_time_key, 0)
+        if tiempo_cache and (ahora - tiempo_cache < 600):  # 10 minutos
+            estado_cache = session.get(cache_key)
+            if estado_cache == 'ok':
+                return f(*args, **kwargs)
+            elif estado_cache == 'vencida':
+                flash('Tu período de prueba o suscripción ha terminado', 'warning')
+                return redirect(url_for('gestion_pago_pendiente'))
         
+        # Solo hacer query si el caché expiró
         try:
             db = get_db()
             with db.cursor() as cur:
-                cur.execute('''
-                    SELECT fecha_vencimiento, estado_suscripcion 
-                    FROM restaurantes WHERE id = %s
-                ''', (restaurante_id,))
+                cur.execute('SELECT fecha_vencimiento, estado_suscripcion FROM restaurantes WHERE id = %s', (restaurante_id,))
                 rest = cur.fetchone()
 
-                if rest:
-                    fecha_vencimiento = rest.get('fecha_vencimiento')
-                    estado_sus = rest.get('estado_suscripcion', 'prueba')
-
-                    # Si no tiene fecha de vencimiento, asignar 30 días
-                    if not fecha_vencimiento:
-                        fecha_vencimiento = (date.today() + timedelta(days=30))
-                        try:
-                            cur.execute('''
-                                UPDATE restaurantes 
-                                SET fecha_vencimiento = %s, estado_suscripcion = 'prueba'
-                                WHERE id = %s
-                            ''', (fecha_vencimiento.isoformat(), restaurante_id))
-                            db.commit()
-                        except Exception:
-                            pass
-                        session[cache_key] = 'ok'
-                        session[cache_time_key] = ahora
-                        return f(*args, **kwargs)
-
-                    # Normalizar fecha
-                    if isinstance(fecha_vencimiento, str):
-                        fecha_vencimiento = datetime.strptime(fecha_vencimiento, '%Y-%m-%d').date()
-
-                    # Verificar si expiró
-                    if date.today() > fecha_vencimiento:
-                        if estado_sus not in ('vencida', 'suspendida'):
-                            try:
-                                cur.execute("UPDATE restaurantes SET estado_suscripcion = 'vencida' WHERE id = %s", (restaurante_id,))
-                                db.commit()
-                            except Exception:
-                                pass
-                        session[cache_key] = 'vencida'
-                        session[cache_time_key] = ahora
-                        flash('Tu período de prueba o suscripción ha terminado', 'warning')
-                        return redirect(url_for('gestion_pago_pendiente'))
-                    
-                    # Corregir estado si fecha es válida pero estado es 'vencida'
-                    if estado_sus == 'vencida' and date.today() <= fecha_vencimiento:
-                        try:
-                            cur.execute("UPDATE restaurantes SET estado_suscripcion = 'activa' WHERE id = %s", (restaurante_id,))
-                            db.commit()
-                        except Exception:
-                            pass
-                    
+                if not rest:
+                    session[cache_key] = 'ok'
+                    session[cache_time_key] = ahora
+                    return f(*args, **kwargs)
+                
+                fecha_vencimiento = rest.get('fecha_vencimiento')
+                
+                # Si no tiene fecha, asignar 30 días (solo una vez)
+                if not fecha_vencimiento:
+                    fecha_vencimiento = date.today() + timedelta(days=30)
+                    cur.execute('UPDATE restaurantes SET fecha_vencimiento = %s, estado_suscripcion = %s WHERE id = %s',
+                               (fecha_vencimiento.isoformat(), 'prueba', restaurante_id))
+                    db.commit()
                     session[cache_key] = 'ok'
                     session[cache_time_key] = ahora
                     return f(*args, **kwargs)
 
+                # Normalizar fecha
+                if isinstance(fecha_vencimiento, str):
+                    fecha_vencimiento = datetime.strptime(fecha_vencimiento, '%Y-%m-%d').date()
+
+                # Verificar expiración
+                if date.today() > fecha_vencimiento:
+                    session[cache_key] = 'vencida'
+                    session[cache_time_key] = ahora
+                    flash('Tu período de prueba o suscripción ha terminado', 'warning')
+                    return redirect(url_for('gestion_pago_pendiente'))
+                
+                # Actualizar caché de suscripción para inject_subscription_info
+                dias_restantes = (fecha_vencimiento - date.today()).days
+                session['_sub_info_cache'] = {
+                    'status': 'expiring_soon' if dias_restantes <= 5 else 'active',
+                    'days_remaining': dias_restantes,
+                    'expiration_date': fecha_vencimiento.strftime('%d/%m/%Y'),
+                    'plan_type': rest.get('estado_suscripcion', 'prueba')
+                }
+                
                 session[cache_key] = 'ok'
                 session[cache_time_key] = ahora
                 return f(*args, **kwargs)
                 
         except Exception as e:
             logger.error("Error al verificar suscripción: %s", e)
+            # En caso de error, permitir acceso (mejor UX)
             return f(*args, **kwargs)
-        
-        return f(*args, **kwargs)
+    
     return decorated
 
 
@@ -1495,8 +1427,8 @@ def _get_worker_connection():
         'charset': 'utf8mb4',
         'cursorclass': DictCursor,
         'autocommit': True,
-        'connect_timeout': 5,
-        'read_timeout': 30
+        'connect_timeout': 3,
+        'read_timeout': 10
     }
     
     # Verificar si la conexión existe y está viva
@@ -1519,8 +1451,8 @@ def _visita_worker():
     """Worker thread que procesa visitas en BATCH para mejor rendimiento."""
     global _visita_worker_running
     
-    BATCH_SIZE = 50  # Procesar hasta 50 visitas por batch
-    BATCH_TIMEOUT = 2  # Segundos máximos de espera para completar batch
+    BATCH_SIZE = 100  # Procesar hasta 100 visitas por batch (más eficiente)
+    BATCH_TIMEOUT = 3  # Segundos máximos de espera para completar batch
     
     while _visita_worker_running:
         batch = []
@@ -1871,7 +1803,8 @@ def login():
         db = get_db()
         with db.cursor() as cur:
             cur.execute('''
-                SELECT u.*, r.nombre as restaurante_nombre 
+                SELECT u.*, r.nombre as restaurante_nombre, r.url_slug as restaurante_url_slug,
+                       r.fecha_vencimiento, r.estado_suscripcion
                 FROM usuarios_admin u
                 LEFT JOIN restaurantes r ON u.restaurante_id = r.id
                 WHERE u.username = %s AND u.activo = 1
@@ -1892,6 +1825,23 @@ def login():
                     session['rol'] = user['rol']
                     session['restaurante_id'] = user['restaurante_id']
                     session['restaurante_nombre'] = user['restaurante_nombre'] or 'Panel Admin'
+                    
+                    # OPTIMIZACIÓN: Guardar url_slug en sesión para evitar queries
+                    session['url_slug'] = user.get('restaurante_url_slug')
+                    
+                    # OPTIMIZACIÓN: Pre-cargar info de suscripción en caché de sesión
+                    if user.get('fecha_vencimiento'):
+                        fecha_v = user['fecha_vencimiento']
+                        if isinstance(fecha_v, str):
+                            fecha_v = datetime.strptime(fecha_v, '%Y-%m-%d').date()
+                        dias_restantes = (fecha_v - date.today()).days
+                        estado = 'expired' if dias_restantes < 0 else ('expiring_soon' if dias_restantes <= 5 else 'active')
+                        session['_sub_info_cache'] = {
+                            'status': estado,
+                            'days_remaining': max(0, dias_restantes),
+                            'expiration_date': fecha_v.strftime('%d/%m/%Y'),
+                            'plan_type': user.get('estado_suscripcion', 'prueba')
+                        }
                     
                     # Actualizar último login
                     cur.execute("UPDATE usuarios_admin SET ultimo_login = NOW() WHERE id = %s", (user['id'],))
@@ -4112,6 +4062,9 @@ def superadmin_tickets():
             FROM tickets_soporte
         """)
         stats = cur.fetchone()
+        
+        # OPTIMIZACIÓN: Actualizar caché de tickets pendientes
+        session['_tickets_count_cache'] = (stats.get('abiertos', 0) or 0) + (stats.get('en_proceso', 0) or 0)
         
         # Construir query con filtros
         query = """
