@@ -14,7 +14,7 @@ import logging
 import time
 
 # SQLAlchemy para pool de conexiones (mucho más robusto)
-from sqlalchemy import create_engine, event, text, exc
+from sqlalchemy import create_engine, event, exc
 from sqlalchemy.pool import QueuePool
 
 logger = logging.getLogger(__name__)
@@ -71,9 +71,8 @@ def init_app(app):
             pool_recycle=60,          # Reciclar conexiones cada 60s
             pool_pre_ping=True,       # Verificar conexión está viva
             echo=False,               # No loggear SQL
-            # Configuración de conexión PyMySQL
+            # Configuración de conexión PyMySQL - SIN DictCursor aquí
             connect_args={
-                'cursorclass': DictCursor,
                 'autocommit': False,
                 'connect_timeout': 5,
                 'read_timeout': 30,
@@ -189,6 +188,7 @@ def get_cursor(commit=True):
     """
     Context manager para cursor con manejo automático de transacciones.
     La conexión se obtiene de g (request scope).
+    Usa DictCursor para retornar diccionarios.
     
     Ejemplo:
         with get_cursor() as cur:
@@ -196,7 +196,7 @@ def get_cursor(commit=True):
             results = cur.fetchall()
     """
     conn = get_db()
-    cursor = conn.cursor()
+    cursor = conn.cursor(DictCursor)  # Usar DictCursor explícitamente
     try:
         yield cursor
         if commit:
@@ -214,6 +214,7 @@ def get_cursor_immediate():
     """
     Context manager para cursor con liberación INMEDIATA de conexión.
     Usa esto cuando necesites liberar la conexión rápidamente.
+    Usa DictCursor para retornar diccionarios.
     
     Ejemplo:
         with get_cursor_immediate() as cur:
@@ -225,7 +226,7 @@ def get_cursor_immediate():
         raise RuntimeError("Database pool not initialized")
     
     conn = _engine.raw_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(DictCursor)  # Usar DictCursor explícitamente
     try:
         yield cursor
         conn.commit()
@@ -240,6 +241,7 @@ def get_cursor_immediate():
 def execute_query(query, params=None, commit=True):
     """
     Ejecuta una consulta SQL y retorna los resultados.
+    Usa DictCursor para retornar diccionarios.
     
     Args:
         query (str): SQL query
@@ -250,13 +252,26 @@ def execute_query(query, params=None, commit=True):
         list: Resultados para SELECT
         int: Filas afectadas para INSERT/UPDATE/DELETE
     """
-    with get_cursor(commit=commit) as cursor:
+    conn = get_db()
+    cursor = conn.cursor(DictCursor)  # Usar DictCursor explícitamente
+    try:
         cursor.execute(query, params or ())
         
         if query.strip().upper().startswith('SELECT'):
-            return cursor.fetchall()
+            result = cursor.fetchall()
+        else:
+            result = cursor.rowcount
         
-        return cursor.rowcount
+        if commit:
+            conn.commit()
+        
+        return result
+    except Exception as e:
+        conn.rollback()
+        logger.error("Database error: %s", e)
+        raise
+    finally:
+        cursor.close()
 
 
 def get_pool_status():
