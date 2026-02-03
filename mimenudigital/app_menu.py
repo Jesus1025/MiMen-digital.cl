@@ -815,6 +815,36 @@ execute_query = db_execute_query
 # FUNCIONES AUXILIARES DE SUSCRIPCIÓN
 # ============================================================
 
+def get_current_restaurant():
+    """
+    Obtiene el restaurante actual de la sesión con CACHÉ en g.
+    OPTIMIZACIÓN: Evita queries repetidas durante el mismo request.
+    
+    Returns:
+        dict: Datos del restaurante o None si no hay sesión
+    """
+    # Verificar caché en g (válido durante el request)
+    if hasattr(g, '_current_restaurant'):
+        return g._current_restaurant
+    
+    restaurante_id = session.get('restaurante_id')
+    if not restaurante_id:
+        g._current_restaurant = None
+        return None
+    
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
+            result = cur.fetchone()
+            g._current_restaurant = dict_from_row(result) if result else None
+            return g._current_restaurant
+    except Exception as e:
+        logger.error("Error getting current restaurant: %s", e)
+        g._current_restaurant = None
+        return None
+
+
 def get_subscription_info(restaurante_id):
     """
     Obtiene información de la suscripción del restaurante.
@@ -893,21 +923,43 @@ from werkzeug.exceptions import RequestEntityTooLarge
 def inject_subscription_info():
     """
     Inyecta información de suscripción en el contexto global de templates.
-    Se ejecuta antes de cada request para que esté disponible en todos los templates.
+    OPTIMIZADO: Solo ejecuta query para rutas de gestión, no para rutas públicas.
     """
     try:
-        # Evitar llamadas a la base de datos durante tests para reducir flakiness
+        g.subscription_info = None  # Default
+        
+        # Evitar llamadas a la base de datos durante tests
         if app.config.get('TESTING'):
-            g.subscription_info = None
             return
-
-        # Verificar que restaurante_id existe Y no es None
+        
+        # OPTIMIZACIÓN: No ejecutar para rutas públicas que no necesitan suscripción
+        # Esto ahorra una query por cada visita al menú público
+        if request.path.startswith(('/menu/', '/static/', '/api/health', '/healthz', '/')):
+            if request.path == '/' or request.path.startswith('/menu/') or request.path.startswith('/static/'):
+                return
+        
+        # Solo cargar info de suscripción si hay restaurante_id en sesión
         restaurante_id = session.get('restaurante_id')
         if restaurante_id:
+            # OPTIMIZACIÓN: Cachear en sesión por 5 minutos para evitar queries repetidas
+            cache_key = '_sub_info_cache'
+            cache_time_key = '_sub_info_cache_at'
+            ahora = time.time()
+            
+            cached_info = session.get(cache_key)
+            cached_time = session.get(cache_time_key, 0)
+            
+            if cached_info and (ahora - cached_time < 300):  # 5 minutos
+                g.subscription_info = cached_info
+                return
+            
             subscription_info = get_subscription_info(restaurante_id)
             g.subscription_info = subscription_info
-        else:
-            g.subscription_info = None
+            
+            # Guardar en caché de sesión
+            session[cache_key] = subscription_info
+            session[cache_time_key] = ahora
+            
     except Exception as e:
         logger.exception("Error injecting subscription info")
         g.subscription_info = None
@@ -923,16 +975,33 @@ def handle_request_entity_too_large(e):
 # Hacer disponible en templates
 @app.context_processor
 def inject_globals():
-    """Inyecta variables globales en todos los templates."""
+    """
+    Inyecta variables globales en todos los templates.
+    OPTIMIZADO: Cachea contador de tickets por 2 minutos para evitar queries excesivas.
+    """
     # Contador de tickets pendientes para superadmin
     tickets_pendientes = 0
     if session.get('rol') == 'superadmin':
         try:
-            db = get_db()
-            with db.cursor() as cur:
-                cur.execute("SELECT COUNT(*) as count FROM tickets_soporte WHERE estado IN ('abierto', 'en_proceso')")
-                result = cur.fetchone()
-                tickets_pendientes = result['count'] if result else 0
+            # OPTIMIZACIÓN: Cachear contador de tickets por 2 minutos
+            cache_key = '_tickets_count_cache'
+            cache_time_key = '_tickets_count_cache_at'
+            ahora = time.time()
+            
+            cached_count = session.get(cache_key)
+            cached_time = session.get(cache_time_key, 0)
+            
+            if cached_count is not None and (ahora - cached_time < 120):  # 2 minutos
+                tickets_pendientes = cached_count
+            else:
+                db = get_db()
+                with db.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) as count FROM tickets_soporte WHERE estado IN ('abierto', 'en_proceso')")
+                    result = cur.fetchone()
+                    tickets_pendientes = result['count'] if result else 0
+                    # Guardar en caché
+                    session[cache_key] = tickets_pendientes
+                    session[cache_time_key] = ahora
         except Exception:
             pass  # Silenciar errores si la tabla no existe aún
     
@@ -1301,8 +1370,7 @@ def superadmin_required(f):
 def verificar_suscripcion(f):
     """
     Decorador que verifica si la suscripción del restaurante está vigente.
-    Permite acceso libre a superadmin.
-    Para otros usuarios, redirige a pago-pendiente si la suscripción expiró.
+    OPTIMIZADO: Cachea el resultado en la sesión por 5 minutos para evitar queries repetitivas.
     """
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -1312,81 +1380,89 @@ def verificar_suscripcion(f):
         
         # Usuarios normales: verificar suscripción
         restaurante_id = session.get('restaurante_id')
-        if restaurante_id:
-            try:
-                db = get_db()
-                with db.cursor() as cur:
-                    # Proteger la consulta en caso de que la columna no exista todavía
-                    try:
-                        cur.execute('''
-                            SELECT fecha_vencimiento, estado_suscripcion 
-                            FROM restaurantes WHERE id = %s
-                        ''', (restaurante_id,))
-                    except pymysql.Error as e:
-                        logger.warning("No se pudo consultar fecha_vencimiento (BD posiblemente desactualizada): %s", e)
-                        # No bloquear la ejecución; permitir acceso y reintentar en la próxima request
+        if not restaurante_id:
+            return f(*args, **kwargs)
+        
+        # OPTIMIZACIÓN: Cachear verificación en sesión por 5 minutos
+        cache_key = '_suscripcion_verificada'
+        cache_time_key = '_suscripcion_verificada_at'
+        ahora = time.time()
+        
+        # Si ya verificamos recientemente (menos de 5 min), usar caché
+        if session.get(cache_key) and session.get(cache_time_key):
+            tiempo_cache = session.get(cache_time_key, 0)
+            if ahora - tiempo_cache < 300:  # 5 minutos
+                if session.get(cache_key) == 'ok':
+                    return f(*args, **kwargs)
+                elif session.get(cache_key) == 'vencida':
+                    flash('Tu período de prueba o suscripción ha terminado', 'warning')
+                    return redirect(url_for('gestion_pago_pendiente'))
+        
+        try:
+            db = get_db()
+            with db.cursor() as cur:
+                cur.execute('''
+                    SELECT fecha_vencimiento, estado_suscripcion 
+                    FROM restaurantes WHERE id = %s
+                ''', (restaurante_id,))
+                rest = cur.fetchone()
+
+                if rest:
+                    fecha_vencimiento = rest.get('fecha_vencimiento')
+                    estado_sus = rest.get('estado_suscripcion', 'prueba')
+
+                    # Si no tiene fecha de vencimiento, asignar 30 días
+                    if not fecha_vencimiento:
+                        fecha_vencimiento = (date.today() + timedelta(days=30))
+                        try:
+                            cur.execute('''
+                                UPDATE restaurantes 
+                                SET fecha_vencimiento = %s, estado_suscripcion = 'prueba'
+                                WHERE id = %s
+                            ''', (fecha_vencimiento.isoformat(), restaurante_id))
+                            db.commit()
+                        except Exception:
+                            pass
+                        session[cache_key] = 'ok'
+                        session[cache_time_key] = ahora
                         return f(*args, **kwargs)
 
-                    rest = cur.fetchone()
+                    # Normalizar fecha
+                    if isinstance(fecha_vencimiento, str):
+                        fecha_vencimiento = datetime.strptime(fecha_vencimiento, '%Y-%m-%d').date()
 
-                    if rest:
-                        # Usar .get por seguridad
-                        fecha_vencimiento = rest.get('fecha_vencimiento') if isinstance(rest, dict) else rest['fecha_vencimiento']
-
-                        # Si no tiene fecha de vencimiento, asignar 30 días (intento de corrección; fallbacks no críticos si falla la actualización)
-                        if not fecha_vencimiento:
-                            fecha_vencimiento = (date.today() + timedelta(days=30)).isoformat()
+                    # Verificar si expiró
+                    if date.today() > fecha_vencimiento:
+                        if estado_sus not in ('vencida', 'suspendida'):
                             try:
-                                cur.execute('''
-                                    UPDATE restaurantes 
-                                    SET fecha_vencimiento = %s, estado_suscripcion = 'prueba'
-                                    WHERE id = %s
-                                ''', (fecha_vencimiento, restaurante_id))
+                                cur.execute("UPDATE restaurantes SET estado_suscripcion = 'vencida' WHERE id = %s", (restaurante_id,))
                                 db.commit()
-                            except pymysql.Error as e:
-                                logger.warning("No se pudo actualizar fecha_vencimiento (columna puede faltar): %s", e)
-                            return f(*args, **kwargs)
-
-                        # Verificar si la suscripción expiró (manejar formatos de fecha inesperados)
+                            except Exception:
+                                pass
+                        session[cache_key] = 'vencida'
+                        session[cache_time_key] = ahora
+                        flash('Tu período de prueba o suscripción ha terminado', 'warning')
+                        return redirect(url_for('gestion_pago_pendiente'))
+                    
+                    # Corregir estado si fecha es válida pero estado es 'vencida'
+                    if estado_sus == 'vencida' and date.today() <= fecha_vencimiento:
                         try:
-                            if isinstance(fecha_vencimiento, str):
-                                from datetime import datetime as _dt
-                                fecha_vencimiento = _dt.strptime(fecha_vencimiento, '%Y-%m-%d').date()
-
-                            # Verificar estado y fecha
-                            estado_sus = rest.get('estado_suscripcion', 'prueba') if isinstance(rest, dict) else rest['estado_suscripcion']
-                            
-                            if date.today() > fecha_vencimiento:
-                                # Si la fecha venció pero el estado no refleja eso, actualizarlo
-                                if estado_sus not in ('vencida', 'suspendida'):
-                                    try:
-                                        cur.execute("UPDATE restaurantes SET estado_suscripcion = 'vencida' WHERE id = %s", (restaurante_id,))
-                                        db.commit()
-                                    except Exception:
-                                        pass
-                                logger.warning("Suscripción expirada para restaurante %s", restaurante_id)
-                                flash('Tu período de prueba o suscripción ha terminado', 'warning')
-                                return redirect(url_for('gestion_pago_pendiente'))
-                            
-                            # Si la fecha es válida pero el estado es vencida/suspendida, corregirlo
-                            if estado_sus in ('vencida',) and date.today() <= fecha_vencimiento:
-                                try:
-                                    cur.execute("UPDATE restaurantes SET estado_suscripcion = 'activa' WHERE id = %s", (restaurante_id,))
-                                    db.commit()
-                                    logger.info("Estado corregido a 'activa' para restaurante %s", restaurante_id)
-                                except Exception:
-                                    pass
-                                # Permitir acceso ya que la fecha es válida
-                                return f(*args, **kwargs)
-                                
-                        except Exception as e:
-                            logger.warning("Formato de fecha_vencimiento inesperado: %s", e)
-                            return f(*args, **kwargs)
-
+                            cur.execute("UPDATE restaurantes SET estado_suscripcion = 'activa' WHERE id = %s", (restaurante_id,))
+                            db.commit()
+                        except Exception:
+                            pass
+                    
+                    session[cache_key] = 'ok'
+                    session[cache_time_key] = ahora
                     return f(*args, **kwargs)
-            except Exception as e:
-                logger.error("Error al verificar suscripción: %s", e)
+
+                session[cache_key] = 'ok'
+                session[cache_time_key] = ahora
                 return f(*args, **kwargs)
+                
+        except Exception as e:
+            logger.error("Error al verificar suscripción: %s", e)
+            return f(*args, **kwargs)
         
         return f(*args, **kwargs)
     return decorated
@@ -1396,36 +1472,155 @@ def verificar_suscripcion(f):
 # TRACKING DE VISITAS Y ESCANEOS QR/NFC
 # ============================================================
 
-# Cola de visitas para procesamiento asíncrono
-from queue import Queue
+# Cola de visitas para procesamiento asíncrono con BATCH
+from queue import Queue, Empty
 from threading import Thread
 import threading
 
-_visitas_queue = Queue(maxsize=1000)
+_visitas_queue = Queue(maxsize=5000)  # Aumentado para soportar más tráfico
 _visita_worker_running = False
 _visita_worker_lock = threading.Lock()
+_visita_worker_conn = None  # Conexión persistente del worker
+
+def _get_worker_connection():
+    """Obtiene o crea la conexión del worker de visitas."""
+    global _visita_worker_conn
+    
+    config = {
+        'host': os.environ.get('MYSQL_HOST'),
+        'user': os.environ.get('MYSQL_USER'),
+        'password': os.environ.get('MYSQL_PASSWORD'),
+        'database': os.environ.get('MYSQL_DB'),
+        'port': int(os.environ.get('MYSQL_PORT', 3306)),
+        'charset': 'utf8mb4',
+        'cursorclass': DictCursor,
+        'autocommit': True,
+        'connect_timeout': 5,
+        'read_timeout': 30
+    }
+    
+    # Verificar si la conexión existe y está viva
+    if _visita_worker_conn is not None:
+        try:
+            _visita_worker_conn.ping(reconnect=True)
+            return _visita_worker_conn
+        except:
+            try:
+                _visita_worker_conn.close()
+            except:
+                pass
+            _visita_worker_conn = None
+    
+    # Crear nueva conexión
+    _visita_worker_conn = pymysql.connect(**config)
+    return _visita_worker_conn
 
 def _visita_worker():
-    """Worker thread que procesa visitas en segundo plano."""
+    """Worker thread que procesa visitas en BATCH para mejor rendimiento."""
     global _visita_worker_running
     
+    BATCH_SIZE = 50  # Procesar hasta 50 visitas por batch
+    BATCH_TIMEOUT = 2  # Segundos máximos de espera para completar batch
+    
     while _visita_worker_running:
-        try:
-            # Esperar por una visita (timeout de 5 segundos para poder terminar)
+        batch = []
+        batch_start = time.time()
+        
+        # Recolectar batch de visitas
+        while len(batch) < BATCH_SIZE:
             try:
-                visita_data = _visitas_queue.get(timeout=5)
-            except:
-                continue
-            
-            if visita_data is None:  # Señal de terminación
+                remaining_time = max(0.1, BATCH_TIMEOUT - (time.time() - batch_start))
+                visita_data = _visitas_queue.get(timeout=remaining_time)
+                
+                if visita_data is None:  # Señal de terminación
+                    _visita_worker_running = False
+                    break
+                
+                batch.append(visita_data)
+                _visitas_queue.task_done()
+                
+            except Empty:
+                break  # Timeout, procesar lo que tengamos
+            except Exception as e:
+                logger.warning("Error getting visit from queue: %s", e)
                 break
+        
+        # Procesar batch si hay visitas
+        if batch:
+            _procesar_batch_visitas(batch)
+
+def _procesar_batch_visitas(batch):
+    """Procesa un batch de visitas en una sola transacción."""
+    if not batch:
+        return
+    
+    try:
+        conn = _get_worker_connection()
+        with conn.cursor() as cur:
+            # Preparar datos para INSERT múltiple de visitas
+            visitas_values = []
+            stats_updates = {}  # {(restaurante_id, fecha): {visitas, qr, movil, desktop}}
             
-            # Procesar la visita
-            _procesar_visita_sync(visita_data)
-            _visitas_queue.task_done()
+            for v in batch:
+                # Datos para tabla visitas
+                visitas_values.append((
+                    v['restaurante_id'],
+                    v['ip_address'],
+                    v['user_agent'],
+                    v['referer'],
+                    1 if v['es_movil'] else 0,
+                    1 if v['es_qr'] else 0
+                ))
+                
+                # Agregar a estadísticas
+                key = (v['restaurante_id'], v['fecha'])
+                if key not in stats_updates:
+                    stats_updates[key] = {'visitas': 0, 'qr': 0, 'movil': 0, 'desktop': 0}
+                stats_updates[key]['visitas'] += 1
+                if v['es_qr']:
+                    stats_updates[key]['qr'] += 1
+                if v['es_movil']:
+                    stats_updates[key]['movil'] += 1
+                else:
+                    stats_updates[key]['desktop'] += 1
             
-        except Exception as e:
-            logger.warning("Error in visita worker: %s", e)
+            # INSERT batch de visitas
+            if visitas_values:
+                cur.executemany('''
+                    INSERT INTO visitas 
+                    (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, fecha)
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                ''', visitas_values)
+            
+            # UPDATE batch de estadísticas
+            for (rest_id, fecha), stats in stats_updates.items():
+                cur.execute('''
+                    INSERT INTO estadisticas_diarias 
+                    (restaurante_id, fecha, visitas, escaneos_qr, visitas_movil, visitas_desktop)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        visitas = visitas + %s,
+                        escaneos_qr = escaneos_qr + %s,
+                        visitas_movil = visitas_movil + %s,
+                        visitas_desktop = visitas_desktop + %s
+                ''', (
+                    rest_id, fecha,
+                    stats['visitas'], stats['qr'], stats['movil'], stats['desktop'],
+                    stats['visitas'], stats['qr'], stats['movil'], stats['desktop']
+                ))
+            
+            logger.debug("Processed batch of %d visits", len(batch))
+            
+    except Exception as e:
+        logger.warning("Error processing visit batch: %s", e)
+        # Intentar reconectar en el próximo batch
+        global _visita_worker_conn
+        try:
+            if _visita_worker_conn:
+                _visita_worker_conn.close()
+        except:
+            pass
+        _visita_worker_conn = None
 
 def _iniciar_visita_worker():
     """Inicia el worker de visitas si no está corriendo."""
@@ -1436,70 +1631,12 @@ def _iniciar_visita_worker():
             _visita_worker_running = True
             worker = Thread(target=_visita_worker, daemon=True, name="visita-worker")
             worker.start()
-            logger.info("Visita worker thread started")
+            logger.info("Visita worker thread started (batch mode)")
 
-def _procesar_visita_sync(visita_data):
-    """Procesa una visita de forma síncrona (llamado desde worker thread)."""
-    try:
-        restaurante_id = visita_data['restaurante_id']
-        ip_address = visita_data['ip_address']
-        user_agent = visita_data['user_agent']
-        referer = visita_data['referer']
-        es_movil = visita_data['es_movil']
-        es_qr = visita_data['es_qr']
-        hoy = visita_data['fecha']
-        
-        # Crear conexión nueva (estamos en otro thread)
-        import pymysql
-        from pymysql.cursors import DictCursor
-        
-        config = {
-            'host': os.environ.get('MYSQL_HOST'),
-            'user': os.environ.get('MYSQL_USER'),
-            'password': os.environ.get('MYSQL_PASSWORD'),
-            'database': os.environ.get('MYSQL_DB'),
-            'port': int(os.environ.get('MYSQL_PORT', 3306)),
-            'charset': 'utf8mb4',
-            'cursorclass': DictCursor,
-            'autocommit': True,  # Autocommit para simplicidad
-            'connect_timeout': 5
-        }
-        
-        conn = pymysql.connect(**config)
-        try:
-            with conn.cursor() as cur:
-                # Insertar registro de visita
-                cur.execute('''
-                    INSERT INTO visitas 
-                    (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, fecha)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
-                ''', (restaurante_id, ip_address, user_agent, referer, 1 if es_movil else 0, 1 if es_qr else 0))
-                
-                # Actualizar estadísticas diarias
-                cur.execute('''
-                    INSERT INTO estadisticas_diarias 
-                    (restaurante_id, fecha, visitas, escaneos_qr, visitas_movil, visitas_desktop)
-                    VALUES (%s, %s, 1, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE
-                        visitas = visitas + 1,
-                        escaneos_qr = escaneos_qr + %s,
-                        visitas_movil = visitas_movil + %s,
-                        visitas_desktop = visitas_desktop + %s
-                ''', (
-                    restaurante_id, hoy, 
-                    1 if es_qr else 0, 
-                    1 if es_movil else 0, 
-                    0 if es_movil else 1,
-                    1 if es_qr else 0,
-                    1 if es_movil else 0,
-                    0 if es_movil else 1
-                ))
-        finally:
-            conn.close()
-            
-    except Exception as e:
-        logger.warning("Error processing async visit for restaurant %s: %s", 
-                      visita_data.get('restaurante_id'), e)
+
+# NOTA: La función _procesar_visita_sync fue ELIMINADA
+# Ahora se usa _procesar_batch_visitas() para mejor rendimiento
+
 
 def registrar_visita(restaurante_id, req):
     """
@@ -1958,10 +2095,10 @@ def gestion_categorias():
 @verificar_suscripcion
 def gestion_mi_restaurante():
     """Página de configuración del restaurante."""
-    db = get_db()
-    with db.cursor() as cur:
-        cur.execute("SELECT * FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
-        restaurante = dict_from_row(cur.fetchone())
+    restaurante = get_current_restaurant()
+    if not restaurante:
+        flash('Error al cargar datos del restaurante', 'error')
+        return redirect(url_for('menu_gestion'))
     return render_template('gestion/mi_restaurante.html', restaurante=restaurante)
 
 
@@ -1970,10 +2107,10 @@ def gestion_mi_restaurante():
 @verificar_suscripcion
 def gestion_codigo_qr():
     """Página del código QR."""
-    db = get_db()
-    with db.cursor() as cur:
-        cur.execute("SELECT * FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
-        restaurante = dict_from_row(cur.fetchone())
+    restaurante = get_current_restaurant()
+    if not restaurante:
+        flash('Error al cargar datos del restaurante', 'error')
+        return redirect(url_for('menu_gestion'))
     
     base_url = request.host_url.rstrip('/')
     # URL del menú con parámetro qr=1 para tracking de escaneos
@@ -2005,10 +2142,10 @@ def gestion_codigo_qr():
 @verificar_suscripcion
 def gestion_apariencia():
     """Página de personalización de apariencia."""
-    db = get_db()
-    with db.cursor() as cur:
-        cur.execute("SELECT * FROM restaurantes WHERE id = %s", (session['restaurante_id'],))
-        restaurante = dict_from_row(cur.fetchone())
+    restaurante = get_current_restaurant()
+    if not restaurante:
+        flash('Error al cargar datos del restaurante', 'error')
+        return redirect(url_for('menu_gestion'))
     return render_template('gestion/apariencia.html', restaurante=restaurante)
 
 
@@ -2017,15 +2154,16 @@ def gestion_apariencia():
 @verificar_suscripcion
 def gestion_descargas():
     """Página de descargas - PDF del menú."""
+    restaurante = get_current_restaurant()
+    if not restaurante:
+        flash('Error al cargar datos del restaurante', 'error')
+        return redirect(url_for('menu_gestion'))
+    
+    restaurante_id = restaurante['id']
     db = get_db()
-    restaurante_id = session['restaurante_id']
     
     try:
         with db.cursor() as cur:
-            # Obtener restaurante
-            cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
-            restaurante = dict_from_row(cur.fetchone())
-            
             # Obtener categorías y platos en una sola consulta (evita N+1)
             cur.execute("""
                 SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.orden as categoria_orden,
