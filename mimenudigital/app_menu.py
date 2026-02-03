@@ -749,25 +749,18 @@ if MERCADO_WEBHOOK_KEY:
     logger.info('Mercado Pago webhook verification is enabled (signature header will be verified if provided)')
 
 # ============================================================
-# DATABASE - usar `database.py` centralizado
+# DATABASE - usar `database.py` centralizado con SQLAlchemy Pool
 # ============================================================
-# Importar las utilidades desde el módulo `database.py` y registrar teardown
-from database import init_app as db_init_app, get_db as db_get_db, get_cursor as db_get_cursor, execute_query as db_execute_query, _pool as db_pool, get_pool_status
+from database import init_app as db_init_app, get_db as db_get_db, get_cursor as db_get_cursor, execute_query as db_execute_query, get_pool_status, _pool as db_pool
 
-# Registrar el teardown handler para cerrar conexiones (se delega a database.init_app)
+# Inicializar el pool de conexiones SQLAlchemy
 db_init_app(app)
-logger.info("Database module initialized via database.init_app")
+logger.info("SQLAlchemy connection pool initialized")
 
-# Registrar limpieza de conexiones al cerrar la aplicación
-def cleanup_db_connections():
-    """Limpia todas las conexiones del pool al cerrar la aplicación."""
-    try:
-        db_pool.close_all()
-        logger.info("Database connections cleaned up on shutdown")
-    except Exception as e:
-        logger.warning("Error cleaning up database connections: %s", e)
-
-atexit.register(cleanup_db_connections)
+# Backwards compatibility: expose expected names used across the codebase
+get_db = db_get_db
+get_cursor = db_get_cursor
+execute_query = db_execute_query
 
 # ============================================================
 # INICIALIZAR SERVICIO DE EMAIL

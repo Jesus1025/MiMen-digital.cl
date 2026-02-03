@@ -1,397 +1,240 @@
 # ============================================================
-# DATABASE - Conexión MySQL con Connection Pool
+# DATABASE - Conexión MySQL con SQLAlchemy QueuePool
 # ============================================================
-# MEJORA: Connection pooling para soportar cientos de usuarios simultáneos
+# Pool robusto para PythonAnywhere con 3 workers
+# pool_size=5, max_overflow=10
+# Liberación INMEDIATA de conexiones incluso en errores
 # ============================================================
+
 import pymysql
 from pymysql.cursors import DictCursor
 from contextlib import contextmanager
 from flask import g, current_app
 import logging
-import threading
 import time
-from queue import Queue, Empty
+
+# SQLAlchemy para pool de conexiones (mucho más robusto)
+from sqlalchemy import create_engine, event, text, exc
+from sqlalchemy.pool import QueuePool
 
 logger = logging.getLogger(__name__)
 
 # ============================================================
-# CONNECTION POOL - Reutiliza conexiones en lugar de crear nuevas
+# CONFIGURACIÓN GLOBAL DEL POOL
 # ============================================================
 
-class ConnectionPool:
+_engine = None
+_initialized = False
+
+
+def _build_connection_url(app):
+    """Construye la URL de conexión MySQL para SQLAlchemy."""
+    host = app.config.get('MYSQL_HOST', 'localhost')
+    user = app.config.get('MYSQL_USER', 'root')
+    password = app.config.get('MYSQL_PASSWORD', '')
+    database = app.config.get('MYSQL_DB', 'mimenudigital')
+    port = app.config.get('MYSQL_PORT', 3306)
+    
+    # Escapar caracteres especiales en password
+    from urllib.parse import quote_plus
+    safe_password = quote_plus(str(password))
+    
+    return f"mysql+pymysql://{user}:{safe_password}@{host}:{port}/{database}?charset=utf8mb4"
+
+
+def init_app(app):
     """
-    Pool de conexiones MySQL thread-safe.
-    Reutiliza conexiones existentes para evitar el overhead de crear nuevas.
-    MEJORADO: Limpieza automática de conexiones zombies.
-    BALANCEADO para PythonAnywhere: Estabilidad y rendimiento.
+    Inicializa el pool de conexiones SQLAlchemy.
+    
+    CONFIGURACIÓN OPTIMIZADA PARA PYTHONANYWHERE (3 workers):
+    - pool_size=5: Conexiones permanentes
+    - max_overflow=10: Conexiones temporales extra (máximo total: 15)
+    - pool_timeout=10: Máximo 10s esperando conexión
+    - pool_recycle=60: Reciclar cada 60s (evita MySQL timeout)
+    - pool_pre_ping=True: Verificar conexión antes de usarla
     """
+    global _engine, _initialized
     
-    def __init__(self, min_connections=2, max_connections=8, max_idle_time=45):
-        self.min_connections = min_connections
-        self.max_connections = max_connections
-        self.max_idle_time = max_idle_time  # 45s - balance entre rendimiento y limpieza
-        self.max_connection_age = 240  # 4 min máximo
-        self._pool = Queue(maxsize=max_connections)
-        self._size = 0
-        self._lock = threading.Lock()
-        self._config = None
-        self._initialized = False
-        self._connection_ages = {}  # Track when each connection was created
-        self._last_cleanup = time.time()
-        
-    def init_app(self, app):
-        """Inicializa el pool con la configuración de la app."""
-        self._config = {
-            'host': app.config.get('MYSQL_HOST'),
-            'user': app.config.get('MYSQL_USER'),
-            'password': app.config.get('MYSQL_PASSWORD'),
-            'database': app.config.get('MYSQL_DB'),
-            'port': int(app.config.get('MYSQL_PORT', 3306)),
-            'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
-            'cursorclass': DictCursor,
-            'autocommit': False,
-            'connect_timeout': 5,
-            'read_timeout': 30,
-            'write_timeout': 30,
-            # Configuración MySQL para evitar conexiones zombies
-            'init_command': 'SET SESSION wait_timeout=120, SESSION interactive_timeout=120'
-        }
-        
-        # Pre-crear conexiones mínimas
-        for _ in range(self.min_connections):
-            try:
-                conn = self._create_connection()
-                self._pool.put((conn, time.time()))
-            except Exception as e:
-                logger.warning("Could not pre-create connection: %s", e)
-        
-        self._initialized = True
-        logger.info("Connection pool initialized: min=%d, max=%d", self.min_connections, self.max_connections)
-        
-    def _create_connection(self):
-        """Crea una nueva conexión MySQL."""
-        if not self._config:
-            raise RuntimeError("Connection pool not initialized. Call init_app first.")
-        
-        conn = pymysql.connect(**self._config)
-        conn_id = id(conn)
-        with self._lock:
-            self._size += 1
-            self._connection_ages[conn_id] = time.time()  # Track creation time
-        logger.debug("Created new MySQL connection (pool size: %d)", self._size)
-        return conn
+    if _initialized and _engine is not None:
+        logger.debug("Pool already initialized")
+        return
     
-    def _cleanup_stale_connections(self):
-        """Limpia conexiones viejas del pool periódicamente."""
-        now = time.time()
+    try:
+        connection_url = _build_connection_url(app)
         
-        # Solo ejecutar limpieza cada 30 segundos
-        if now - self._last_cleanup < 30:
-            return
+        _engine = create_engine(
+            connection_url,
+            poolclass=QueuePool,
+            pool_size=5,              # Conexiones base permanentes
+            max_overflow=10,          # Conexiones adicionales temporales
+            pool_timeout=10,          # Timeout esperando conexión (segundos)
+            pool_recycle=60,          # Reciclar conexiones cada 60s
+            pool_pre_ping=True,       # Verificar conexión está viva
+            echo=False,               # No loggear SQL
+            # Configuración de conexión PyMySQL
+            connect_args={
+                'cursorclass': DictCursor,
+                'autocommit': False,
+                'connect_timeout': 5,
+                'read_timeout': 30,
+                'write_timeout': 30,
+            }
+        )
         
-        self._last_cleanup = now
-        cleaned = 0
-        temp_connections = []
+        # Configurar sesión MySQL al conectar
+        @event.listens_for(_engine, "connect")
+        def set_session_config(dbapi_connection, connection_record):
+            """Configura la sesión MySQL al crear conexión."""
+            cursor = dbapi_connection.cursor()
+            cursor.execute("SET SESSION wait_timeout=120")
+            cursor.execute("SET SESSION interactive_timeout=120")
+            cursor.close()
         
-        # Vaciar el pool y verificar cada conexión
-        while True:
+        # Manejar conexiones inválidas
+        @event.listens_for(_engine, "checkout")
+        def checkout_listener(dbapi_connection, connection_record, connection_proxy):
+            """Verifica conexión al sacarla del pool."""
             try:
-                conn, last_used = self._pool.get_nowait()
-                conn_id = id(conn)
-                conn_age = now - self._connection_ages.get(conn_id, now)
-                idle_time = now - last_used
-                
-                # Cerrar si: muy vieja, muy inactiva, o no responde ping
-                should_close = (
-                    conn_age > self.max_connection_age or
-                    idle_time > self.max_idle_time
-                )
-                
-                if should_close:
-                    try:
-                        conn.close()
-                    except:
-                        pass
-                    with self._lock:
-                        self._size -= 1
-                        self._connection_ages.pop(conn_id, None)
-                    cleaned += 1
-                else:
-                    # Verificar que sigue viva
-                    try:
-                        conn.ping(reconnect=False)
-                        temp_connections.append((conn, last_used))
-                    except:
-                        try:
-                            conn.close()
-                        except:
-                            pass
-                        with self._lock:
-                            self._size -= 1
-                            self._connection_ages.pop(conn_id, None)
-                        cleaned += 1
-            except Empty:
-                break
+                dbapi_connection.ping(reconnect=False)
+            except Exception:
+                raise exc.DisconnectionError()
         
-        # Devolver conexiones válidas al pool
-        for item in temp_connections:
-            try:
-                self._pool.put_nowait(item)
-            except:
-                pass
+        # Registrar teardown para liberar conexiones
+        app.teardown_appcontext(_release_connection)
         
-        if cleaned > 0:
-            logger.info("Cleaned %d stale connections from pool", cleaned)
-    
-    def get_connection(self):
-        """
-        Obtiene una conexión del pool o crea una nueva si es necesario.
-        """
-        # Ejecutar limpieza periódica
-        self._cleanup_stale_connections()
+        _initialized = True
+        logger.info("SQLAlchemy QueuePool initialized: pool_size=5, max_overflow=10")
         
-        # Intentar obtener del pool
-        while True:
-            try:
-                conn, last_used = self._pool.get_nowait()
-                conn_id = id(conn)
-                now = time.time()
-                
-                # Verificar si la conexión es muy vieja o inactiva
-                conn_age = now - self._connection_ages.get(conn_id, now)
-                idle_time = now - last_used
-                
-                if idle_time > self.max_idle_time or conn_age > self.max_connection_age:
-                    try:
-                        conn.close()
-                    except:
-                        pass
-                    with self._lock:
-                        self._size -= 1
-                        self._connection_ages.pop(conn_id, None)
-                    continue
-                
-                # Verificar que la conexión siga activa
-                try:
-                    conn.ping(reconnect=False)
-                    return conn
-                except pymysql.Error:
-                    try:
-                        conn.close()
-                    except:
-                        pass
-                    with self._lock:
-                        self._size -= 1
-                        self._connection_ages.pop(conn_id, None)
-                    continue
-                    
-            except Empty:
-                break
-        
-        # No hay conexiones disponibles, crear una nueva si no excedemos el máximo
-        with self._lock:
-            if self._size < self.max_connections:
-                return self._create_connection()
-        
-        # Pool lleno, esperar por una conexión
+    except Exception as e:
+        logger.error("Failed to initialize connection pool: %s", e)
+        raise
+
+
+def _release_connection(exception=None):
+    """
+    Libera la conexión al terminar el request.
+    Se llama automáticamente por Flask teardown_appcontext.
+    GARANTIZA liberación incluso si hay error.
+    """
+    conn = g.pop('_db_connection', None)
+    if conn is not None:
         try:
-            conn, _ = self._pool.get(timeout=10)
-            try:
-                conn.ping(reconnect=True)
-                return conn
-            except pymysql.Error:
-                conn_id = id(conn)
-                with self._lock:
-                    self._size -= 1
-                    self._connection_ages.pop(conn_id, None)
-                return self._create_connection()
-        except Empty:
-            raise RuntimeError("Connection pool exhausted and timeout reached")
-    
-    def return_connection(self, conn):
-        """Devuelve una conexión al pool."""
-        if conn is None:
-            return
-        
-        conn_id = id(conn)
-        now = time.time()
-        
-        # Verificar edad de la conexión
-        conn_age = now - self._connection_ages.get(conn_id, now)
-        if conn_age > self.max_connection_age:
-            # Conexión muy vieja, cerrarla
-            logger.debug("Closing old connection (age: %.1fs)", conn_age)
-            try:
-                conn.close()
-            except:
-                pass
-            with self._lock:
-                self._size -= 1
-                self._connection_ages.pop(conn_id, None)
-            return
-            
-        try:
-            # Rollback cualquier transacción pendiente
-            conn.rollback()
-            
-            # Verificar que siga activa
-            conn.ping(reconnect=False)
-            
-            # Devolver al pool
-            try:
-                self._pool.put_nowait((conn, time.time()))
-            except:
-                # Pool lleno, cerrar la conexión
-                conn.close()
-                with self._lock:
-                    self._size -= 1
-                    self._connection_ages.pop(conn_id, None)
-        except Exception as e:
-            # Conexión corrupta, cerrar y decrementar
-            logger.debug("Closing corrupted connection: %s", e)
-            try:
-                conn.close()
-            except:
-                pass
-            with self._lock:
-                self._size -= 1
-                self._connection_ages.pop(conn_id, None)
-    
-    def close_all(self):
-        """Cierra todas las conexiones del pool."""
-        while True:
-            try:
-                conn, _ = self._pool.get_nowait()
+            if exception:
+                conn.rollback()
+            else:
+                # Commit implícito si no hay error
                 try:
-                    conn.close()
+                    conn.commit()
                 except:
-                    pass
-            except Empty:
-                break
-        with self._lock:
-            self._size = 0
-            self._connection_ages.clear()
-        logger.info("Connection pool closed")
-
-    @property
-    def status(self):
-        """Retorna el estado actual del pool."""
-        return {
-            'size': self._size,
-            'available': self._pool.qsize(),
-            'max': self.max_connections,
-            'min': self.min_connections
-        }
-
-
-# Instancia global del pool - BALANCEADO para PythonAnywhere
-_pool = ConnectionPool(min_connections=2, max_connections=8, max_idle_time=45)
-
-
-def get_db_config():
-    """Obtiene la configuración de la base de datos desde app.config."""
-    return {
-        'host': current_app.config.get('MYSQL_HOST'),
-        'user': current_app.config.get('MYSQL_USER'),
-        'password': current_app.config.get('MYSQL_PASSWORD'),
-        'database': current_app.config.get('MYSQL_DB'),
-        'port': int(current_app.config.get('MYSQL_PORT', 3306)),
-        'charset': current_app.config.get('MYSQL_CHARSET', 'utf8mb4'),
-        'cursorclass': DictCursor,
-        'autocommit': False  # Mejor control de transacciones
-    }
+                    conn.rollback()
+        except Exception as e:
+            logger.debug("Error during connection cleanup: %s", e)
+        finally:
+            # SIEMPRE cerrar (devolver al pool)
+            try:
+                conn.close()
+            except:
+                pass
 
 
 def get_db():
     """
-    Obtiene una conexión a MySQL del pool.
-    La conexión se almacena en g para reutilizarla durante el request.
+    Obtiene una conexión del pool.
+    La conexión se almacena en g y se libera AUTOMÁTICAMENTE al terminar el request.
+    
+    Returns:
+        PyMySQL connection (raw connection from SQLAlchemy pool)
     """
-    if 'db' not in g:
-        try:
-            if _pool._initialized:
-                g.db = _pool.get_connection()
-                g._db_from_pool = True
-            else:
-                # Fallback si el pool no está inicializado
-                config = get_db_config()
-                g.db = pymysql.connect(**config)
-                g._db_from_pool = False
-                logger.debug("Using direct connection (pool not initialized)")
-        except Exception as e:
-            logger.error("Failed to get MySQL connection: %s", e)
-            raise
-    else:
-        # Verificar si la conexión sigue activa
-        try:
-            g.db.ping(reconnect=True)
-        except pymysql.Error as e:
-            logger.warning("Lost MySQL connection, getting new one: %s", e)
-            if g.get('_db_from_pool') and _pool._initialized:
-                g.db = _pool.get_connection()
-            else:
-                config = get_db_config()
-                g.db = pymysql.connect(**config)
+    if '_db_connection' not in g:
+        if not _initialized or _engine is None:
+            raise RuntimeError("Database pool not initialized. Call init_app first.")
+        
+        # Obtener conexión raw del pool
+        g._db_connection = _engine.raw_connection()
     
-    return g.db
-
-
-def close_db(error=None):
-    """Devuelve la conexión al pool al terminar el request."""
-    db = g.pop('db', None)
-    from_pool = g.pop('_db_from_pool', False)
-    
-    if db is not None:
-        if from_pool and _pool._initialized:
-            _pool.return_connection(db)
-        else:
-            try:
-                db.close()
-            except Exception as e:
-                logger.warning("Error closing MySQL connection: %s", e)
-
-
-def init_app(app):
-    """Registra el cierre de conexión con la app e inicializa el pool."""
-    app.teardown_appcontext(close_db)
-    
-    # Inicializar pool después de que la config esté lista
-    @app.before_request
-    def _init_pool_once():
-        if not _pool._initialized and app.config.get('MYSQL_HOST'):
-            try:
-                _pool.init_app(app)
-            except Exception as e:
-                logger.warning("Could not initialize connection pool: %s", e)
-    
-    logger.info("Database module initialized with connection pool")
-
-
-def get_pool_status():
-    """Retorna el estado del pool de conexiones."""
-    return _pool.status
+    return g._db_connection
 
 
 @contextmanager
+def get_connection():
+    """
+    Context manager para conexión con liberación INMEDIATA.
+    Usa esto para operaciones fuera de un request Flask.
+    
+    La conexión se libera AL SALIR del bloque with, incluso si hay error.
+    
+    Ejemplo:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM tabla")
+                results = cur.fetchall()
+        # Conexión ya liberada aquí
+    """
+    if not _initialized or _engine is None:
+        raise RuntimeError("Database pool not initialized")
+    
+    conn = _engine.raw_connection()
+    try:
+        yield conn
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()  # SIEMPRE libera al pool
+
+
+@contextmanager 
 def get_cursor(commit=True):
     """
-    Context manager para obtener un cursor con manejo de transacciones.
+    Context manager para cursor con manejo automático de transacciones.
+    La conexión se obtiene de g (request scope).
     
-    Args:
-        commit (bool): Si True, hace commit automático. Si False, hace rollback.
+    Ejemplo:
+        with get_cursor() as cur:
+            cur.execute("SELECT * FROM tabla")
+            results = cur.fetchall()
     """
-    db = get_db()
-    cursor = db.cursor()
+    conn = get_db()
+    cursor = conn.cursor()
     try:
         yield cursor
         if commit:
-            db.commit()
+            conn.commit()
     except Exception as e:
-        db.rollback()
-        logger.error("Database error in cursor context: %s", e)
+        conn.rollback()
+        logger.error("Database error: %s", e)
         raise
     finally:
         cursor.close()
+
+
+@contextmanager
+def get_cursor_immediate():
+    """
+    Context manager para cursor con liberación INMEDIATA de conexión.
+    Usa esto cuando necesites liberar la conexión rápidamente.
+    
+    Ejemplo:
+        with get_cursor_immediate() as cur:
+            cur.execute("SELECT * FROM tabla")
+            results = cur.fetchall()
+        # Conexión ya liberada aquí
+    """
+    if not _initialized or _engine is None:
+        raise RuntimeError("Database pool not initialized")
+    
+    conn = _engine.raw_connection()
+    cursor = conn.cursor()
+    try:
+        yield cursor
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()  # Libera INMEDIATAMENTE
 
 
 def execute_query(query, params=None, commit=True):
@@ -401,32 +244,66 @@ def execute_query(query, params=None, commit=True):
     Args:
         query (str): SQL query
         params (tuple): Parámetros para la query
-        commit (bool): Si True, hace commit después de INSERT/UPDATE/DELETE
+        commit (bool): Si hacer commit (para INSERT/UPDATE/DELETE)
     
     Returns:
-        list: Lista de diccionarios con los resultados (para SELECT)
-        int: Número de filas afectadas (para INSERT/UPDATE/DELETE)
+        list: Resultados para SELECT
+        int: Filas afectadas para INSERT/UPDATE/DELETE
     """
     with get_cursor(commit=commit) as cursor:
-        try:
-            cursor.execute(query, params or ())
-            
-            # Si es SELECT, retornar resultados
-            if query.strip().upper().startswith('SELECT'):
-                return cursor.fetchall()
-            
-            # Para INSERT/UPDATE/DELETE, retornar número de filas afectadas
-            return cursor.rowcount
-        except Exception as e:
-            logger.error("Error executing query: %s | Query: %s | Params: %s", e, query, params)
-            raise
+        cursor.execute(query, params or ())
+        
+        if query.strip().upper().startswith('SELECT'):
+            return cursor.fetchall()
+        
+        return cursor.rowcount
 
+
+def get_pool_status():
+    """Retorna estadísticas del pool de conexiones."""
+    if _engine is None:
+        return {'status': 'not_initialized'}
+    
+    pool = _engine.pool
+    return {
+        'pool_size': pool.size(),
+        'checked_in': pool.checkedin(),
+        'checked_out': pool.checkedout(), 
+        'overflow': pool.overflow(),
+        'total_connections': pool.checkedin() + pool.checkedout()
+    }
+
+
+# ============================================================
+# FUNCIONES AUXILIARES
+# ============================================================
 
 def dict_from_row(row):
-    """Convierte una fila a diccionario (PyMySQL con DictCursor ya lo hace)."""
+    """Convierte fila a dict (DictCursor ya lo hace)."""
     return row if row else None
 
 
 def list_from_rows(rows):
-    """Convierte lista de filas a lista de diccionarios."""
+    """Convierte lista de filas a lista de dicts."""
     return list(rows) if rows else []
+
+
+def close_db(error=None):
+    """Alias para compatibilidad. Llamado por teardown."""
+    _release_connection(error)
+
+
+# Variable para compatibilidad con código que usa _pool
+class _PoolCompat:
+    """Wrapper de compatibilidad."""
+    _initialized = False
+    
+    def init_app(self, app):
+        init_app(app)
+        self._initialized = True
+    
+    @property
+    def status(self):
+        return get_pool_status()
+
+_pool = _PoolCompat()
