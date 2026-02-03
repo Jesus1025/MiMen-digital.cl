@@ -923,12 +923,16 @@ from werkzeug.exceptions import RequestEntityTooLarge
 def inject_subscription_info():
     """
     Inyecta información de suscripción en el contexto global de templates.
-    ULTRA-OPTIMIZADO: Solo carga de caché de sesión, NUNCA hace queries aquí.
+    BALANCEADO: Usa caché de sesión, sin queries directas.
     """
-    g.subscription_info = None  # Default
+    g.subscription_info = None
     
-    # OPTIMIZACIÓN AGRESIVA: Solo usar caché de sesión, sin queries
-    # La info se actualiza en verificar_suscripcion() cuando es necesario
+    # Saltar para rutas públicas y estáticas
+    path = request.path
+    if path.startswith(('/static/', '/menu/', '/api/health')) or path == '/':
+        return
+    
+    # Usar caché de sesión si existe
     cached_info = session.get('_sub_info_cache')
     if cached_info:
         g.subscription_info = cached_info
@@ -946,13 +950,29 @@ def handle_request_entity_too_large(e):
 def inject_globals():
     """
     Inyecta variables globales en todos los templates.
-    OPTIMIZADO: Cachea contador de tickets por 2 minutos para evitar queries excesivas.
+    BALANCEADO: Usa caché pero hace query si es necesario.
     """
-    # ULTRA-OPTIMIZADO: Solo usar caché de sesión, NO hacer queries aquí
     tickets_pendientes = 0
     if session.get('rol') == 'superadmin':
-        # Solo usar valor cacheado - se actualiza en rutas de superadmin
-        tickets_pendientes = session.get('_tickets_count_cache', 0)
+        # Intentar usar caché primero
+        cached = session.get('_tickets_count_cache')
+        cache_time = session.get('_tickets_cache_time', 0)
+        ahora = time.time()
+        
+        if cached is not None and (ahora - cache_time < 300):  # 5 min caché
+            tickets_pendientes = cached
+        else:
+            # Hacer query solo si no hay caché o expiró
+            try:
+                db = get_db()
+                with db.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) as c FROM tickets_soporte WHERE estado IN ('abierto','en_proceso')")
+                    r = cur.fetchone()
+                    tickets_pendientes = r['c'] if r else 0
+                    session['_tickets_count_cache'] = tickets_pendientes
+                    session['_tickets_cache_time'] = ahora
+            except:
+                tickets_pendientes = 0
     
     return {
         'subscription_info': g.get('subscription_info', None),
@@ -1427,8 +1447,8 @@ def _get_worker_connection():
         'charset': 'utf8mb4',
         'cursorclass': DictCursor,
         'autocommit': True,
-        'connect_timeout': 3,
-        'read_timeout': 10
+        'connect_timeout': 5,
+        'read_timeout': 30
     }
     
     # Verificar si la conexión existe y está viva
@@ -1451,8 +1471,8 @@ def _visita_worker():
     """Worker thread que procesa visitas en BATCH para mejor rendimiento."""
     global _visita_worker_running
     
-    BATCH_SIZE = 100  # Procesar hasta 100 visitas por batch (más eficiente)
-    BATCH_TIMEOUT = 3  # Segundos máximos de espera para completar batch
+    BATCH_SIZE = 50  # Procesar hasta 50 visitas por batch
+    BATCH_TIMEOUT = 5  # Segundos de espera para completar batch
     
     while _visita_worker_running:
         batch = []
@@ -1461,7 +1481,7 @@ def _visita_worker():
         # Recolectar batch de visitas
         while len(batch) < BATCH_SIZE:
             try:
-                remaining_time = max(0.1, BATCH_TIMEOUT - (time.time() - batch_start))
+                remaining_time = max(0.5, BATCH_TIMEOUT - (time.time() - batch_start))
                 visita_data = _visitas_queue.get(timeout=remaining_time)
                 
                 if visita_data is None:  # Señal de terminación

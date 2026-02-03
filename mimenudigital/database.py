@@ -23,14 +23,14 @@ class ConnectionPool:
     Pool de conexiones MySQL thread-safe.
     Reutiliza conexiones existentes para evitar el overhead de crear nuevas.
     MEJORADO: Limpieza automática de conexiones zombies.
-    OPTIMIZADO para PythonAnywhere: Conexiones más cortas y agresiva limpieza.
+    BALANCEADO para PythonAnywhere: Estabilidad y rendimiento.
     """
     
-    def __init__(self, min_connections=1, max_connections=5, max_idle_time=30):
+    def __init__(self, min_connections=2, max_connections=8, max_idle_time=45):
         self.min_connections = min_connections
-        self.max_connections = max_connections  # Reducido para PythonAnywhere
-        self.max_idle_time = max_idle_time  # 30s - PythonAnywhere cierra conexiones inactivas
-        self.max_connection_age = 180  # 3 min máximo - evita conexiones zombie
+        self.max_connections = max_connections
+        self.max_idle_time = max_idle_time  # 45s - balance entre rendimiento y limpieza
+        self.max_connection_age = 240  # 4 min máximo
         self._pool = Queue(maxsize=max_connections)
         self._size = 0
         self._lock = threading.Lock()
@@ -50,14 +50,14 @@ class ConnectionPool:
             'charset': app.config.get('MYSQL_CHARSET', 'utf8mb4'),
             'cursorclass': DictCursor,
             'autocommit': False,
-            'connect_timeout': 3,   # MÁS rápido para fallar
-            'read_timeout': 15,     # Reducido
-            'write_timeout': 15,    # Reducido
-            # Configuración MySQL AGRESIVA para evitar conexiones zombies
-            'init_command': 'SET SESSION wait_timeout=60, SESSION interactive_timeout=60'
+            'connect_timeout': 5,
+            'read_timeout': 30,
+            'write_timeout': 30,
+            # Configuración MySQL para evitar conexiones zombies
+            'init_command': 'SET SESSION wait_timeout=120, SESSION interactive_timeout=120'
         }
         
-        # Pre-crear solo 1 conexión mínima
+        # Pre-crear conexiones mínimas
         for _ in range(self.min_connections):
             try:
                 conn = self._create_connection()
@@ -66,7 +66,7 @@ class ConnectionPool:
                 logger.warning("Could not pre-create connection: %s", e)
         
         self._initialized = True
-        logger.info("Connection pool initialized: min=%d, max=%d (optimized for PythonAnywhere)", self.min_connections, self.max_connections)
+        logger.info("Connection pool initialized: min=%d, max=%d", self.min_connections, self.max_connections)
         
     def _create_connection(self):
         """Crea una nueva conexión MySQL."""
@@ -284,8 +284,8 @@ class ConnectionPool:
         }
 
 
-# Instancia global del pool - OPTIMIZADO para PythonAnywhere
-_pool = ConnectionPool(min_connections=1, max_connections=5, max_idle_time=30)
+# Instancia global del pool - BALANCEADO para PythonAnywhere
+_pool = ConnectionPool(min_connections=2, max_connections=8, max_idle_time=45)
 
 
 def get_db_config():
