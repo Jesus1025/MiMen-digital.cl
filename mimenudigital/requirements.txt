@@ -10,9 +10,6 @@ Werkzeug>=3.0.0,<4.0.0
 # MySQL driver (estable y probado)
 PyMySQL>=1.1.0,<2.0.0
 
-# SQLAlchemy para connection pool robusto
-SQLAlchemy>=2.0.0,<3.0.0
-
 # Variables de entorno (recomendado)
 python-dotenv>=1.0.0,<2.0.0
 
