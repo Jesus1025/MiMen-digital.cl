@@ -3325,6 +3325,131 @@ def api_categoria(categoria_id):
 
 
 # ============================================================
+# API - ETIQUETAS PERSONALIZADAS
+# ============================================================
+
+@app.route('/api/etiquetas', methods=['GET', 'POST'])
+@login_required
+def api_etiquetas():
+    """API para listar y crear etiquetas del restaurante."""
+    db = get_db()
+    restaurante_id = session['restaurante_id']
+    
+    try:
+        with db.cursor() as cur:
+            if request.method == 'GET':
+                cur.execute('''
+                    SELECT id, nombre, color, emoji, orden, activo
+                    FROM etiquetas 
+                    WHERE restaurante_id = %s AND activo = 1
+                    ORDER BY orden, nombre
+                ''', (restaurante_id,))
+                return jsonify(list_from_rows(cur.fetchall()))
+                
+            if request.method == 'POST':
+                data = request.get_json()
+                nombre = (data.get('nombre', '') or '').strip()[:50]
+                color = (data.get('color', '#34495e') or '#34495e')[:7]
+                emoji = (data.get('emoji', '') or '')[:10]
+                
+                if not nombre:
+                    return jsonify({'success': False, 'error': 'El nombre es requerido'}), 400
+                
+                # Verificar si ya existe
+                cur.execute('''
+                    SELECT id FROM etiquetas 
+                    WHERE restaurante_id = %s AND nombre = %s
+                ''', (restaurante_id, nombre))
+                if cur.fetchone():
+                    return jsonify({'success': False, 'error': 'Ya existe una etiqueta con ese nombre'}), 400
+                
+                # Obtener siguiente orden
+                cur.execute('SELECT COALESCE(MAX(orden), 0) + 1 as next_orden FROM etiquetas WHERE restaurante_id = %s', (restaurante_id,))
+                next_orden = cur.fetchone()['next_orden']
+                
+                cur.execute('''
+                    INSERT INTO etiquetas (restaurante_id, nombre, color, emoji, orden, activo)
+                    VALUES (%s, %s, %s, %s, %s, 1)
+                ''', (restaurante_id, nombre, color, emoji, next_orden))
+                db.commit()
+                
+                return jsonify({
+                    'success': True, 
+                    'id': cur.lastrowid,
+                    'etiqueta': {
+                        'id': cur.lastrowid,
+                        'nombre': nombre,
+                        'color': color,
+                        'emoji': emoji,
+                        'orden': next_orden
+                    }
+                })
+                
+    except Exception as e:
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.exception("Error en api_etiquetas")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/etiquetas/<int:etiqueta_id>', methods=['PUT', 'DELETE'])
+@login_required
+def api_etiqueta(etiqueta_id):
+    """API para editar o eliminar una etiqueta."""
+    db = get_db()
+    restaurante_id = session['restaurante_id']
+    
+    try:
+        with db.cursor() as cur:
+            # Verificar que la etiqueta pertenece al restaurante
+            cur.execute('SELECT id FROM etiquetas WHERE id = %s AND restaurante_id = %s', 
+                       (etiqueta_id, restaurante_id))
+            if not cur.fetchone():
+                return jsonify({'error': 'Etiqueta no encontrada'}), 404
+            
+            if request.method == 'PUT':
+                data = request.get_json()
+                nombre = (data.get('nombre', '') or '').strip()[:50]
+                color = (data.get('color', '#34495e') or '#34495e')[:7]
+                emoji = (data.get('emoji', '') or '')[:10]
+                
+                if not nombre:
+                    return jsonify({'success': False, 'error': 'El nombre es requerido'}), 400
+                
+                # Verificar duplicados (excluyendo la actual)
+                cur.execute('''
+                    SELECT id FROM etiquetas 
+                    WHERE restaurante_id = %s AND nombre = %s AND id != %s
+                ''', (restaurante_id, nombre, etiqueta_id))
+                if cur.fetchone():
+                    return jsonify({'success': False, 'error': 'Ya existe una etiqueta con ese nombre'}), 400
+                
+                cur.execute('''
+                    UPDATE etiquetas SET nombre = %s, color = %s, emoji = %s
+                    WHERE id = %s AND restaurante_id = %s
+                ''', (nombre, color, emoji, etiqueta_id, restaurante_id))
+                db.commit()
+                
+                return jsonify({'success': True})
+                
+            if request.method == 'DELETE':
+                cur.execute('DELETE FROM etiquetas WHERE id = %s AND restaurante_id = %s', 
+                           (etiqueta_id, restaurante_id))
+                db.commit()
+                return jsonify({'success': True})
+                
+    except Exception as e:
+        try:
+            db.rollback()
+        except:
+            pass
+        logger.exception("Error en api_etiqueta")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
 # API - RESTAURANTE
 # ============================================================
 

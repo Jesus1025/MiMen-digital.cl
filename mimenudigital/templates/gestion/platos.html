@@ -271,17 +271,6 @@
     /* ============================================
        ESTILOS PARA SELECTOR DE ETIQUETAS
        ============================================ */
-    .etiquetas-standard {
-        background: #fafbfc;
-        border-radius: 8px;
-        padding: 1rem;
-        border: 1px solid #ecf0f1;
-    }
-    
-    .etiqueta-grupo {
-        margin-bottom: 0.75rem;
-    }
-    
     .etiquetas-opciones {
         display: flex;
         flex-wrap: wrap;
@@ -291,34 +280,36 @@
     .etiqueta-btn {
         display: inline-flex;
         align-items: center;
-        padding: 0.3rem 0.6rem;
-        border-radius: 15px;
-        font-size: 0.75rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
         color: white;
         cursor: pointer;
         transition: all 0.2s ease;
         user-select: none;
-        opacity: 0.7;
+        opacity: 0.85;
         border: 2px solid transparent;
     }
     
     .etiqueta-btn:hover {
         opacity: 1;
         transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
     
     .etiqueta-btn.selected {
         opacity: 1;
         border-color: #2c3e50;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        transform: scale(1.05);
     }
     
     #etiquetasSeleccionadas .etiqueta-selected {
         display: inline-flex;
         align-items: center;
-        padding: 0.25rem 0.5rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
         color: white;
         gap: 0.3rem;
     }
@@ -328,69 +319,49 @@
         font-weight: bold;
         margin-left: 0.2rem;
         opacity: 0.8;
+        font-size: 0.9rem;
     }
     
     #etiquetasSeleccionadas .etiqueta-selected .remove-tag:hover {
         opacity: 1;
     }
     
-    /* COLORES DE ETIQUETAS ESTÁNDAR */
-    /* Popularidad */
-    .etiqueta-btn[data-tag="nuevo"], .etiqueta-selected[data-tag="nuevo"] { background: #9b59b6; }
-    .etiqueta-btn[data-tag="popular"], .etiqueta-selected[data-tag="popular"] { background: #e74c3c; }
-    .etiqueta-btn[data-tag="recomendado"], .etiqueta-selected[data-tag="recomendado"] { background: #f39c12; }
-    .etiqueta-btn[data-tag="oferta"], .etiqueta-selected[data-tag="oferta"] { background: #e91e63; }
-    .etiqueta-btn[data-tag="destacado"], .etiqueta-selected[data-tag="destacado"] { background: #ff5722; }
+    .etiqueta-btn .delete-etiqueta {
+        margin-left: 0.3rem;
+        opacity: 0;
+        transition: opacity 0.2s;
+        font-size: 0.7rem;
+    }
     
-    /* Dieta */
-    .etiqueta-btn[data-tag="vegano"], .etiqueta-selected[data-tag="vegano"] { background: #27ae60; }
-    .etiqueta-btn[data-tag="vegetariano"], .etiqueta-selected[data-tag="vegetariano"] { background: #2ecc71; }
-    .etiqueta-btn[data-tag="sin-gluten"], .etiqueta-selected[data-tag="sin-gluten"] { background: #8e44ad; }
-    .etiqueta-btn[data-tag="sin-lactosa"], .etiqueta-selected[data-tag="sin-lactosa"] { background: #3498db; }
-    .etiqueta-btn[data-tag="light"], .etiqueta-selected[data-tag="light"] { background: #00bcd4; }
-    .etiqueta-btn[data-tag="sin-azucar"], .etiqueta-selected[data-tag="sin-azucar"] { background: #16a085; }
+    .etiqueta-btn:hover .delete-etiqueta {
+        opacity: 0.7;
+    }
     
-    /* Características */
-    .etiqueta-btn[data-tag="picante"], .etiqueta-selected[data-tag="picante"] { background: #e74c3c; }
-    .etiqueta-btn[data-tag="muy-picante"], .etiqueta-selected[data-tag="muy-picante"] { background: #c0392b; }
-    .etiqueta-btn[data-tag="frio"], .etiqueta-selected[data-tag="frio"] { background: #00bcd4; }
-    .etiqueta-btn[data-tag="caliente"], .etiqueta-selected[data-tag="caliente"] { background: #ff9800; }
-    .etiqueta-btn[data-tag="casero"], .etiqueta-selected[data-tag="casero"] { background: #795548; }
-    .etiqueta-btn[data-tag="criollo"], .etiqueta-selected[data-tag="criollo"] { background: #d32f2f; }
+    .etiqueta-btn .delete-etiqueta:hover {
+        opacity: 1;
+    }
     
-    /* Café y Panadería */
-    .etiqueta-btn[data-tag="cafe"], .etiqueta-selected[data-tag="cafe"] { background: #5d4037; }
-    .etiqueta-btn[data-tag="te"], .etiqueta-selected[data-tag="te"] { background: #689f38; }
-    .etiqueta-btn[data-tag="dulce"], .etiqueta-selected[data-tag="dulce"] { background: #ec407a; }
-    .etiqueta-btn[data-tag="salado"], .etiqueta-selected[data-tag="salado"] { background: #78909c; }
-    .etiqueta-btn[data-tag="artesanal"], .etiqueta-selected[data-tag="artesanal"] { background: #8d6e63; }
-    .etiqueta-btn[data-tag="recien-horneado"], .etiqueta-selected[data-tag="recien-horneado"] { background: #d84315; }
+    /* Color presets */
+    .color-preset {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 2px solid transparent;
+    }
     
-    /* Porción */
-    .etiqueta-btn[data-tag="grande"], .etiqueta-selected[data-tag="grande"] { background: #3f51b5; }
-    .etiqueta-btn[data-tag="mediano"], .etiqueta-selected[data-tag="mediano"] { background: #5c6bc0; }
-    .etiqueta-btn[data-tag="pequeno"], .etiqueta-selected[data-tag="pequeno"] { background: #7986cb; }
-    .etiqueta-btn[data-tag="para-compartir"], .etiqueta-selected[data-tag="para-compartir"] { background: #673ab7; }
+    .color-preset:hover {
+        transform: scale(1.15);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
     
-    /* Otros - Etiquetas útiles para Chile */
-    .etiqueta-btn[data-tag="sin-mariscos"], .etiqueta-selected[data-tag="sin-mariscos"] { background: #0097a7; }
-    .etiqueta-btn[data-tag="apto-ninos"], .etiqueta-selected[data-tag="apto-ninos"] { background: #ff9800; }
-    .etiqueta-btn[data-tag="rapido"], .etiqueta-selected[data-tag="rapido"] { background: #4caf50; }
-    .etiqueta-btn[data-tag="abundante"], .etiqueta-selected[data-tag="abundante"] { background: #ff5722; }
-    .etiqueta-btn[data-tag="del-dia"], .etiqueta-selected[data-tag="del-dia"] { background: #607d8b; }
-    
-    /* Etiquetas personalizadas */
-    .etiqueta-btn.custom-tag, .etiqueta-selected.custom-tag { background: #34495e; }
+    .color-preset.selected {
+        border-color: #2c3e50;
+        transform: scale(1.15);
+    }
     
     /* Responsive */
     @media (max-width: 768px) {
-        .etiquetas-standard {
-            padding: 0.75rem;
-        }
-        
         .etiqueta-btn {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.7rem;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.75rem;
         }
     }
 </style>
@@ -526,96 +497,26 @@
                 <div class="form-group">
                     <label class="form-label">Etiquetas</label>
                     
-                    <!-- Etiquetas Estándar por Categoría -->
-                    <div class="etiquetas-standard" style="margin-bottom: 1rem;">
-                        <!-- Popularidad -->
-                        <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
-                            <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">⭐ Popularidad:</small>
-                            <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="nuevo" onclick="toggleEtiqueta('nuevo')" style="background: #27ae60;">🆕 Nuevo</span>
-                                <span class="etiqueta-btn" data-tag="popular" onclick="toggleEtiqueta('popular')" style="background: #e74c3c;">🔥 Popular</span>
-                                <span class="etiqueta-btn" data-tag="recomendado" onclick="toggleEtiqueta('recomendado')" style="background: #f39c12;">👨‍🍳 Recomendado</span>
-                                <span class="etiqueta-btn" data-tag="oferta" onclick="toggleEtiqueta('oferta')" style="background: #9b59b6;">💰 Oferta</span>
-                                <span class="etiqueta-btn" data-tag="destacado" onclick="toggleEtiqueta('destacado')" style="background: #3498db;">⭐ Destacado</span>
-                            </div>
+                    <!-- Mis Etiquetas (cargadas dinámicamente) -->
+                    <div class="etiquetas-container" style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <small style="color: #7f8c8d;">🏷️ Mis etiquetas:</small>
+                            <button type="button" class="btn-secondary" onclick="abrirModalNuevaEtiqueta()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                <i class="fas fa-plus"></i> Nueva etiqueta
+                            </button>
                         </div>
-                        
-                        <!-- Restricciones Alimenticias -->
-                        <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
-                            <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">🥗 Dieta:</small>
-                            <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="vegano" onclick="toggleEtiqueta('vegano')" style="background: #2ecc71;">🌱 Vegano</span>
-                                <span class="etiqueta-btn" data-tag="vegetariano" onclick="toggleEtiqueta('vegetariano')" style="background: #3498db;">🥬 Vegetariano</span>
-                                <span class="etiqueta-btn" data-tag="sin-gluten" onclick="toggleEtiqueta('sin-gluten')" style="background: #9b59b6;">🌾 Sin Gluten</span>
-                                <span class="etiqueta-btn" data-tag="sin-lactosa" onclick="toggleEtiqueta('sin-lactosa')" style="background: #1abc9c;">🥛 Sin Lactosa</span>
-                                <span class="etiqueta-btn" data-tag="light" onclick="toggleEtiqueta('light')" style="background: #00bcd4;">🥗 Light</span>
-                                <span class="etiqueta-btn" data-tag="sin-azucar" onclick="toggleEtiqueta('sin-azucar')" style="background: #16a085;">🍬 Sin Azúcar</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Características -->
-                        <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
-                            <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">🌶️ Características:</small>
-                            <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="picante" onclick="toggleEtiqueta('picante')" style="background: #e74c3c;">🌶️ Picante</span>
-                                <span class="etiqueta-btn" data-tag="muy-picante" onclick="toggleEtiqueta('muy-picante')" style="background: #c0392b;">🔥 Muy Picante</span>
-                                <span class="etiqueta-btn" data-tag="frio" onclick="toggleEtiqueta('frio')" style="background: #3498db;">❄️ Frío</span>
-                                <span class="etiqueta-btn" data-tag="caliente" onclick="toggleEtiqueta('caliente')" style="background: #e67e22;">♨️ Caliente</span>
-                                <span class="etiqueta-btn" data-tag="casero" onclick="toggleEtiqueta('casero')" style="background: #8d6e63;">🏠 Casero</span>
-                                <span class="etiqueta-btn" data-tag="criollo" onclick="toggleEtiqueta('criollo')" style="background: #d32f2f;">🇨🇱 Criollo</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Cafetería / Panadería -->
-                        <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
-                            <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">☕ Café / Panadería:</small>
-                            <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="cafe" onclick="toggleEtiqueta('cafe')" style="background: #795548;">☕ Café</span>
-                                <span class="etiqueta-btn" data-tag="te" onclick="toggleEtiqueta('te')" style="background: #4caf50;">🍵 Té</span>
-                                <span class="etiqueta-btn" data-tag="dulce" onclick="toggleEtiqueta('dulce')" style="background: #e91e63;">🍰 Dulce</span>
-                                <span class="etiqueta-btn" data-tag="salado" onclick="toggleEtiqueta('salado')" style="background: #ff9800;">🥐 Salado</span>
-                                <span class="etiqueta-btn" data-tag="artesanal" onclick="toggleEtiqueta('artesanal')" style="background: #8d6e63;">✨ Artesanal</span>
-                                <span class="etiqueta-btn" data-tag="recien-horneado" onclick="toggleEtiqueta('recien-horneado')" style="background: #ff7043;">🥖 Recién Horneado</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Tamaño -->
-                        <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
-                            <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">📏 Porción:</small>
-                            <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="grande" onclick="toggleEtiqueta('grande')" style="background: #3f51b5;">📦 Grande</span>
-                                <span class="etiqueta-btn" data-tag="mediano" onclick="toggleEtiqueta('mediano')" style="background: #2196f3;">📦 Mediano</span>
-                                <span class="etiqueta-btn" data-tag="pequeno" onclick="toggleEtiqueta('pequeno')" style="background: #03a9f4;">📦 Pequeño</span>
-                                <span class="etiqueta-btn" data-tag="para-compartir" onclick="toggleEtiqueta('para-compartir')" style="background: #673ab7;">👥 Para Compartir</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Otros -->
-                        <div class="etiqueta-grupo" style="margin-bottom: 0.5rem;">
-                            <small style="color: #7f8c8d; display: block; margin-bottom: 0.3rem;">📌 Otros:</small>
-                            <div class="etiquetas-opciones">
-                                <span class="etiqueta-btn" data-tag="sin-mariscos" onclick="toggleEtiqueta('sin-mariscos')" style="background: #0097a7;">🦐 Sin Mariscos</span>
-                                <span class="etiqueta-btn" data-tag="apto-ninos" onclick="toggleEtiqueta('apto-ninos')" style="background: #ff9800;">👶 Apto Niños</span>
-                                <span class="etiqueta-btn" data-tag="rapido" onclick="toggleEtiqueta('rapido')" style="background: #4caf50;">⚡ Rápido</span>
-                                <span class="etiqueta-btn" data-tag="abundante" onclick="toggleEtiqueta('abundante')" style="background: #ff5722;">💪 Abundante</span>
-                                <span class="etiqueta-btn" data-tag="del-dia" onclick="toggleEtiqueta('del-dia')" style="background: #607d8b;">📅 Del Día</span>
-                            </div>
+                        <div id="misEtiquetas" class="etiquetas-opciones" style="min-height: 40px; background: #fafbfc; padding: 0.75rem; border-radius: 8px; border: 1px solid #ecf0f1;">
+                            <span style="color: #95a5a6; font-size: 0.85rem;" id="noEtiquetasMsg">Cargando etiquetas...</span>
                         </div>
                     </div>
                     
-                    <!-- Etiquetas Seleccionadas -->
-                    <div id="etiquetasSeleccionadas" style="min-height: 30px; padding: 0.5rem; background: #f8f9fa; border-radius: 6px; margin-bottom: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.3rem;">
-                        <span style="color: #95a5a6; font-size: 0.8rem;" id="etiquetasPlaceholder">Click en las etiquetas para agregarlas...</span>
+                    <!-- Etiquetas Seleccionadas para este plato -->
+                    <div style="margin-bottom: 0.5rem;">
+                        <small style="color: #7f8c8d;">Etiquetas seleccionadas:</small>
                     </div>
-                    
-                    <!-- Input para etiquetas personalizadas -->
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" class="form-input" id="etiquetaPersonalizada" placeholder="Agregar etiqueta personalizada..." style="flex: 1;">
-                        <button type="button" class="btn-secondary" onclick="agregarEtiquetaPersonalizada()" style="white-space: nowrap;">
-                            <i class="fas fa-plus"></i> Agregar
-                        </button>
+                    <div id="etiquetasSeleccionadas" style="min-height: 40px; padding: 0.75rem; background: #e8f6e8; border-radius: 8px; border: 2px dashed #27ae60; display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                        <span style="color: #7f8c8d; font-size: 0.85rem;" id="etiquetasPlaceholder">Click en las etiquetas de arriba para agregarlas...</span>
                     </div>
-                    <small style="color: #7f8c8d;">Las etiquetas personalizadas aparecerán en gris</small>
                     
                     <!-- Campo oculto con las etiquetas -->
                     <input type="hidden" id="platoEtiquetas">
@@ -626,6 +527,59 @@
             <button class="btn-secondary" onclick="cerrarModalPlato()">Cancelar</button>
             <button class="btn-primary" onclick="guardarPlato()">
                 <i class="fas fa-save"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Etiqueta -->
+<div class="modal-overlay" id="modalNuevaEtiqueta">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Nueva Etiqueta</h3>
+            <button class="modal-close" onclick="cerrarModalNuevaEtiqueta()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="formNuevaEtiqueta">
+                <div class="form-group">
+                    <label class="form-label">Nombre de la etiqueta *</label>
+                    <input type="text" class="form-input" id="nuevaEtiquetaNombre" required placeholder="Ej: Vegano, Picante, Del día..." maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Color</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="color" id="nuevaEtiquetaColor" value="#e74c3c" style="width: 50px; height: 40px; border: none; cursor: pointer; border-radius: 6px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                            <span class="color-preset" data-color="#e74c3c" style="background: #e74c3c; width: 28px; height: 28px; border-radius: 50%; cursor: pointer;"></span>
+                            <span class="color-preset" data-color="#27ae60" style="background: #27ae60; width: 28px; height: 28px; border-radius: 50%; cursor: pointer;"></span>
+                            <span class="color-preset" data-color="#3498db" style="background: #3498db; width: 28px; height: 28px; border-radius: 50%; cursor: pointer;"></span>
+                            <span class="color-preset" data-color="#9b59b6" style="background: #9b59b6; width: 28px; height: 28px; border-radius: 50%; cursor: pointer;"></span>
+                            <span class="color-preset" data-color="#f39c12" style="background: #f39c12; width: 28px; height: 28px; border-radius: 50%; cursor: pointer;"></span>
+                            <span class="color-preset" data-color="#1abc9c" style="background: #1abc9c; width: 28px; height: 28px; border-radius: 50%; cursor: pointer;"></span>
+                            <span class="color-preset" data-color="#e91e63" style="background: #e91e63; width: 28px; height: 28px; border-radius: 50%; cursor: pointer;"></span>
+                            <span class="color-preset" data-color="#795548" style="background: #795548; width: 28px; height: 28px; border-radius: 50%; cursor: pointer;"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Emoji (opcional)</label>
+                    <input type="text" class="form-input" id="nuevaEtiquetaEmoji" placeholder="Ej: 🌱 🔥 ⭐" maxlength="10">
+                    <small style="color: #7f8c8d;">Puedes copiar y pegar un emoji</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vista previa:</label>
+                    <div style="padding: 0.5rem; background: #f8f9fa; border-radius: 6px;">
+                        <span id="previewEtiqueta" style="display: inline-block; padding: 0.3rem 0.6rem; border-radius: 15px; font-size: 0.85rem; color: white; background: #e74c3c;">
+                            Nueva etiqueta
+                        </span>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="cerrarModalNuevaEtiqueta()">Cancelar</button>
+            <button class="btn-primary" onclick="guardarNuevaEtiqueta()">
+                <i class="fas fa-save"></i> Crear Etiqueta
             </button>
         </div>
     </div>
@@ -1165,60 +1119,59 @@
     }
     
     // ============================================
-    // FUNCIONES PARA MANEJO DE ETIQUETAS
+    // FUNCIONES PARA MANEJO DE ETIQUETAS PERSONALIZADAS
     // ============================================
     let etiquetasSeleccionadas = [];
+    let misEtiquetas = []; // Etiquetas del restaurante cargadas de la BD
     
-    const etiquetasEstandar = [
-        'nuevo', 'popular', 'recomendado', 'oferta', 'destacado',
-        'vegano', 'vegetariano', 'sin-gluten', 'sin-lactosa', 'light', 'sin-azucar',
-        'picante', 'muy-picante', 'frio', 'caliente', 'casero', 'criollo',
-        'cafe', 'te', 'dulce', 'salado', 'artesanal', 'recien-horneado',
-        'grande', 'mediano', 'pequeno', 'para-compartir',
-        'sin-mariscos', 'apto-ninos', 'rapido', 'abundante', 'del-dia'
-    ];
-    
-    function toggleEtiqueta(tag) {
-        const btn = document.querySelector(`.etiqueta-btn[data-tag="${tag}"]`);
-        const index = etiquetasSeleccionadas.indexOf(tag);
-        
-        if (index === -1) {
-            // Agregar
-            etiquetasSeleccionadas.push(tag);
-            btn.classList.add('selected');
-        } else {
-            // Quitar
-            etiquetasSeleccionadas.splice(index, 1);
-            btn.classList.remove('selected');
+    // Cargar etiquetas del restaurante al iniciar
+    async function cargarMisEtiquetas() {
+        try {
+            const res = await fetch('/api/etiquetas');
+            misEtiquetas = await res.json();
+            renderizarMisEtiquetas();
+        } catch (error) {
+            console.error('Error cargando etiquetas:', error);
+            document.getElementById('noEtiquetasMsg').textContent = 'Error al cargar etiquetas';
         }
-        
-        actualizarEtiquetasUI();
     }
     
-    function agregarEtiquetaPersonalizada() {
-        const input = document.getElementById('etiquetaPersonalizada');
-        let tag = input.value.trim().toLowerCase();
+    function renderizarMisEtiquetas() {
+        const container = document.getElementById('misEtiquetas');
         
-        if (!tag) return;
-        
-        // Normalizar: quitar acentos y caracteres especiales
-        tag = tag.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                 .replace(/[^a-z0-9-]/g, '-')
-                 .replace(/-+/g, '-')
-                 .replace(/^-|-$/g, '');
-        
-        if (!tag) return;
-        
-        // Verificar que no exista ya
-        if (etiquetasSeleccionadas.includes(tag)) {
-            mostrarError('Esta etiqueta ya está seleccionada');
+        if (misEtiquetas.length === 0) {
+            container.innerHTML = '<span style="color: #95a5a6; font-size: 0.85rem;" id="noEtiquetasMsg">No tienes etiquetas creadas. ¡Crea tu primera etiqueta!</span>';
             return;
         }
         
-        // Agregar
-        etiquetasSeleccionadas.push(tag);
-        input.value = '';
+        container.innerHTML = misEtiquetas.map(etiq => {
+            const isSelected = etiquetasSeleccionadas.includes(etiq.nombre);
+            return `
+                <span class="etiqueta-btn ${isSelected ? 'selected' : ''}" 
+                      data-tag="${etiq.nombre}" 
+                      data-id="${etiq.id}"
+                      data-color="${etiq.color}"
+                      onclick="toggleEtiqueta('${etiq.nombre}')" 
+                      style="background: ${etiq.color};">
+                    ${etiq.emoji ? etiq.emoji + ' ' : ''}${etiq.nombre}
+                    <span class="delete-etiqueta" onclick="event.stopPropagation(); eliminarEtiquetaRestaurante(${etiq.id})" title="Eliminar etiqueta">×</span>
+                </span>
+            `;
+        }).join('');
+    }
+    
+    function toggleEtiqueta(tagNombre) {
+        const index = etiquetasSeleccionadas.indexOf(tagNombre);
         
+        if (index === -1) {
+            // Agregar
+            etiquetasSeleccionadas.push(tagNombre);
+        } else {
+            // Quitar
+            etiquetasSeleccionadas.splice(index, 1);
+        }
+        
+        renderizarMisEtiquetas();
         actualizarEtiquetasUI();
     }
     
@@ -1226,11 +1179,7 @@
         const index = etiquetasSeleccionadas.indexOf(tag);
         if (index !== -1) {
             etiquetasSeleccionadas.splice(index, 1);
-            
-            // Quitar selección del botón si es estándar
-            const btn = document.querySelector(`.etiqueta-btn[data-tag="${tag}"]`);
-            if (btn) btn.classList.remove('selected');
-            
+            renderizarMisEtiquetas();
             actualizarEtiquetasUI();
         }
     }
@@ -1238,15 +1187,20 @@
     function actualizarEtiquetasUI() {
         const container = document.getElementById('etiquetasSeleccionadas');
         const hiddenInput = document.getElementById('platoEtiquetas');
+        const placeholder = document.getElementById('etiquetasPlaceholder');
         
         if (etiquetasSeleccionadas.length === 0) {
-            container.innerHTML = '<span style="color: #95a5a6; font-style: italic;">Sin etiquetas seleccionadas</span>';
+            container.innerHTML = '<span style="color: #7f8c8d; font-size: 0.85rem;" id="etiquetasPlaceholder">Click en las etiquetas de arriba para agregarlas...</span>';
         } else {
-            container.innerHTML = etiquetasSeleccionadas.map(tag => {
-                const isCustom = !etiquetasEstandar.includes(tag);
-                return `<span class="etiqueta-selected ${isCustom ? 'custom-tag' : ''}" data-tag="${tag}">
-                    ${formatearEtiqueta(tag)}
-                    <span class="remove-tag" onclick="quitarEtiqueta('${tag}')">&times;</span>
+            container.innerHTML = etiquetasSeleccionadas.map(tagNombre => {
+                // Buscar la etiqueta para obtener su color
+                const etiq = misEtiquetas.find(e => e.nombre === tagNombre);
+                const color = etiq ? etiq.color : '#34495e';
+                const emoji = etiq && etiq.emoji ? etiq.emoji + ' ' : '';
+                
+                return `<span class="etiqueta-selected" data-tag="${tagNombre}" style="background: ${color};">
+                    ${emoji}${tagNombre}
+                    <span class="remove-tag" onclick="quitarEtiqueta('${tagNombre}')">&times;</span>
                 </span>`;
             }).join(' ');
         }
@@ -1255,53 +1209,132 @@
         hiddenInput.value = etiquetasSeleccionadas.join(',');
     }
     
-    function formatearEtiqueta(tag) {
-        // Convertir tag a formato legible
-        return tag.replace(/-/g, ' ')
-                  .replace(/\b\w/g, l => l.toUpperCase());
-    }
-    
     function cargarEtiquetasPlato(etiquetasStr) {
-        // Limpiar selecciones previas
-        document.querySelectorAll('.etiqueta-btn.selected').forEach(btn => {
-            btn.classList.remove('selected');
-        });
         etiquetasSeleccionadas = [];
         
         if (etiquetasStr && etiquetasStr.trim()) {
-            const etiquetas = etiquetasStr.split(',').map(e => e.trim().toLowerCase()).filter(e => e);
-            
-            etiquetas.forEach(tag => {
-                etiquetasSeleccionadas.push(tag);
-                
-                // Marcar botón si existe
-                const btn = document.querySelector(`.etiqueta-btn[data-tag="${tag}"]`);
-                if (btn) btn.classList.add('selected');
-            });
+            const etiquetas = etiquetasStr.split(',').map(e => e.trim()).filter(e => e);
+            etiquetasSeleccionadas = etiquetas;
         }
         
+        renderizarMisEtiquetas();
         actualizarEtiquetasUI();
     }
     
     function limpiarEtiquetas() {
-        document.querySelectorAll('.etiqueta-btn.selected').forEach(btn => {
-            btn.classList.remove('selected');
-        });
         etiquetasSeleccionadas = [];
+        renderizarMisEtiquetas();
         actualizarEtiquetasUI();
     }
     
-    // Manejar Enter en el input de etiqueta personalizada
-    document.addEventListener('DOMContentLoaded', function() {
-        const inputEtiqueta = document.getElementById('etiquetaPersonalizada');
-        if (inputEtiqueta) {
-            inputEtiqueta.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    agregarEtiquetaPersonalizada();
-                }
-            });
+    // ============================================
+    // MODAL NUEVA ETIQUETA
+    // ============================================
+    function abrirModalNuevaEtiqueta() {
+        document.getElementById('nuevaEtiquetaNombre').value = '';
+        document.getElementById('nuevaEtiquetaColor').value = '#e74c3c';
+        document.getElementById('nuevaEtiquetaEmoji').value = '';
+        actualizarPreviewEtiqueta();
+        document.getElementById('modalNuevaEtiqueta').classList.add('active');
+        
+        // Setup color presets
+        document.querySelectorAll('.color-preset').forEach(preset => {
+            preset.onclick = function() {
+                document.getElementById('nuevaEtiquetaColor').value = this.dataset.color;
+                document.querySelectorAll('.color-preset').forEach(p => p.classList.remove('selected'));
+                this.classList.add('selected');
+                actualizarPreviewEtiqueta();
+            };
+        });
+        
+        // Setup preview updates
+        document.getElementById('nuevaEtiquetaNombre').addEventListener('input', actualizarPreviewEtiqueta);
+        document.getElementById('nuevaEtiquetaColor').addEventListener('input', actualizarPreviewEtiqueta);
+        document.getElementById('nuevaEtiquetaEmoji').addEventListener('input', actualizarPreviewEtiqueta);
+    }
+    
+    function cerrarModalNuevaEtiqueta() {
+        document.getElementById('modalNuevaEtiqueta').classList.remove('active');
+    }
+    
+    function actualizarPreviewEtiqueta() {
+        const nombre = document.getElementById('nuevaEtiquetaNombre').value || 'Nueva etiqueta';
+        const color = document.getElementById('nuevaEtiquetaColor').value;
+        const emoji = document.getElementById('nuevaEtiquetaEmoji').value;
+        
+        const preview = document.getElementById('previewEtiqueta');
+        preview.style.background = color;
+        preview.textContent = (emoji ? emoji + ' ' : '') + nombre;
+    }
+    
+    async function guardarNuevaEtiqueta() {
+        const nombre = document.getElementById('nuevaEtiquetaNombre').value.trim();
+        const color = document.getElementById('nuevaEtiquetaColor').value;
+        const emoji = document.getElementById('nuevaEtiquetaEmoji').value.trim();
+        
+        if (!nombre) {
+            alert('El nombre es requerido');
+            return;
         }
+        
+        try {
+            const res = await fetchWithCSRF('/api/etiquetas', {
+                method: 'POST',
+                body: JSON.stringify({ nombre, color, emoji })
+            });
+            
+            const result = await res.json();
+            
+            if (result.success) {
+                cerrarModalNuevaEtiqueta();
+                // Agregar la nueva etiqueta a la lista
+                misEtiquetas.push(result.etiqueta);
+                renderizarMisEtiquetas();
+                mostrarExito('Etiqueta creada correctamente');
+            } else {
+                alert(result.error || 'Error al crear etiqueta');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        }
+    }
+    
+    async function eliminarEtiquetaRestaurante(id) {
+        if (!confirm('¿Eliminar esta etiqueta? Se quitará de todos los platos que la usen.')) return;
+        
+        try {
+            const res = await fetchWithCSRF(`/api/etiquetas/${id}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await res.json();
+            
+            if (result.success) {
+                // Quitar de la lista local
+                const etiq = misEtiquetas.find(e => e.id === id);
+                if (etiq) {
+                    // Quitar de seleccionadas si estaba
+                    const idx = etiquetasSeleccionadas.indexOf(etiq.nombre);
+                    if (idx !== -1) etiquetasSeleccionadas.splice(idx, 1);
+                }
+                
+                misEtiquetas = misEtiquetas.filter(e => e.id !== id);
+                renderizarMisEtiquetas();
+                actualizarEtiquetasUI();
+                mostrarExito('Etiqueta eliminada');
+            } else {
+                alert(result.error || 'Error al eliminar');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        }
+    }
+    
+    // Cargar etiquetas al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarMisEtiquetas();
     });
     
     function setupDragDrop() {

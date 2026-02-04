@@ -78,3 +78,13 @@
 2026-02-03 21:09:56 | INFO     | app_menu | <module>:704 | CSRF protection enabled via Flask-WTF
 2026-02-03 21:09:56 | INFO     | app_menu | <module>:758 | SQLAlchemy connection pool initialized
 2026-02-03 21:09:56 | INFO     | app_menu | <module>:792 | Email service initialized: False
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:352 | ============================================================
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:353 | Iniciando aplicación Menu Digital
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:354 | ============================================================
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:400 | Security middleware loaded successfully
+2026-02-03 21:30:15 | WARNING  | app_menu | <module>:625 | MYSQL_PASSWORD not set in environment; verify your deployment configuration
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:636 | Database config: MiMenudigital.mysql.pythonanywhere-services.com:3306/MiMenudigital$menu_digital
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:641 | Base URL: http://localhost:5000
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:704 | CSRF protection enabled via Flask-WTF
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:758 | SQLAlchemy connection pool initialized
+2026-02-03 21:30:15 | INFO     | app_menu | <module>:792 | Email service initialized: False
