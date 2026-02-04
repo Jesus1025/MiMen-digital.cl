@@ -5147,11 +5147,18 @@ def healthz():
     # Verificar pool de conexiones
     try:
         pool_status = get_pool_status()
+        # Compatibilidad con nuevo formato de pool
+        size = pool_status.get('current_size', pool_status.get('size', 0))
+        available = pool_status.get('available', 0)
+        max_conn = pool_status.get('max_total', pool_status.get('max', 15))
+        in_use = pool_status.get('in_use', size - available)
+        
         components['db_pool'] = {
-            'size': pool_status['size'],
-            'available': pool_status['available'],
-            'max': pool_status['max'],
-            'utilization': f"{((pool_status['size'] - pool_status['available']) / max(pool_status['max'], 1)) * 100:.1f}%"
+            'size': size,
+            'available': available,
+            'max': max_conn,
+            'in_use': in_use,
+            'utilization': f"{(in_use / max(max_conn, 1)) * 100:.1f}%"
         }
     except Exception as e:
         components['db_pool'] = str(e)
