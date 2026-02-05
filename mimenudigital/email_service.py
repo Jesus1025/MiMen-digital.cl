@@ -323,11 +323,23 @@ def get_email_template(template_name, **kwargs):
 def enviar_confirmacion_ticket(ticket_data):
     """
     Envía email de confirmación al usuario cuando crea un ticket.
+    Usa la configuración del panel de admin si está disponible.
     
     Args:
         ticket_data: dict con id, nombre, email, asunto, mensaje, tipo, fecha
     """
     from datetime import datetime
+    
+    # Obtener configuración personalizada
+    nombre_empresa = 'Menú Digital'
+    mensaje_auto = None
+    try:
+        from app_menu import get_config_global
+        config = get_config_global()
+        nombre_empresa = config.get('soporte_nombre_empresa') or 'Menú Digital'
+        mensaje_auto = config.get('soporte_mensaje_auto')
+    except Exception:
+        pass
     
     html = get_email_template('ticket_recibido',
         nombre=ticket_data.get('nombre', 'Usuario'),
@@ -335,11 +347,13 @@ def enviar_confirmacion_ticket(ticket_data):
         asunto=ticket_data.get('asunto'),
         tipo=ticket_data.get('tipo', 'Consulta').replace('_', ' ').title(),
         mensaje=ticket_data.get('mensaje'),
-        fecha=ticket_data.get('fecha', datetime.now().strftime('%d/%m/%Y %H:%M'))
+        fecha=ticket_data.get('fecha', datetime.now().strftime('%d/%m/%Y %H:%M')),
+        nombre_empresa=nombre_empresa,
+        mensaje_auto=mensaje_auto
     )
     
     return send_email(
-        subject=f"[Ticket #{ticket_data.get('id')}] Hemos recibido tu mensaje",
+        subject=f"[{nombre_empresa}] Ticket #{ticket_data.get('id')} - Hemos recibido tu mensaje",
         recipients=ticket_data.get('email'),
         html_body=html
     )
@@ -348,6 +362,7 @@ def enviar_confirmacion_ticket(ticket_data):
 def notificar_nuevo_ticket_admin(ticket_data, admin_url):
     """
     Notifica al superadmin sobre un nuevo ticket.
+    Usa el email de soporte configurado en el panel de admin.
     
     Args:
         ticket_data: dict con datos del ticket
@@ -355,9 +370,22 @@ def notificar_nuevo_ticket_admin(ticket_data, admin_url):
     """
     from flask import current_app
     
-    admin_email = current_app.config.get('SUPERADMIN_EMAIL')
+    # Primero intentar obtener el email de la configuración global
+    admin_email = None
+    try:
+        # Importar aquí para evitar circular import
+        from app_menu import get_config_global
+        config = get_config_global()
+        admin_email = config.get('soporte_email')
+    except Exception as e:
+        logger.warning("No se pudo obtener soporte_email de config: %s", e)
+    
+    # Fallback al email del config de Flask
     if not admin_email:
-        logger.warning("SUPERADMIN_EMAIL no configurado")
+        admin_email = current_app.config.get('SUPERADMIN_EMAIL')
+    
+    if not admin_email:
+        logger.warning("No hay email de soporte configurado (ni soporte_email ni SUPERADMIN_EMAIL)")
         return False
     
     telefono_html = ''

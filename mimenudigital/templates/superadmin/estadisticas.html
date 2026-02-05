@@ -816,7 +816,20 @@ function formatCurrency(num) {
 
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
+    // Asegurar formato correcto de fecha
+    let date;
+    if (typeof dateStr === 'string') {
+        // Si viene como YYYY-MM-DD, agregar hora para evitar problemas de zona horaria
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            date = new Date(dateStr + 'T12:00:00');
+        } else {
+            date = new Date(dateStr);
+        }
+    } else {
+        date = new Date(dateStr);
+    }
+    // Verificar que la fecha sea válida
+    if (isNaN(date.getTime())) return dateStr;
     return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
 }
 
@@ -837,13 +850,28 @@ function renderPorVencer(items) {
     
     container.style.display = 'block';
     lista.innerHTML = items.map(item => {
-        const fecha = new Date(item.fecha_vencimiento);
-        const hoy = new Date();
-        const dias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
+        let dias = 0;
+        if (item.fecha_vencimiento) {
+            // Parsear fecha correctamente (formato YYYY-MM-DD)
+            const fechaStr = item.fecha_vencimiento;
+            let fecha;
+            if (typeof fechaStr === 'string' && fechaStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+                const parts = fechaStr.split('-');
+                fecha = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+            } else {
+                fecha = new Date(fechaStr);
+            }
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            if (!isNaN(fecha.getTime())) {
+                dias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
+            }
+        }
+        const diasTexto = isNaN(dias) ? 'Sin fecha' : (dias <= 0 ? '¡Hoy!' : dias + ' días');
         return `
             <li>
                 <span class="name">${item.nombre}</span>
-                <span class="date">${dias <= 0 ? '¡Hoy!' : dias + ' días'}</span>
+                <span class="date">${diasTexto}</span>
             </li>
         `;
     }).join('');

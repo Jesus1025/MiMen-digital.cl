@@ -4346,7 +4346,10 @@ def superadmin_config_pagos():
             ('banco_titular', request.form.get('banco_titular', '')),
             ('banco_email', request.form.get('banco_email', '')),
             ('precio_mensual', request.form.get('precio_mensual', '14990')),
-            ('soporte_whatsapp', request.form.get('soporte_whatsapp', ''))
+            ('soporte_whatsapp', request.form.get('soporte_whatsapp', '')),
+            ('soporte_email', request.form.get('soporte_email', '')),
+            ('soporte_nombre_empresa', request.form.get('soporte_nombre_empresa', 'Menú Digital')),
+            ('soporte_mensaje_auto', request.form.get('soporte_mensaje_auto', ''))
         ]
         
         try:
@@ -4381,7 +4384,8 @@ def api_superadmin_config():
         'mercadopago_activo', 'deposito_activo',
         'banco_nombre', 'banco_tipo_cuenta', 'banco_numero',
         'banco_rut', 'banco_titular', 'banco_email',
-        'precio_mensual', 'soporte_whatsapp'
+        'precio_mensual', 'soporte_whatsapp', 'soporte_email',
+        'soporte_nombre_empresa', 'soporte_mensaje_auto'
     ]
     
     if clave not in claves_permitidas:
