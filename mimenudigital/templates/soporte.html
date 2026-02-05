@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contactar Soporte - Menú Digital</title>
+    <title>Contactar Soporte - {{ soporte.nombre_empresa if soporte and soporte.nombre_empresa else 'Menú Digital' }}</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -349,8 +349,15 @@
                     <div class="info-card">
                         <i class="fas fa-envelope"></i>
                         <p>Email directo</p>
-                        <strong>soporte@divergent.studio</strong>
+                        <strong>{{ soporte.email if soporte and soporte.email else 'soporte@ejemplo.com' }}</strong>
                     </div>
+                    {% if soporte and soporte.whatsapp %}
+                    <div class="info-card">
+                        <i class="fab fa-whatsapp" style="color: #25d366;"></i>
+                        <p>WhatsApp</p>
+                        <strong><a href="https://wa.me/{{ soporte.whatsapp }}" target="_blank" style="color: #25d366; text-decoration: none;">Escribir</a></strong>
+                    </div>
+                    {% endif %}
                 </div>
                 
                 <form method="POST" action="{{ url_for('contactar_soporte') }}" id="supportForm">
