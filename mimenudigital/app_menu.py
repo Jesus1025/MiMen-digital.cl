@@ -953,7 +953,7 @@ def inject_globals():
         ahora = time.time()
         
         if cached is not None and (ahora - cache_time < 300):  # 5 min caché
-            tickets_pendientes = cached
+            tickets_pendientes = int(cached) if cached else 0
         else:
             # Hacer query solo si no hay caché o expiró
             try:
@@ -961,7 +961,7 @@ def inject_globals():
                 with db.cursor() as cur:
                     cur.execute("SELECT COUNT(*) as c FROM tickets_soporte WHERE estado IN ('abierto','en_proceso')")
                     r = cur.fetchone()
-                    tickets_pendientes = r['c'] if r else 0
+                    tickets_pendientes = int(r['c']) if r and r['c'] else 0
                     session['_tickets_count_cache'] = tickets_pendientes
                     session['_tickets_cache_time'] = ahora
             except:
@@ -970,7 +970,7 @@ def inject_globals():
     return {
         'subscription_info': g.get('subscription_info', None),
         'now': datetime.utcnow(),
-        'tickets_pendientes': tickets_pendientes
+        'tickets_pendientes': int(tickets_pendientes) if tickets_pendientes else 0
     }
 
 
@@ -4443,15 +4443,16 @@ def api_superadmin_stats():
         
         # Tickets pendientes (para notificaciones push)
         cur.execute("SELECT COUNT(*) as count FROM tickets_soporte WHERE estado IN ('abierto', 'en_proceso')")
-        tickets_pendientes = cur.fetchone()['count']
+        result = cur.fetchone()
+        tickets_pendientes = int(result['count']) if result and result['count'] else 0
         
     return jsonify({
-        'total_restaurantes': total_restaurantes,
-        'total_usuarios': total_usuarios,
-        'total_visitas': total_visitas,
-        'total_escaneos': total_escaneos,
+        'total_restaurantes': int(total_restaurantes) if total_restaurantes else 0,
+        'total_usuarios': int(total_usuarios) if total_usuarios else 0,
+        'total_visitas': int(total_visitas) if total_visitas else 0,
+        'total_escaneos': int(total_escaneos) if total_escaneos else 0,
         'visitas_30dias': visitas_30dias,
-        'tickets_pendientes': tickets_pendientes
+        'tickets_pendientes': int(tickets_pendientes)
     })
 
 
@@ -4620,35 +4621,73 @@ def api_superadmin_stats_extended():
                 visitas_por_dia = []
             
             # ============================================
-            # SUSCRIPCIONES
+            # SUSCRIPCIONES - Lógica mejorada basada en plan + fecha
             # ============================================
             
+            # Primero obtener IDs de planes para identificar Gratuito vs Premium
+            planes_gratuitos = []
+            planes_premium = []
+            try:
+                cur.execute("SELECT id, nombre FROM planes")
+                for p in cur.fetchall():
+                    nombre_plan = (p['nombre'] or '').lower()
+                    if 'gratis' in nombre_plan or 'gratuito' in nombre_plan or 'free' in nombre_plan:
+                        planes_gratuitos.append(p['id'])
+                    else:
+                        planes_premium.append(p['id'])
+            except Exception:
+                pass
+            
+            # Contar suscripciones de forma inteligente
             cur.execute("""
-                SELECT LOWER(TRIM(COALESCE(estado_suscripcion, ''))) as estado, COUNT(*) as count 
-                FROM restaurantes 
-                GROUP BY LOWER(TRIM(COALESCE(estado_suscripcion, '')))
+                SELECT 
+                    r.id,
+                    r.plan_id,
+                    LOWER(TRIM(COALESCE(r.estado_suscripcion, ''))) as estado,
+                    r.fecha_vencimiento,
+                    r.activo
+                FROM restaurantes r
             """)
-            subs_rows = cur.fetchall()
+            all_restaurants = cur.fetchall()
+            
             subs_activas = 0
             subs_prueba = 0
             subs_vencidas = 0
             subs_suspendidas = 0
-            for r in subs_rows:
+            hoy = date.today()
+            
+            for r in all_restaurants:
+                plan_id = r['plan_id']
                 estado = (r['estado'] or '').lower().strip()
-                count = r['count'] or 0
-                # Considerar variaciones de nombres de estado
-                if estado in ('activa', 'activo', 'premium', 'active', 'pagada', 'pagado', 'paid'):
-                    subs_activas += count
-                elif estado in ('prueba', 'trial', 'gratuito', 'gratis', 'free', 'demo', ''):
-                    subs_prueba += count
-                elif estado in ('vencida', 'vencido', 'expired', 'expirada', 'caducada', 'caducado'):
-                    subs_vencidas += count
-                elif estado in ('suspendida', 'suspendido', 'suspended', 'inactiva', 'inactivo', 'cancelada', 'cancelado'):
-                    subs_suspendidas += count
+                fecha_venc = r['fecha_vencimiento']
+                es_activo = r['activo']
+                
+                # Convertir fecha si es necesario
+                if fecha_venc and hasattr(fecha_venc, 'date'):
+                    fecha_venc = fecha_venc.date()
+                
+                # Determinar si es plan premium
+                es_plan_premium = plan_id in planes_premium if planes_premium else (plan_id and plan_id > 1)
+                
+                # Lógica de clasificación:
+                # 1. Si está suspendida/cancelada explícitamente -> suspendida
+                if estado in ('suspendida', 'suspendido', 'suspended', 'inactiva', 'inactivo', 'cancelada', 'cancelado'):
+                    subs_suspendidas += 1
+                # 2. Si es plan premium Y fecha vigente -> activa
+                elif es_plan_premium and fecha_venc and fecha_venc >= hoy:
+                    subs_activas += 1
+                # 3. Si es plan premium PERO fecha vencida -> vencida
+                elif es_plan_premium and (not fecha_venc or fecha_venc < hoy):
+                    subs_vencidas += 1
+                # 4. Si es plan gratuito -> prueba
+                elif not es_plan_premium:
+                    subs_prueba += 1
+                # 5. Si el estado dice explícitamente activa -> activa
+                elif estado in ('activa', 'activo', 'premium', 'active', 'pagada', 'pagado', 'paid'):
+                    subs_activas += 1
+                # 6. Default -> prueba
                 else:
-                    # Estado desconocido, contar como prueba por defecto
-                    subs_prueba += count
-                    logger.warning(f"Estado de suscripción desconocido: '{estado}' - contado como prueba")
+                    subs_prueba += 1
             
             # Restaurantes que vencen en los próximos 7 días
             try:
