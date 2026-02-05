@@ -205,6 +205,73 @@
         .login-card {
             animation: fadeIn 0.5s ease forwards;
         }
+        
+        /* Mejoras móviles */
+        @media (max-width: 480px) {
+            body {
+                padding: 0.75rem;
+            }
+            
+            .login-card {
+                border-radius: 16px;
+            }
+            
+            .login-header {
+                padding: 2rem 1.5rem;
+            }
+            
+            .login-logo {
+                font-size: 2.5rem;
+            }
+            
+            .login-title {
+                font-size: 1.3rem;
+            }
+            
+            .login-subtitle {
+                font-size: 0.85rem;
+            }
+            
+            .login-body {
+                padding: 1.5rem;
+            }
+            
+            /* Evitar zoom en iOS */
+            .input {
+                font-size: 16px !important;
+            }
+            
+            .btn-login {
+                padding: 0.85rem;
+            }
+            
+            .login-footer {
+                padding: 1.25rem;
+            }
+            
+            .powered-by {
+                font-size: 0.8rem;
+            }
+        }
+        
+        @media (max-width: 375px) {
+            .login-header {
+                padding: 1.5rem 1rem;
+            }
+            
+            .login-logo {
+                font-size: 2rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            .login-title {
+                font-size: 1.2rem;
+            }
+            
+            .login-body {
+                padding: 1.25rem;
+            }
+        }
     </style>
 </head>
 <body>

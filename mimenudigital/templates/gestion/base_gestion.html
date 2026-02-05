@@ -820,6 +820,430 @@
                 flex-direction: column;
             }
         }
+        
+        /* ============================================
+           MEJORAS MÓVILES AVANZADAS
+           ============================================ */
+        
+        /* Touch-friendly interactions */
+        @media (max-width: 768px) {
+            /* Botones más grandes para touch */
+            .btn-primary, .btn-secondary, .button {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            
+            /* Links y elementos clickeables */
+            a, button, .clickable {
+                -webkit-tap-highlight-color: rgba(231, 76, 60, 0.2);
+            }
+            
+            /* Sidebar mejorado para móvil */
+            .sidebar {
+                width: 280px;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+            }
+            
+            .sidebar-header {
+                padding: 1.25rem;
+            }
+            
+            .menu-item {
+                padding: 1rem 1.25rem;
+                font-size: 0.95rem;
+            }
+            
+            /* Top navbar móvil */
+            .top-navbar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                padding: 0.75rem 1rem;
+                z-index: 100;
+            }
+            
+            .main-content {
+                padding-top: 60px;
+            }
+            
+            .menu-toggle {
+                padding: 0.5rem;
+                border-radius: 8px;
+                background: #f4f6f9;
+            }
+            
+            .page-title {
+                font-size: 0.95rem;
+                max-width: 150px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            
+            /* Cards más compactas */
+            .dashboard-card {
+                margin-bottom: 1rem;
+            }
+            
+            .card-header {
+                padding-bottom: 0.75rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            .card-title {
+                font-size: 0.95rem;
+            }
+            
+            .card-title i {
+                margin-right: 0.4rem !important;
+            }
+            
+            /* Stats cards en grid 2x2 */
+            .columns.is-multiline > .column.is-6-tablet {
+                flex: 0 0 50%;
+                max-width: 50%;
+                padding: 0.5rem;
+            }
+            
+            .stat-card {
+                padding: 0.875rem;
+                flex-direction: column;
+                text-align: center;
+                gap: 0.5rem;
+            }
+            
+            .stat-icon {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+            
+            .stat-info h3 {
+                font-size: 1.35rem;
+            }
+            
+            .stat-info p {
+                font-size: 0.75rem;
+            }
+            
+            .stat-info small {
+                font-size: 0.65rem !important;
+            }
+            
+            /* Acciones rápidas - Grid 2x2 */
+            .dashboard-card .columns > .column.is-3 {
+                flex: 0 0 50%;
+                max-width: 50%;
+                padding: 0.375rem;
+            }
+            
+            .button.is-fullwidth[style*="height: 80px"],
+            .dashboard-card .columns .button.is-fullwidth {
+                height: 70px !important;
+                font-size: 0.8rem;
+                border-radius: 10px;
+            }
+            
+            .button.is-fullwidth i.fa-lg {
+                font-size: 1.25rem !important;
+            }
+            
+            /* Link del menú */
+            .field.has-addons {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .field.has-addons .control.is-expanded {
+                width: 100%;
+            }
+            
+            .field.has-addons .input {
+                border-radius: 8px !important;
+                font-size: 0.85rem;
+            }
+            
+            .field.has-addons .button {
+                width: 100%;
+                border-radius: 8px !important;
+            }
+            
+            /* Formularios */
+            .form-group {
+                margin-bottom: 1rem;
+            }
+            
+            .form-label {
+                font-size: 0.9rem;
+                margin-bottom: 0.4rem;
+            }
+            
+            .form-input, .input, .textarea, select {
+                font-size: 16px !important; /* Evita zoom en iOS */
+                padding: 0.75rem;
+                border-radius: 8px;
+            }
+            
+            /* Select dropdowns */
+            .select {
+                width: 100%;
+            }
+            
+            .select select {
+                width: 100%;
+            }
+            
+            /* Modales */
+            .modal-overlay {
+                padding: 0.5rem;
+                align-items: flex-start;
+                padding-top: 2rem;
+            }
+            
+            .modal-content {
+                width: 100%;
+                max-width: none;
+                margin: 0;
+                border-radius: 16px 16px 0 0;
+                max-height: calc(100vh - 2rem);
+            }
+            
+            .modal-header {
+                padding: 1rem;
+                position: sticky;
+                top: 0;
+                background: white;
+                z-index: 10;
+            }
+            
+            .modal-title {
+                font-size: 1.1rem;
+            }
+            
+            .modal-close {
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #f4f6f9;
+                border-radius: 50%;
+            }
+            
+            .modal-body {
+                padding: 1rem;
+            }
+            
+            .modal-footer {
+                padding: 0.75rem 1rem;
+                position: sticky;
+                bottom: 0;
+                background: white;
+                flex-direction: column-reverse;
+                gap: 0.5rem;
+            }
+            
+            .modal-footer button {
+                width: 100%;
+            }
+            
+            /* Modal de Bulma */
+            .modal-card {
+                width: calc(100% - 1rem);
+                max-width: none;
+                margin: 0.5rem;
+                max-height: calc(100vh - 1rem);
+                border-radius: 16px;
+            }
+            
+            .modal-card-head, .modal-card-foot {
+                padding: 0.75rem 1rem;
+            }
+            
+            .modal-card-body {
+                padding: 1rem;
+            }
+            
+            /* Tablas responsivas */
+            .table-container {
+                margin: 0 -1rem;
+                padding: 0 1rem;
+            }
+            
+            .data-table thead {
+                display: none;
+            }
+            
+            .data-table tbody tr {
+                display: block;
+                background: #fafbfc;
+                border-radius: 10px;
+                margin-bottom: 0.75rem;
+                padding: 0.75rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            
+            .data-table tbody td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid #ecf0f1;
+            }
+            
+            .data-table tbody td:last-child {
+                border-bottom: none;
+                justify-content: flex-end;
+                gap: 0.5rem;
+                padding-top: 0.75rem;
+            }
+            
+            .data-table tbody td:before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #7f8c8d;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+            }
+            
+            /* Tags y badges */
+            .tag {
+                font-size: 0.7rem;
+                padding: 0.3rem 0.6rem;
+            }
+            
+            /* Imágenes en galería */
+            .imagenes-galeria {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.5rem;
+            }
+            
+            .imagen-item {
+                aspect-ratio: 1;
+            }
+            
+            /* Widget de suscripción */
+            .subscription-widget {
+                margin: 0.75rem;
+                padding: 0.875rem;
+            }
+            
+            .subscription-widget-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .subscription-status {
+                font-size: 0.85rem;
+            }
+            
+            .subscription-details {
+                gap: 0.4rem;
+            }
+            
+            .subscription-detail-item {
+                font-size: 0.8rem;
+            }
+            
+            /* Flash messages */
+            .flash-messages {
+                padding: 0 0.75rem;
+            }
+            
+            .flash-message {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+        
+        /* Pantallas muy pequeñas (iPhone SE, etc) */
+        @media (max-width: 375px) {
+            .content-area {
+                padding: 0.5rem;
+            }
+            
+            .dashboard-card {
+                padding: 0.75rem;
+            }
+            
+            .columns.is-multiline > .column.is-6-tablet {
+                padding: 0.35rem;
+            }
+            
+            .stat-card {
+                padding: 0.75rem;
+            }
+            
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+            
+            .stat-info h3 {
+                font-size: 1.2rem;
+            }
+            
+            .dashboard-card .columns > .column.is-3 {
+                padding: 0.25rem;
+            }
+            
+            .button.is-fullwidth[style*="height: 80px"],
+            .dashboard-card .columns .button.is-fullwidth {
+                height: 60px !important;
+                font-size: 0.75rem;
+            }
+            
+            .page-title {
+                max-width: 120px;
+            }
+            
+            .modal-content {
+                border-radius: 12px 12px 0 0;
+            }
+        }
+        
+        /* Landscape en móviles */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .modal-overlay {
+                padding-top: 0.5rem;
+            }
+            
+            .modal-content {
+                max-height: calc(100vh - 1rem);
+            }
+            
+            .stat-card {
+                flex-direction: row;
+                text-align: left;
+            }
+        }
+        
+        /* Smooth scrolling y comportamiento iOS */
+        @supports (-webkit-touch-callout: none) {
+            .modal-content, .sidebar {
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+        
+        /* Safe area para notch (iPhone X+) */
+        @supports (padding: max(0px)) {
+            .top-navbar {
+                padding-left: max(1rem, env(safe-area-inset-left));
+                padding-right: max(1rem, env(safe-area-inset-right));
+            }
+            
+            .sidebar {
+                padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            }
+            
+            .modal-footer {
+                padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+            }
+        }
     </style>
     
     {% block extra_css %}{% endblock %}

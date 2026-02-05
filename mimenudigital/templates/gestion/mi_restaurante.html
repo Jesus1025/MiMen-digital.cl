@@ -176,6 +176,69 @@
             min-width: 0;
         }
     }
+    
+    /* Mejoras móviles generales */
+    @media (max-width: 768px) {
+        .columns {
+            flex-direction: column;
+        }
+        
+        .column.is-8, .column.is-4, .column.is-6 {
+            width: 100%;
+            flex: none;
+        }
+        
+        .card-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch !important;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-input, .textarea, select, input[type="text"], input[type="email"], input[type="tel"], input[type="url"] {
+            font-size: 16px !important; /* Evita zoom iOS */
+        }
+        
+        .logo-preview-container {
+            width: 120px;
+            height: 120px;
+        }
+        
+        .horario-editor {
+            padding: 0.75rem;
+        }
+        
+        /* Botones apilados */
+        .modal-footer {
+            flex-direction: column-reverse;
+            gap: 0.5rem;
+        }
+        
+        .modal-footer button {
+            width: 100%;
+        }
+        
+        /* Tema selector */
+        #temaPreview {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+    
+    @media (max-width: 375px) {
+        .logo-preview-container {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .horario-dia-nombre {
+            width: 70px;
+            font-size: 0.8rem;
+        }
+    }
 </style>
 {% endblock %}
 
