@@ -4062,6 +4062,14 @@ def api_crear_ticket():
 @app.route('/soporte', methods=['GET', 'POST'])
 def contactar_soporte():
     """Formulario público para contactar soporte."""
+    # Obtener configuración de soporte
+    config = get_config_global()
+    soporte_config = {
+        'email': config.get('soporte_email', 'soporte@ejemplo.com'),
+        'whatsapp': config.get('soporte_whatsapp', ''),
+        'nombre_empresa': config.get('soporte_nombre_empresa', 'Menú Digital')
+    }
+    
     # Valores por defecto si está logueado
     nombre_default = None
     email_default = None
@@ -4101,14 +4109,16 @@ def contactar_soporte():
             return render_template('soporte.html', 
                                    nombre_default=nombre_default,
                                    email_default=email_default,
-                                   restaurante_nombre=restaurante_nombre)
+                                   restaurante_nombre=restaurante_nombre,
+                                   soporte=soporte_config)
         
         if len(mensaje) < 20:
             flash('El mensaje debe tener al menos 20 caracteres', 'error')
             return render_template('soporte.html',
                                    nombre_default=nombre_default,
                                    email_default=email_default,
-                                   restaurante_nombre=restaurante_nombre)
+                                   restaurante_nombre=restaurante_nombre,
+                                   soporte=soporte_config)
         
         db = get_db()
         try:
@@ -4167,7 +4177,8 @@ def contactar_soporte():
             return render_template('soporte.html',
                                    nombre_default=nombre_default,
                                    email_default=email_default,
-                                   restaurante_nombre=restaurante_nombre)
+                                   restaurante_nombre=restaurante_nombre,
+                                   soporte=soporte_config)
             
         except Exception as e:
             logger.exception("Error al crear ticket de soporte")
@@ -4176,7 +4187,8 @@ def contactar_soporte():
     return render_template('soporte.html',
                            nombre_default=nombre_default,
                            email_default=email_default,
-                           restaurante_nombre=restaurante_nombre)
+                           restaurante_nombre=restaurante_nombre,
+                           soporte=soporte_config)
 
 
 @app.route('/superadmin/tickets')
