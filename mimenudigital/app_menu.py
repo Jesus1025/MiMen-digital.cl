@@ -4624,9 +4624,9 @@ def api_superadmin_stats_extended():
             # ============================================
             
             cur.execute("""
-                SELECT estado_suscripcion, COUNT(*) as count 
+                SELECT LOWER(TRIM(COALESCE(estado_suscripcion, ''))) as estado, COUNT(*) as count 
                 FROM restaurantes 
-                GROUP BY estado_suscripcion
+                GROUP BY LOWER(TRIM(COALESCE(estado_suscripcion, '')))
             """)
             subs_rows = cur.fetchall()
             subs_activas = 0
@@ -4634,16 +4634,16 @@ def api_superadmin_stats_extended():
             subs_vencidas = 0
             subs_suspendidas = 0
             for r in subs_rows:
-                estado = (r['estado_suscripcion'] or '').lower().strip()
+                estado = (r['estado'] or '').lower().strip()
                 count = r['count'] or 0
                 # Considerar variaciones de nombres de estado
-                if estado in ('activa', 'activo', 'premium', 'active'):
+                if estado in ('activa', 'activo', 'premium', 'active', 'pagada', 'pagado', 'paid'):
                     subs_activas += count
-                elif estado in ('prueba', 'trial', 'gratuito', 'gratis', 'free'):
+                elif estado in ('prueba', 'trial', 'gratuito', 'gratis', 'free', 'demo', ''):
                     subs_prueba += count
-                elif estado in ('vencida', 'vencido', 'expired', 'expirada'):
+                elif estado in ('vencida', 'vencido', 'expired', 'expirada', 'caducada', 'caducado'):
                     subs_vencidas += count
-                elif estado in ('suspendida', 'suspendido', 'suspended', 'inactiva', 'inactivo'):
+                elif estado in ('suspendida', 'suspendido', 'suspended', 'inactiva', 'inactivo', 'cancelada', 'cancelado'):
                     subs_suspendidas += count
                 else:
                     # Estado desconocido, contar como prueba por defecto
@@ -4656,7 +4656,7 @@ def api_superadmin_stats_extended():
                     SELECT id, nombre, DATE_FORMAT(fecha_vencimiento, '%%Y-%%m-%%d') as fecha_vencimiento, estado_suscripcion
                     FROM restaurantes
                     WHERE fecha_vencimiento BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-                      AND estado_suscripcion IN ('activa', 'prueba')
+                      AND LOWER(TRIM(COALESCE(estado_suscripcion, ''))) IN ('activa', 'activo', 'premium', 'active', 'pagada', 'prueba', 'trial', 'demo', '')
                     ORDER BY fecha_vencimiento
                     LIMIT 10
                 """)

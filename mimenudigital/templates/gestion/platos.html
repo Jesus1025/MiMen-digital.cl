@@ -5,45 +5,361 @@
 
 {% block content %}
 <style>
+    /* ============================================
+       ESTILOS MEJORADOS PARA GESTIÓN DE PLATOS
+       ============================================ */
+    
+    /* Container principal centrado */
+    .platos-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
+    /* Card principal mejorada */
+    .platos-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .platos-card-header {
+        background: linear-gradient(135deg, #fff 0%, #fafbfc 100%);
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #eef2f7;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .platos-card-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    .platos-card-title i {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .platos-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .platos-actions .btn-primary,
+    .platos-actions .btn-secondary {
+        padding: 0.7rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .platos-actions .btn-primary:hover,
+    .platos-actions .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .platos-card-body {
+        padding: 1.5rem 2rem 2rem;
+    }
+    
+    /* Filtros mejorados */
+    .filtros-container {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .filtro-buscar {
+        flex: 1;
+        min-width: 200px;
+        position: relative;
+    }
+    
+    .filtro-buscar i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #95a5a6;
+    }
+    
+    .filtro-buscar input {
+        width: 100%;
+        padding: 0.85rem 1rem 0.85rem 2.75rem;
+        border: 2px solid #eef2f7;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        background: #fafbfc;
+    }
+    
+    .filtro-buscar input:focus {
+        outline: none;
+        border-color: #e74c3c;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+    }
+    
+    .filtro-categoria {
+        min-width: 180px;
+    }
+    
+    .filtro-categoria select {
+        width: 100%;
+        padding: 0.85rem 2.5rem 0.85rem 1rem;
+        border: 2px solid #eef2f7;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        background: #fafbfc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2395a5a6' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 1rem center;
+        appearance: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .filtro-categoria select:focus {
+        outline: none;
+        border-color: #e74c3c;
+        background-color: white;
+        box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+    }
+    
+    /* Tabla mejorada */
+    .platos-table-container {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid #eef2f7;
+    }
+    
+    .platos-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .platos-table thead {
+        background: linear-gradient(135deg, #f8f9fa 0%, #eef2f7 100%);
+    }
+    
+    .platos-table th {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        font-weight: 600;
+        color: #5a6c7d;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #eef2f7;
+    }
+    
+    .platos-table td {
+        padding: 1rem 1.25rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f4f6f8;
+        color: #2c3e50;
+    }
+    
+    .platos-table tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    .platos-table tbody tr:hover {
+        background: #fef9f9;
+    }
+    
+    .platos-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    /* Imagen del plato en tabla */
+    .plato-imagen {
+        width: 55px;
+        height: 55px;
+        border-radius: 10px;
+        object-fit: cover;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .plato-imagen-placeholder {
+        width: 55px;
+        height: 55px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #bdc3c7;
+        font-size: 1.25rem;
+    }
+    
+    /* Nombre del plato */
+    .plato-nombre {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 0.95rem;
+    }
+    
+    /* Categoría badge */
+    .plato-categoria {
+        display: inline-block;
+        background: #eef2f7;
+        color: #5a6c7d;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    /* Precio */
+    .plato-precio {
+        font-weight: 700;
+        color: #27ae60;
+        font-size: 1rem;
+    }
+    
+    /* Estado badge */
+    .plato-estado {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.4rem 0.85rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .plato-estado.activo {
+        background: #e8f8f0;
+        color: #1e8449;
+    }
+    
+    .plato-estado.inactivo {
+        background: #fef0f0;
+        color: #c0392b;
+    }
+    
+    /* Botones de acciones */
+    .plato-acciones {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-accion {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+    }
+    
+    .btn-accion-editar {
+        background: #ebf5ff;
+        color: #2980b9;
+    }
+    
+    .btn-accion-editar:hover {
+        background: #2980b9;
+        color: white;
+        transform: scale(1.1);
+    }
+    
+    .btn-accion-eliminar {
+        background: #fef0f0;
+        color: #c0392b;
+    }
+    
+    .btn-accion-eliminar:hover {
+        background: #c0392b;
+        color: white;
+        transform: scale(1.1);
+    }
+    
+    /* Estado vacío */
+    .platos-empty {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #95a5a6;
+    }
+    
+    .platos-empty i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .platos-empty h3 {
+        font-size: 1.25rem;
+        color: #7f8c8d;
+        margin-bottom: 0.5rem;
+    }
+    
+    .platos-empty p {
+        font-size: 0.9rem;
+    }
+
     /* Mejoras móviles para gestión de platos */
     @media (max-width: 768px) {
-        .card-header {
+        .platos-card-header {
+            padding: 1.25rem 1rem;
             flex-direction: column;
-            gap: 1rem;
-            align-items: stretch !important;
+            align-items: stretch;
         }
         
-        .card-header > div {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
+        .platos-card-title {
+            font-size: 1.15rem;
+            justify-content: center;
         }
         
-        .card-header .btn-primary,
-        .card-header .btn-secondary {
+        .platos-actions {
+            flex-direction: column;
+        }
+        
+        .platos-actions .btn-primary,
+        .platos-actions .btn-secondary {
             width: 100%;
             justify-content: center;
         }
         
-        .field.is-grouped {
+        .platos-card-body {
+            padding: 1rem;
+        }
+        
+        .filtros-container {
             flex-direction: column;
         }
         
-        .field.is-grouped .control {
-            margin-bottom: 0.5rem;
-        }
-        
-        .table-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        .filtro-buscar,
+        .filtro-categoria {
+            width: 100%;
         }
         
         /* Convertir tabla a tarjetas en móvil */
-        .data-table thead {
+        .platos-table thead {
             display: none;
         }
         
-        .data-table tbody tr {
+        .platos-table tbody tr {
             display: flex;
             flex-direction: column;
             background: white;
@@ -52,47 +368,48 @@
             padding: 1rem;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             position: relative;
+            border: 1px solid #eef2f7;
         }
         
-        .data-table tbody td {
+        .platos-table td {
             display: flex;
             align-items: center;
             padding: 0.5rem 0;
             border: none !important;
         }
         
-        .data-table tbody td:before {
+        .platos-table td:before {
             content: attr(data-label);
             font-weight: 600;
             color: #7f8c8d;
-            min-width: 80px;
-            font-size: 0.85rem;
+            min-width: 85px;
+            font-size: 0.8rem;
         }
         
-        .data-table tbody td:first-child {
+        .platos-table td:first-child {
             position: absolute;
             top: 1rem;
             right: 1rem;
         }
         
-        .data-table tbody td:first-child:before {
+        .platos-table td:first-child:before {
             display: none;
         }
         
-        .data-table tbody td:first-child img,
-        .data-table tbody td:first-child > div {
-            width: 60px !important;
-            height: 60px !important;
+        .plato-imagen,
+        .plato-imagen-placeholder {
+            width: 55px !important;
+            height: 55px !important;
         }
         
-        .data-table tbody td:last-child {
+        .platos-table td:last-child {
             justify-content: flex-end;
             padding-top: 1rem;
             margin-top: 0.5rem;
             border-top: 1px solid #eee !important;
         }
         
-        .data-table tbody td:last-child:before {
+        .platos-table td:last-child:before {
             display: none;
         }
         
@@ -404,61 +721,67 @@
     }
 </style>
 
-<div class="dashboard-card">
-    <div class="card-header">
-        <h2 class="card-title">
-            <i class="fas fa-hamburger" style="color: #e74c3c; margin-right: 0.5rem;"></i>
-            Mis Platos
-        </h2>
-        <div style="display: flex; gap: 0.5rem;">
-            <button class="btn-secondary" onclick="abrirModalCategoria()">
-                <i class="fas fa-folder-plus"></i> Nueva Categoría
-            </button>
-            <button class="btn-primary" onclick="abrirModalPlato()">
-                <i class="fas fa-plus"></i> Nuevo Plato
-            </button>
-        </div>
-    </div>
-
-    <!-- Filtros -->
-    <div class="field is-grouped" style="margin-bottom: 1.5rem;">
-        <div class="control is-expanded">
-            <input class="input" type="text" id="buscarPlato" placeholder="Buscar plato...">
-        </div>
-        <div class="control">
-            <div class="select">
-                <select id="filtroCategoria">
-                    <option value="">Todas las categorías</option>
-                    {% for cat in categorias %}
-                        <option value="{{ cat.id }}">{{ cat.nombre }}</option>
-                    {% endfor %}
-                </select>
+<div class="platos-container">
+    <div class="platos-card">
+        <div class="platos-card-header">
+            <h2 class="platos-card-title">
+                <i class="fas fa-hamburger"></i>
+                Mis Platos
+            </h2>
+            <div class="platos-actions">
+                <button class="btn-secondary" onclick="abrirModalCategoria()">
+                    <i class="fas fa-folder-plus"></i> Nueva Categoría
+                </button>
+                <button class="btn-primary" onclick="abrirModalPlato()">
+                    <i class="fas fa-plus"></i> Nuevo Plato
+                </button>
             </div>
         </div>
-    </div>
 
-    <!-- Tabla de Platos -->
-    <div class="table-container">
-        <table class="data-table" id="tablaPlatos">
-            <thead>
-                <tr>
-                    <th style="width: 60px;">Imagen</th>
-                    <th>Nombre</th>
-                    <th>Categoría</th>
-                    <th>Precio</th>
-                    <th>Estado</th>
-                    <th style="width: 120px;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody id="platosBody">
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 3rem;">
-                        <i class="fas fa-spinner fa-spin fa-2x"></i>
-                        <p style="margin-top: 1rem; color: #7f8c8d;">Cargando platos...</p>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="platos-card-body">
+            <!-- Filtros mejorados -->
+            <div class="filtros-container">
+                <div class="filtro-buscar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="buscarPlato" placeholder="Buscar plato por nombre...">
+                </div>
+                <div class="filtro-categoria">
+                    <select id="filtroCategoria">
+                        <option value="">Todas las categorías</option>
+                        {% for cat in categorias %}
+                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tabla de Platos mejorada -->
+            <div class="platos-table-container">
+                <table class="platos-table" id="tablaPlatos">
+                    <thead>
+                        <tr>
+                            <th style="width: 70px;">Imagen</th>
+                            <th>Nombre</th>
+                            <th>Categoría</th>
+                            <th>Precio</th>
+                            <th>Estado</th>
+                            <th style="width: 100px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="platosBody">
+                        <tr>
+                            <td colspan="6">
+                                <div class="platos-empty">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <h3>Cargando platos...</h3>
+                                    <p>Por favor espera un momento</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -682,12 +1005,15 @@
         if (lista.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 3rem;">
-                        <i class="fas fa-utensils fa-3x" style="color: #bdc3c7; margin-bottom: 1rem;"></i>
-                        <p style="color: #7f8c8d; font-size: 1.1rem;">No hay platos registrados</p>
-                        <button class="btn-primary" style="margin-top: 1rem;" onclick="abrirModalPlato()">
-                            <i class="fas fa-plus"></i> Agregar primer plato
-                        </button>
+                    <td colspan="6">
+                        <div class="platos-empty">
+                            <i class="fas fa-utensils"></i>
+                            <h3>No hay platos registrados</h3>
+                            <p>Comienza agregando tu primer plato al menu</p>
+                            <button class="btn-primary" style="margin-top: 1rem;" onclick="abrirModalPlato()">
+                                <i class="fas fa-plus"></i> Agregar primer plato
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -707,31 +1033,34 @@
                 <tr>
                     <td data-label="">
                         ${imgSrc 
-                            ? `<div style="position: relative;">
-                                <img src="${imgSrc}" alt="${plato.nombre}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
-                                ${cantImagenes > 1 ? `<span style="position: absolute; bottom: -4px; right: -4px; background: #3498db; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px;">+${cantImagenes-1}</span>` : ''}
+                            ? `<div style="position: relative; display: inline-block;">
+                                <img src="${imgSrc}" alt="${plato.nombre}" class="plato-imagen">
+                                ${cantImagenes > 1 ? `<span style="position: absolute; bottom: -4px; right: -4px; background: #3498db; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px; font-weight: 600;">+${cantImagenes-1}</span>` : ''}
                                </div>`
-                            : `<div style="width: 50px; height: 50px; background: #ecf0f1; border-radius: 8px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-image" style="color: #bdc3c7;"></i></div>`
+                            : `<div class="plato-imagen-placeholder"><i class="fas fa-image"></i></div>`
                         }
                     </td>
                     <td data-label="Nombre">
-                        <strong>${plato.nombre}</strong>
-                        ${plato.descripcion ? `<br><small style="color: #7f8c8d;">${plato.descripcion.substring(0, 50)}${plato.descripcion.length > 50 ? '...' : ''}</small>` : ''}
+                        <span class="plato-nombre">${plato.nombre}</span>
+                        ${plato.descripcion ? `<br><small style="color: #7f8c8d; font-size: 0.8rem;">${plato.descripcion.substring(0, 50)}${plato.descripcion.length > 50 ? '...' : ''}</small>` : ''}
                     </td>
-                    <td data-label="Categoría">${categoria ? categoria.nombre : '-'}</td>
-                    <td data-label="Precio"><strong style="color: #27ae60;">$${Number(plato.precio).toLocaleString('es-CL')}</strong></td>
+                    <td data-label="Categoria"><span class="plato-categoria">${categoria ? categoria.nombre : '-'}</span></td>
+                    <td data-label="Precio"><span class="plato-precio">$${Number(plato.precio).toLocaleString('es-CL')}</span></td>
                     <td data-label="Estado">
-                        <span class="tag ${plato.activo ? 'is-success' : 'is-warning'}" style="cursor: pointer;" onclick="toggleEstado(${plato.id}, ${plato.activo})">
+                        <span class="plato-estado ${plato.activo ? 'activo' : 'inactivo'}" style="cursor: pointer;" onclick="toggleEstado(${plato.id}, ${plato.activo})">
+                            <i class="fas fa-${plato.activo ? 'check-circle' : 'pause-circle'}"></i>
                             ${plato.activo ? 'Activo' : 'Inactivo'}
                         </span>
                     </td>
                     <td data-label="">
-                        <button class="button is-small is-info" onclick="editarPlato(${plato.id})" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="button is-small is-danger" onclick="eliminarPlato(${plato.id})" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <div class="plato-acciones">
+                            <button class="btn-accion btn-accion-editar" onclick="editarPlato(${plato.id})" title="Editar plato">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-accion btn-accion-eliminar" onclick="eliminarPlato(${plato.id})" title="Eliminar plato">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
