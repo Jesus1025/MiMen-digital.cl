@@ -339,6 +339,17 @@
                     <p class="help" id="passwordHelp">Mínimo 6 caracteres</p>
                 </div>
                 
+                <div class="field">
+                    <label class="label">Email *</label>
+                    <div class="control has-icons-left">
+                        <input class="input" type="email" id="userEmail" required placeholder="usuario@ejemplo.com">
+                        <span class="icon is-small is-left">
+                            <i class="fas fa-envelope"></i>
+                        </span>
+                    </div>
+                    <p class="help">Para contactar al usuario</p>
+                </div>
+                
                 <div class="columns">
                     <div class="column">
                         <div class="field">
@@ -698,6 +709,7 @@
             document.getElementById('userRestaurante').value = user.restaurante_id || '';
             document.getElementById('userNombre').value = user.nombre || '';
             document.getElementById('userUsername').value = user.username;
+            document.getElementById('userEmail').value = user.email || '';
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').removeAttribute('required');
             document.getElementById('passwordHint').textContent = '(dejar vacío para mantener)';
@@ -797,12 +809,18 @@
             nombre: document.getElementById('userNombre').value,
             username: document.getElementById('userUsername').value,
             password: document.getElementById('userPassword').value,
+            email: document.getElementById('userEmail').value.trim(),
             rol: document.getElementById('userRol').value,
             activo: parseInt(document.getElementById('userActivo')?.value || 1)
         };
 
         if (!data.nombre || !data.username) {
             alert('Nombre y usuario son obligatorios');
+            return;
+        }
+        
+        if (!data.email || !data.email.includes('@')) {
+            alert('El email es obligatorio y debe ser válido');
             return;
         }
         
