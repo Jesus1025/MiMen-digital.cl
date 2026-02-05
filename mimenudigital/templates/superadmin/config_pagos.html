@@ -612,6 +612,32 @@
                 <small>Número completo con código de país, sin + ni espacios (ej: 56912345678)</small>
             </div>
         </div>
+        
+        <!-- ============================================
+             CONFIGURACIÓN DE FORMULARIO DE CONTACTO
+             ============================================ -->
+        <h3 class="section-title"><i class="fas fa-headset"></i> Configuración de Soporte / Contacto</h3>
+        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">
+            Configura el formulario de contacto público. Los mensajes se reenviarán al email configurado.
+        </p>
+        
+        <div class="form-grid">
+            <div class="form-group form-row-full">
+                <label><i class="fas fa-envelope"></i> Email para recibir mensajes de soporte *</label>
+                <input type="email" name="soporte_email" value="{{ config.soporte_email or '' }}" placeholder="soporte@tudominio.cl" required>
+                <small>Todos los tickets y mensajes del formulario de contacto se enviarán a este email</small>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-building"></i> Nombre de la empresa</label>
+                <input type="text" name="soporte_nombre_empresa" value="{{ config.soporte_nombre_empresa or 'Menú Digital' }}" placeholder="Mi Empresa">
+                <small>Aparecerá en los emails enviados</small>
+            </div>
+            <div class="form-group form-row-full">
+                <label><i class="fas fa-robot"></i> Mensaje de respuesta automática (opcional)</label>
+                <textarea name="soporte_mensaje_auto" rows="3" placeholder="Gracias por contactarnos. Hemos recibido tu mensaje y te responderemos en menos de 24 horas.">{{ config.soporte_mensaje_auto or '' }}</textarea>
+                <small>Se enviará automáticamente al usuario cuando envíe un mensaje</small>
+            </div>
+        </div>
 
         <div class="form-actions">
             <button type="reset" class="btn btn-secondary"><i class="fas fa-undo"></i> Restablecer</button>
