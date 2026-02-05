@@ -193,6 +193,73 @@
     .stat-box:hover {
         transform: translateY(-2px);
     }
+    
+    /* Mejoras móviles */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1rem;
+        }
+        
+        .page-header .title {
+            font-size: 1.3rem;
+        }
+        
+        .download-card .card-content {
+            padding: 1rem;
+        }
+        
+        .download-icon i {
+            font-size: 2.5rem !important;
+        }
+        
+        .download-card .title.is-5 {
+            font-size: 1.1rem;
+        }
+        
+        .download-card .subtitle.is-6 {
+            font-size: 0.85rem;
+        }
+        
+        .download-card .button.is-medium {
+            width: 100%;
+            font-size: 0.95rem;
+        }
+        
+        .stat-box {
+            padding: 1rem !important;
+        }
+        
+        .stat-box div:first-child {
+            font-size: 1.5rem !important;
+        }
+        
+        .menu-preview {
+            padding-top: 1rem !important;
+        }
+        
+        .menu-preview > div {
+            padding: 1rem !important;
+            max-height: 300px !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .page-header .title {
+            font-size: 1.2rem;
+        }
+        
+        .download-icon i {
+            font-size: 2rem !important;
+        }
+        
+        .stat-box div:first-child {
+            font-size: 1.3rem !important;
+        }
+        
+        .stat-box div:last-child {
+            font-size: 0.8rem !important;
+        }
+    }
 </style>
 
 <script>

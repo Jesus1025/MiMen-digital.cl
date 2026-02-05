@@ -105,6 +105,85 @@
             print-color-adjust: exact;
         }
     }
+    
+    /* Mejoras móviles */
+    @media (max-width: 768px) {
+        .columns {
+            flex-direction: column;
+        }
+        
+        .column.is-7, .column.is-5 {
+            width: 100%;
+            flex: none;
+        }
+        
+        .qr-container {
+            padding: 1rem;
+        }
+        
+        .qr-frame {
+            padding: 1.5rem;
+            border-radius: 16px;
+        }
+        
+        .qr-image {
+            width: 200px;
+            height: 200px;
+        }
+        
+        .qr-restaurant-name {
+            font-size: 1.25rem;
+        }
+        
+        .qr-actions {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .btn-large {
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            font-size: 1rem;
+        }
+        
+        .print-card {
+            padding: 1.5rem;
+            max-width: 100%;
+            margin: 1rem 0;
+        }
+        
+        .print-card h3 {
+            font-size: 1.5rem;
+        }
+        
+        .tips-card {
+            padding: 1rem;
+        }
+        
+        .tips-card ul {
+            margin-left: 1rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .qr-image {
+            width: 180px;
+            height: 180px;
+        }
+        
+        .qr-restaurant-name {
+            font-size: 1.1rem;
+        }
+        
+        .qr-url {
+            font-size: 0.8rem;
+        }
+        
+        .btn-large {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+    }
 </style>
 {% endblock %}
 

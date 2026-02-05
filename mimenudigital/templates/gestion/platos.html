@@ -357,11 +357,49 @@
         transform: scale(1.15);
     }
     
-    /* Responsive */
+    /* Responsive para etiquetas */
     @media (max-width: 768px) {
         .etiqueta-btn {
-            padding: 0.3rem 0.5rem;
+            padding: 0.35rem 0.6rem;
             font-size: 0.75rem;
+        }
+        
+        /* Contenedor de etiquetas en móvil */
+        .etiquetas-disponibles {
+            max-height: 120px;
+            overflow-y: auto;
+            padding: 0.75rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Modal de etiqueta más compacto */
+        #modalEtiqueta .modal-content {
+            width: 95%;
+            max-width: 350px;
+        }
+        
+        /* Color presets más grandes para touch */
+        .color-preset {
+            width: 36px !important;
+            height: 36px !important;
+        }
+        
+        /* Contenedor de presets mejor distribuido */
+        #colorPresets {
+            gap: 0.5rem !important;
+            justify-content: center !important;
+        }
+    }
+    
+    @media (max-width: 375px) {
+        .etiqueta-btn {
+            padding: 0.3rem 0.5rem;
+            font-size: 0.7rem;
+        }
+        
+        .color-preset {
+            width: 32px !important;
+            height: 32px !important;
         }
     }
 </style>

@@ -118,6 +118,96 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Estilos móviles para categorías */
+    @media (max-width: 768px) {
+        .columns {
+            flex-direction: column;
+        }
+        
+        .column.is-8, .column.is-4 {
+            width: 100%;
+            flex: none;
+        }
+        
+        .card-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch !important;
+        }
+        
+        .card-header .btn-primary {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        /* Tabla a tarjetas */
+        .data-table thead {
+            display: none;
+        }
+        
+        .data-table tbody tr {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .data-table tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border: none !important;
+        }
+        
+        .data-table tbody td:before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+        }
+        
+        .data-table tbody td:last-child {
+            justify-content: flex-end;
+            padding-top: 1rem;
+            margin-top: 0.5rem;
+            border-top: 1px solid #eee !important;
+        }
+        
+        .data-table tbody td:last-child:before {
+            display: none;
+        }
+        
+        /* Tips card */
+        .tips-card ul {
+            padding-left: 0.5rem;
+        }
+        
+        /* Modal */
+        .modal-content {
+            width: 95%;
+            max-width: none;
+            margin: 0.5rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .form-input {
+            font-size: 16px; /* Evita zoom iOS */
+        }
+        
+        .dashboard-card {
+            padding: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
 let categorias = [];

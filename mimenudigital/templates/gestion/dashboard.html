@@ -65,35 +65,35 @@
             Acciones Rápidas
         </h2>
     </div>
-    <div class="columns">
-        <div class="column is-3">
-            <a href="{{ url_for('gestion_platos') }}" class="button is-primary is-fullwidth" style="height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <i class="fas fa-plus fa-lg" style="margin-bottom: 0.5rem;"></i>
+    <div class="columns is-multiline is-mobile">
+        <div class="column is-6-mobile is-3-tablet">
+            <a href="{{ url_for('gestion_platos') }}" class="button is-primary is-fullwidth quick-action-btn">
+                <i class="fas fa-plus fa-lg"></i>
                 <span>Agregar Plato</span>
             </a>
         </div>
-        <div class="column is-3">
-            <button onclick="mostrarQR()" class="button is-info is-fullwidth" style="height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <i class="fas fa-qrcode fa-lg" style="margin-bottom: 0.5rem;"></i>
+        <div class="column is-6-mobile is-3-tablet">
+            <button onclick="mostrarQR()" class="button is-info is-fullwidth quick-action-btn">
+                <i class="fas fa-qrcode fa-lg"></i>
                 <span>Ver Código QR</span>
             </button>
         </div>
-        <div class="column is-3">
+        <div class="column is-6-mobile is-3-tablet">
             {% if menu_url_global %}
-            <a href="{{ menu_url_global }}" id="btnVerMenu" class="button is-success is-fullwidth" style="height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;" target="_blank">
-                <i class="fas fa-external-link-alt fa-lg" style="margin-bottom: 0.5rem;"></i>
+            <a href="{{ menu_url_global }}" id="btnVerMenu" class="button is-success is-fullwidth quick-action-btn" target="_blank">
+                <i class="fas fa-external-link-alt fa-lg"></i>
                 <span>Ver Mi Menú</span>
             </a>
             {% else %}
-            <button class="button is-success is-fullwidth" style="height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.6; cursor: not-allowed;" disabled>
-                <i class="fas fa-external-link-alt fa-lg" style="margin-bottom: 0.5rem;"></i>
+            <button class="button is-success is-fullwidth quick-action-btn" style="opacity: 0.6; cursor: not-allowed;" disabled>
+                <i class="fas fa-external-link-alt fa-lg"></i>
                 <span>Ver Mi Menú</span>
             </button>
             {% endif %}
         </div>
-        <div class="column is-3">
-            <button onclick="abrirModalSoporte()" class="button is-fullwidth" style="height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
-                <i class="fas fa-headset fa-lg" style="margin-bottom: 0.5rem;"></i>
+        <div class="column is-6-mobile is-3-tablet">
+            <button onclick="abrirModalSoporte()" class="button is-fullwidth quick-action-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                <i class="fas fa-headset fa-lg"></i>
                 <span>¿Necesitas Ayuda?</span>
             </button>
         </div>
@@ -218,6 +218,56 @@
         </footer>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Botones de acciones rápidas */
+    .quick-action-btn {
+        height: 80px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .quick-action-btn:active {
+        transform: translateY(0);
+    }
+    
+    @media (max-width: 768px) {
+        .quick-action-btn {
+            height: 70px;
+            font-size: 0.8rem;
+            gap: 0.35rem;
+            border-radius: 10px;
+        }
+        
+        .quick-action-btn i {
+            font-size: 1.2rem !important;
+        }
+    }
+    
+    @media (max-width: 375px) {
+        .quick-action-btn {
+            height: 60px;
+            font-size: 0.75rem;
+            gap: 0.25rem;
+        }
+        
+        .quick-action-btn i {
+            font-size: 1rem !important;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
