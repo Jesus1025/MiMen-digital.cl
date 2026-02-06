@@ -4173,7 +4173,11 @@ def contactar_soporte():
                     logger.error("Error notificando al superadmin: %s", email_err)
                 
             logger.info("Nuevo ticket de soporte #%s creado por %s", ticket_id, email)
-            flash(f'¡Mensaje enviado! Tu ticket #{ticket_id} ha sido registrado. Te responderemos pronto a {email}', 'success')
+            
+            # Mensaje con el email de soporte configurado
+            email_soporte = soporte_config.get('email', 'nuestro equipo')
+            flash(f'¡Mensaje enviado! Hemos recibido tu consulta. Te responderemos pronto a través de {email_soporte}', 'success')
+            
             return render_template('soporte.html',
                                    nombre_default=nombre_default,
                                    email_default=email_default,

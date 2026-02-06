@@ -140,6 +140,18 @@
             border-radius: 10px;
             padding: 1rem;
             text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .info-card:hover {
+            background: #eef2f7;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .info-card a {
+            display: block;
         }
         
         .info-card i {
@@ -347,15 +359,19 @@
                         <strong>24-48 horas</strong>
                     </div>
                     <div class="info-card">
-                        <i class="fas fa-envelope"></i>
-                        <p>Email directo</p>
-                        <strong>{{ soporte.email if soporte and soporte.email else 'soporte@ejemplo.com' }}</strong>
+                        <a href="mailto:{{ soporte.email if soporte and soporte.email else 'soporte@ejemplo.com' }}" style="text-decoration: none; color: inherit;">
+                            <i class="fas fa-envelope"></i>
+                            <p>Email directo</p>
+                            <strong style="color: #3498db;">Escribir</strong>
+                        </a>
                     </div>
                     {% if soporte and soporte.whatsapp %}
                     <div class="info-card">
-                        <i class="fab fa-whatsapp" style="color: #25d366;"></i>
-                        <p>WhatsApp</p>
-                        <strong><a href="https://wa.me/{{ soporte.whatsapp }}" target="_blank" style="color: #25d366; text-decoration: none;">Escribir</a></strong>
+                        <a href="https://wa.me/{{ soporte.whatsapp }}" target="_blank" style="text-decoration: none; color: inherit;">
+                            <i class="fab fa-whatsapp" style="color: #25d366;"></i>
+                            <p>WhatsApp</p>
+                            <strong style="color: #25d366;">Escribir</strong>
+                        </a>
                     </div>
                     {% endif %}
                 </div>
