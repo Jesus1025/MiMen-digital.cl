@@ -531,7 +531,7 @@ def invalidate_menu_cache(restaurante_id, url_slug=None):
     if url_slug:
         # Invalidar por url_slug específico
         key = f"menu:{url_slug}"
-        _cache.invalidate(key)
+        _cache.delete(key)
         logger.debug("Invalidated cache for menu:%s (restaurant %s)", url_slug, restaurante_id)
         return 1
     else:
