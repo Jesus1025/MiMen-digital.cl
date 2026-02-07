@@ -557,6 +557,14 @@ async function guardarApariencia() {
     
     console.log('Guardando apariencia:', data);
     
+    // Mostrar indicador de carga
+    const btnGuardar = document.querySelector('button[onclick="guardarApariencia()"]');
+    const textoOriginal = btnGuardar ? btnGuardar.innerHTML : '';
+    if (btnGuardar) {
+        btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        btnGuardar.disabled = true;
+    }
+    
     try {
         const response = await fetchWithCSRF('/api/mi-restaurante/apariencia', {
             method: 'PUT',
@@ -567,19 +575,31 @@ async function guardarApariencia() {
         console.log('Respuesta del servidor:', result);
         
         if (result.success) {
-            alert('¡Apariencia guardada correctamente!');
-            // Recargar iframe con cache-busting para ver cambios inmediatamente
+            // Forzar limpieza de cache del navegador para el menú
             const iframe = document.getElementById('previewFrame');
-            iframe.src = menuUrl + '?nocache=' + Date.now();
             
-            // Recargar página después de 1 segundo para reflejar cambios en UI
-            setTimeout(() => location.reload(), 1000);
+            // Vaciar iframe primero
+            iframe.src = 'about:blank';
+            
+            // Esperar un poco y recargar con cache-busting fuerte
+            await new Promise(resolve => setTimeout(resolve, 300));
+            iframe.src = menuUrl + '?refresh=1&nocache=' + Date.now();
+            
+            alert('¡Apariencia guardada correctamente! El tema "' + temaSeleccionado + '" está ahora activo.');
+            
+            // NO recargar la página - mantener el estado actual
         } else {
             alert('Error: ' + result.error);
         }
     } catch (error) {
         alert('Error de conexión');
         console.error(error);
+    } finally {
+        // Restaurar botón
+        if (btnGuardar) {
+            btnGuardar.innerHTML = textoOriginal;
+            btnGuardar.disabled = false;
+        }
     }
 }
 

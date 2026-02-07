@@ -324,8 +324,9 @@ async function cargarEstadisticas() {
         const response = await fetch('/api/dashboard/stats');
         const data = await response.json();
         
-        document.getElementById('scansHoy').textContent = data.visitas_hoy || 0;
-        document.getElementById('scansMes').textContent = data.visitas_mes || 0;
+        // Usar scans_hoy para escaneos de hoy y total_scans para escaneos del mes
+        document.getElementById('scansHoy').textContent = data.scans_hoy || 0;
+        document.getElementById('scansMes').textContent = data.total_scans || 0;
     } catch (error) {
         console.error('Error cargando estadísticas:', error);
     }
