@@ -4043,12 +4043,15 @@ def api_crear_ticket():
     """API para crear tickets desde el dashboard del usuario."""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
         
-        tipo = data.get('tipo', 'consulta')
+        tipo_original = data.get('tipo', 'consulta')
         asunto = data.get('asunto', '').strip()
         mensaje = data.get('mensaje', '').strip()
         
         # Mapear tipos del dashboard a valores válidos del ENUM de la BD
+        # ENUM: 'consulta', 'problema_tecnico', 'facturacion', 'otro'
         tipo_map = {
             'consulta': 'consulta',
             'problema': 'problema_tecnico',
@@ -4061,7 +4064,8 @@ def api_crear_ticket():
             'personalizacion': 'otro',
             'otro': 'otro'
         }
-        tipo = tipo_map.get(tipo, 'otro')
+        tipo = tipo_map.get(tipo_original, 'otro')
+        logger.info("Ticket tipo original: '%s' -> mapeado: '%s'", tipo_original, tipo)
         
         if not asunto or not mensaje:
             return jsonify({'success': False, 'error': 'Completa todos los campos'}), 400
@@ -4090,24 +4094,30 @@ def api_crear_ticket():
                     restaurante_nombre = rest['nombre']
             
             # Crear el ticket
-            cur.execute('''
-                INSERT INTO tickets_soporte 
-                (usuario_id, restaurante_id, nombre, email, asunto, mensaje, tipo, ip_address, user_agent, pagina_origen)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (
-                usuario_id,
-                restaurante_id,
-                nombre,
-                email,
-                asunto,
-                mensaje,
-                tipo,
-                get_client_ip(),
-                request.headers.get('User-Agent', '')[:500],
-                'Dashboard'
-            ))
-            db.commit()
-            ticket_id = cur.lastrowid
+            try:
+                cur.execute('''
+                    INSERT INTO tickets_soporte 
+                    (usuario_id, restaurante_id, nombre, email, asunto, mensaje, tipo, ip_address, user_agent, pagina_origen)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', (
+                    usuario_id,
+                    restaurante_id,
+                    nombre,
+                    email,
+                    asunto,
+                    mensaje,
+                    tipo,
+                    get_client_ip(),
+                    request.headers.get('User-Agent', '')[:500],
+                    'Dashboard'
+                ))
+                db.commit()
+                ticket_id = cur.lastrowid
+                logger.info("Ticket #%s creado correctamente en BD", ticket_id)
+            except Exception as db_err:
+                logger.exception("Error SQL al crear ticket: %s", db_err)
+                db.rollback()
+                return jsonify({'success': False, 'error': f'Error en base de datos: {str(db_err)}'}), 500
         
         # Preparar datos para emails
         ticket_data = {
