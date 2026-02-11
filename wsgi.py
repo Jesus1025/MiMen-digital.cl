@@ -62,12 +62,18 @@ os.environ['no_proxy'] = 'localhost,127.0.0.1,.pythonanywhere.com'
 # ============================================================
 # 3. RUTA DEL PROYECTO
 # ============================================================
-path = '/home/MiMenudigital/MiMen-digital.cl/mimenudigital'
-if path not in sys.path:
-    sys.path.insert(0, path)
+# La ruta principal es la raíz del repositorio donde está app_menu.py
+project_root = '/home/MiMenudigital/MiMen-digital.cl'
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# También agregar la subcarpeta mimenudigital por si hay otros módulos ahí
+subdir = '/home/MiMenudigital/MiMen-digital.cl/mimenudigital'
+if subdir not in sys.path:
+    sys.path.insert(0, subdir)
 
 # Cambiar al directorio del proyecto
-os.chdir(path)
+os.chdir(project_root)
 
 # ============================================================
 # 4. CONFIGURAR LOGGING TEMPRANO
