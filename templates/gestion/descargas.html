@@ -1,0 +1,329 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block title %}Descargas - Mi Restaurante{% endblock %}
+
+{% block content %}
+<div class="content-area">
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="title">
+                    <i class="fas fa-download"></i> Descargas
+                </h1>
+                <p class="subtitle">Descarga tu menú en diferentes formatos</p>
+            </div>
+        </div>
+
+        <!-- Contenido -->
+        <div class="box" style="margin-top: 2rem;">
+            <!-- Sección de Descarga PDF -->
+            <div class="download-section" style="margin-bottom: 3rem;">
+                <div class="columns is-multiline">
+                    <!-- Tarjeta PDF -->
+                    <div class="column is-full-mobile is-half-tablet is-one-third-desktop">
+                        <div class="card download-card">
+                            <div class="card-content">
+                                <div class="download-icon" style="text-align: center; margin-bottom: 1rem;">
+                                    <i class="fas fa-file-pdf" style="font-size: 3rem; color: #e74c3c;"></i>
+                                </div>
+                                <h3 class="title is-5" style="text-align: center; margin-bottom: 0.5rem;">
+                                    Menú PDF
+                                </h3>
+                                <p class="subtitle is-6" style="text-align: center; color: #7f8c8d; margin-bottom: 1.5rem;">
+                                    Descarga completa de tu menú
+                                </p>
+                                <p style="font-size: 0.9rem; color: #666; margin-bottom: 1.5rem; line-height: 1.6;">
+                                    Obtén un archivo PDF profesional de tu menú completo, listo para compartir con clientes o imprimir.
+                                </p>
+                                <div style="text-align: center;">
+                                    <button class="button is-danger is-medium" id="btn-download-pdf">
+                                        <span class="icon">
+                                            <i class="fas fa-cloud-download-alt"></i>
+                                        </span>
+                                        <span>Descargar PDF</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta Información -->
+                    <div class="column is-full-mobile is-half-tablet is-two-thirds-desktop">
+                        <div class="box" style="background-color: #f8f9fa; border-left: 4px solid #e74c3c;">
+                            <h4 class="title is-5">
+                                <i class="fas fa-info-circle" style="color: #3498db; margin-right: 0.5rem;"></i>
+                                Lo que incluye tu PDF
+                            </h4>
+                            <ul style="line-height: 1.8; color: #555;">
+                                <li><i class="fas fa-check" style="color: #27ae60; margin-right: 0.5rem;"></i> Logo de tu restaurante</li>
+                                <li><i class="fas fa-check" style="color: #27ae60; margin-right: 0.5rem;"></i> Nombre y descripción</li>
+                                <li><i class="fas fa-check" style="color: #27ae60; margin-right: 0.5rem;"></i> Todas tus categorías y platos</li>
+                                <li><i class="fas fa-check" style="color: #27ae60; margin-right: 0.5rem;"></i> Precios y descripciones</li>
+                                <li><i class="fas fa-check" style="color: #27ae60; margin-right: 0.5rem;"></i> Etiquetas (vegetariano, picante, etc.)</li>
+                                <li><i class="fas fa-check" style="color: #27ae60; margin-right: 0.5rem;"></i> Código QR del menú digital</li>
+                                <li><i class="fas fa-check" style="color: #27ae60; margin-right: 0.5rem;"></i> Formato profesional A4</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas del Menú -->
+            <div class="menu-stats" style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #ddd;">
+                <h3 class="title is-5">
+                    <i class="fas fa-chart-pie" style="color: #2c3e50; margin-right: 0.5rem;"></i>
+                    Tu Menú
+                </h3>
+                
+                <div class="columns is-multiline">
+                    <div class="column is-full-mobile is-one-third-tablet">
+                        <div class="stat-box" style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #e74c3c; margin-bottom: 0.5rem;">
+                                {{ menu|length }}
+                            </div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem;">
+                                Categorías
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-full-mobile is-one-third-tablet">
+                        <div class="stat-box" style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #3498db; margin-bottom: 0.5rem;">
+                                {# Calcular total de platos usando namespace para permitir modificación dentro del loop #}
+                                {% set ns = namespace(total_platos=0) %}
+                                {% for categoria in menu %}
+                                    {% set ns.total_platos = ns.total_platos + (categoria.platos|length) %}
+                                {% endfor %}
+                                {{ ns.total_platos }}
+                            </div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem;">
+                                Platos activos
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-full-mobile is-one-third-tablet">
+                        <div class="stat-box" style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+                            <div style="font-size: 2rem; font-weight: bold; color: #27ae60; margin-bottom: 0.5rem;">
+                                Actualizado
+                            </div>
+                            <div style="color: #7f8c8d; font-size: 0.9rem;">
+                                En tiempo real
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview del Menú -->
+            <div class="menu-preview" style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #ddd;">
+                <h3 class="title is-5">
+                    <i class="fas fa-eye" style="color: #2c3e50; margin-right: 0.5rem;"></i>
+                    Vista Previa de tu Menú
+                </h3>
+                
+                <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; max-height: 400px; overflow-y: auto;">
+                    {% if menu %}
+                        {% for categoria in menu %}
+                            <div style="margin-bottom: 1.5rem;">
+                                <h4 style="color: #e74c3c; font-weight: bold; margin-bottom: 0.8rem;">
+                                    {{ categoria.nombre }}
+                                </h4>
+                                <ul style="margin-left: 1rem; color: #555; font-size: 0.9rem;">
+                                    {% for plato in categoria.platos %}
+                                        <li style="margin-bottom: 0.4rem;">
+                                            <strong>{{ plato.nombre }}</strong>
+                                            {% if plato.precio %}
+                                                <span style="float: right; color: #2c3e50; font-weight: bold;">
+                                                    ${{ "{:,.0f}".format(plato.precio) }}
+                                                </span>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                            <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                            <p>No hay categorías o platos activos aún.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .download-card {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: 1px solid #ecf0f1;
+        height: 100%;
+    }
+
+    .download-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .download-section {
+        animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .stat-box {
+        transition: transform 0.3s ease;
+        border: 1px solid #ecf0f1;
+    }
+
+    .stat-box:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Mejoras móviles */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1rem;
+        }
+        
+        .page-header .title {
+            font-size: 1.3rem;
+        }
+        
+        .download-card .card-content {
+            padding: 1rem;
+        }
+        
+        .download-icon i {
+            font-size: 2.5rem !important;
+        }
+        
+        .download-card .title.is-5 {
+            font-size: 1.1rem;
+        }
+        
+        .download-card .subtitle.is-6 {
+            font-size: 0.85rem;
+        }
+        
+        .download-card .button.is-medium {
+            width: 100%;
+            font-size: 0.95rem;
+        }
+        
+        .stat-box {
+            padding: 1rem !important;
+        }
+        
+        .stat-box div:first-child {
+            font-size: 1.5rem !important;
+        }
+        
+        .menu-preview {
+            padding-top: 1rem !important;
+        }
+        
+        .menu-preview > div {
+            padding: 1rem !important;
+            max-height: 300px !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .page-header .title {
+            font-size: 1.2rem;
+        }
+        
+        .download-icon i {
+            font-size: 2rem !important;
+        }
+        
+        .stat-box div:first-child {
+            font-size: 1.3rem !important;
+        }
+        
+        .stat-box div:last-child {
+            font-size: 0.8rem !important;
+        }
+    }
+</style>
+
+<script>
+document.getElementById('btn-download-pdf').addEventListener('click', function() {
+    const btn = this;
+    const originalHTML = btn.innerHTML;
+    
+    // Mostrar estado de carga
+    btn.disabled = true;
+    btn.innerHTML = '<span class="icon"><i class="fas fa-spinner fa-spin"></i></span><span>Generando...</span>';
+    
+    // Realizar descarga
+    fetch('/api/menu/pdf')
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Error al generar PDF');
+                });
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            // Crear URL de descarga
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'menu.pdf';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // Restaurar botón
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
+            // Mostrar notificación de éxito
+            showNotification('PDF descargado correctamente', 'success');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showNotification('Error: ' + error.message, 'danger');
+        });
+});
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification is-${type}`;
+    notification.innerHTML = `
+        <button class="delete"></button>
+        ${message}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    notification.querySelector('.delete').addEventListener('click', function() {
+        notification.remove();
+    });
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

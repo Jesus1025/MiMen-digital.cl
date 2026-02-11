@@ -1,0 +1,742 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block title %}Mi Restaurante - {{ restaurante.nombre }}{% endblock %}
+
+{% block page_title %}Mi Restaurante{% endblock %}
+
+{% block extra_css %}
+<style>
+    .logo-upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+    
+    .logo-upload-area:hover {
+        border-color: var(--primary-color);
+        background: #f0f7ff;
+    }
+    
+    .logo-upload-area.dragover {
+        border-color: var(--primary-color);
+        background: #e8f4ff;
+    }
+    
+    .logo-preview-container {
+        width: 150px;
+        height: 150px;
+        border-radius: 12px;
+        background: #f5f5f5;
+        margin: 0 auto 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .logo-preview-container img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: cover;
+    }
+    
+    .logo-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .logo-preview-container:hover .logo-overlay {
+        opacity: 1;
+    }
+    
+    .horario-editor {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+    }
+    
+    .horario-dia {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    
+    .horario-dia:last-child {
+        border-bottom: none;
+    }
+    
+    .horario-dia-nombre {
+        width: 100px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .horario-toggle {
+        position: relative;
+        width: 44px;
+        height: 24px;
+    }
+    
+    .horario-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .horario-toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .3s;
+        border-radius: 24px;
+    }
+    
+    .horario-toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .3s;
+        border-radius: 50%;
+    }
+    
+    .horario-toggle input:checked + .horario-toggle-slider {
+        background-color: #27ae60;
+    }
+    
+    .horario-toggle input:checked + .horario-toggle-slider:before {
+        transform: translateX(20px);
+    }
+    
+    .horario-horas {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+    }
+    
+    .horario-horas input[type="time"] {
+        padding: 0.4rem 0.6rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+    
+    .horario-horas.cerrado {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+    
+    .horario-cerrado-label {
+        color: #e74c3c;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    @media (max-width: 480px) {
+        .horario-dia {
+            flex-wrap: wrap;
+        }
+        
+        .horario-dia-nombre {
+            width: 80px;
+            font-size: 0.85rem;
+        }
+        
+        .horario-horas {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        
+        .horario-horas input[type="time"] {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+    
+    /* Mejoras móviles generales */
+    @media (max-width: 768px) {
+        .columns {
+            flex-direction: column;
+        }
+        
+        .column.is-8, .column.is-4, .column.is-6 {
+            width: 100%;
+            flex: none;
+        }
+        
+        .card-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch !important;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-input, .textarea, select, input[type="text"], input[type="email"], input[type="tel"], input[type="url"] {
+            font-size: 16px !important; /* Evita zoom iOS */
+        }
+        
+        .logo-preview-container {
+            width: 120px;
+            height: 120px;
+        }
+        
+        .horario-editor {
+            padding: 0.75rem;
+        }
+        
+        /* Botones apilados */
+        .modal-footer {
+            flex-direction: column-reverse;
+            gap: 0.5rem;
+        }
+        
+        .modal-footer button {
+            width: 100%;
+        }
+        
+        /* Tema selector */
+        #temaPreview {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+    
+    @media (max-width: 375px) {
+        .logo-preview-container {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .horario-dia-nombre {
+            width: 70px;
+            font-size: 0.8rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+    <div class="column is-8">
+        <!-- Información del Restaurante -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-store"></i> Información del Restaurante</h2>
+            </div>
+            
+            <form id="formRestaurante">
+                <div class="columns">
+                    <div class="column is-6">
+                        <div class="form-group">
+                            <label class="form-label">Nombre del Restaurante *</label>
+                            <input type="text" class="form-input" id="nombre" value="{{ restaurante.nombre }}" required>
+                        </div>
+                    </div>
+                    <div class="column is-6">
+                        <div class="form-group">
+                            <label class="form-label">URL del Menú</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" class="form-input" id="url_slug" value="{{ restaurante.url_slug }}" readonly style="background: #f5f5f5;">
+                                <button type="button" class="btn-secondary" onclick="copiarURL()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <small style="color: var(--text-muted);">Esta URL no se puede cambiar</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Descripción</label>
+                    <textarea class="form-input" id="descripcion" rows="3" placeholder="Describe tu restaurante...">{{ restaurante.descripcion or '' }}</textarea>
+                </div>
+
+                <div class="columns">
+                    <div class="column is-6">
+                        <div class="form-group">
+                            <label class="form-label">Teléfono</label>
+                            <input type="tel" class="form-input" id="telefono" value="{{ restaurante.telefono or '' }}" placeholder="+56 9 1234 5678">
+                        </div>
+                    </div>
+                    <div class="column is-6">
+                        <div class="form-group">
+                            <label class="form-label">Email de Contacto</label>
+                            <input type="email" class="form-input" id="email" value="{{ restaurante.email or '' }}" placeholder="contacto@turestaurante.com">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Dirección</label>
+                    <input type="text" class="form-input" id="direccion" value="{{ restaurante.direccion or '' }}" placeholder="Av. Principal 123, Ciudad">
+                </div>
+
+                <!-- Editor de Horarios -->
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-clock"></i> Horarios de Atención</label>
+                    <div class="horario-editor" id="horarioEditor">
+                        <div class="horario-dia" data-dia="lunes">
+                            <span class="horario-dia-nombre">Lunes</span>
+                            <label class="horario-toggle">
+                                <input type="checkbox" checked onchange="toggleDia('lunes')">
+                                <span class="horario-toggle-slider"></span>
+                            </label>
+                            <div class="horario-horas">
+                                <input type="time" class="hora-apertura" value="12:00">
+                                <span>a</span>
+                                <input type="time" class="hora-cierre" value="22:00">
+                            </div>
+                            <span class="horario-cerrado-label" style="display: none;">Cerrado</span>
+                        </div>
+                        <div class="horario-dia" data-dia="martes">
+                            <span class="horario-dia-nombre">Martes</span>
+                            <label class="horario-toggle">
+                                <input type="checkbox" checked onchange="toggleDia('martes')">
+                                <span class="horario-toggle-slider"></span>
+                            </label>
+                            <div class="horario-horas">
+                                <input type="time" class="hora-apertura" value="12:00">
+                                <span>a</span>
+                                <input type="time" class="hora-cierre" value="22:00">
+                            </div>
+                            <span class="horario-cerrado-label" style="display: none;">Cerrado</span>
+                        </div>
+                        <div class="horario-dia" data-dia="miercoles">
+                            <span class="horario-dia-nombre">Miércoles</span>
+                            <label class="horario-toggle">
+                                <input type="checkbox" checked onchange="toggleDia('miercoles')">
+                                <span class="horario-toggle-slider"></span>
+                            </label>
+                            <div class="horario-horas">
+                                <input type="time" class="hora-apertura" value="12:00">
+                                <span>a</span>
+                                <input type="time" class="hora-cierre" value="22:00">
+                            </div>
+                            <span class="horario-cerrado-label" style="display: none;">Cerrado</span>
+                        </div>
+                        <div class="horario-dia" data-dia="jueves">
+                            <span class="horario-dia-nombre">Jueves</span>
+                            <label class="horario-toggle">
+                                <input type="checkbox" checked onchange="toggleDia('jueves')">
+                                <span class="horario-toggle-slider"></span>
+                            </label>
+                            <div class="horario-horas">
+                                <input type="time" class="hora-apertura" value="12:00">
+                                <span>a</span>
+                                <input type="time" class="hora-cierre" value="22:00">
+                            </div>
+                            <span class="horario-cerrado-label" style="display: none;">Cerrado</span>
+                        </div>
+                        <div class="horario-dia" data-dia="viernes">
+                            <span class="horario-dia-nombre">Viernes</span>
+                            <label class="horario-toggle">
+                                <input type="checkbox" checked onchange="toggleDia('viernes')">
+                                <span class="horario-toggle-slider"></span>
+                            </label>
+                            <div class="horario-horas">
+                                <input type="time" class="hora-apertura" value="12:00">
+                                <span>a</span>
+                                <input type="time" class="hora-cierre" value="23:00">
+                            </div>
+                            <span class="horario-cerrado-label" style="display: none;">Cerrado</span>
+                        </div>
+                        <div class="horario-dia" data-dia="sabado">
+                            <span class="horario-dia-nombre">Sábado</span>
+                            <label class="horario-toggle">
+                                <input type="checkbox" checked onchange="toggleDia('sabado')">
+                                <span class="horario-toggle-slider"></span>
+                            </label>
+                            <div class="horario-horas">
+                                <input type="time" class="hora-apertura" value="12:00">
+                                <span>a</span>
+                                <input type="time" class="hora-cierre" value="23:00">
+                            </div>
+                            <span class="horario-cerrado-label" style="display: none;">Cerrado</span>
+                        </div>
+                        <div class="horario-dia" data-dia="domingo">
+                            <span class="horario-dia-nombre">Domingo</span>
+                            <label class="horario-toggle">
+                                <input type="checkbox" checked onchange="toggleDia('domingo')">
+                                <span class="horario-toggle-slider"></span>
+                            </label>
+                            <div class="horario-horas">
+                                <input type="time" class="hora-apertura" value="12:00">
+                                <span>a</span>
+                                <input type="time" class="hora-cierre" value="21:00">
+                            </div>
+                            <span class="horario-cerrado-label" style="display: none;">Cerrado</span>
+                        </div>
+                    </div>
+                    <!-- Campo oculto para guardar el horario en formato JSON -->
+                    <input type="hidden" id="horario" value='{{ restaurante.horario|default("", true)|e }}'>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="column is-4">
+        <!-- Logo del Restaurante -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-image"></i> Logo</h2>
+            </div>
+            
+            <div style="text-align: center;">
+                <div class="logo-preview-container" id="logoPreview">
+                    {% if restaurante.logo_url %}
+                        <img src="{{ restaurante.logo_url }}" alt="Logo" id="logoImg">
+                        <div class="logo-overlay">
+                            <i class="fas fa-camera" style="color: white; font-size: 1.5rem;"></i>
+                        </div>
+                    {% else %}
+                        <i class="fas fa-store" style="font-size: 3rem; color: #bdc3c7;"></i>
+                    {% endif %}
+                </div>
+                
+                <div class="logo-upload-area" id="logoUploadArea" onclick="document.getElementById('logoInput').click()">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #3498db; margin-bottom: 0.5rem; display: block;"></i>
+                    <p style="margin: 0; color: #666;">Arrastra una imagen aquí o</p>
+                    <p style="margin: 0.25rem 0 0; color: #3498db; font-weight: 500;">haz clic para seleccionar</p>
+                    <small style="color: #999; display: block; margin-top: 0.5rem;">PNG, JPG o WEBP (máx. 5MB)</small>
+                </div>
+                <input type="file" id="logoInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" onchange="subirLogo(this)">
+                
+                <div id="logoProgress" style="display: none; margin-top: 1rem;">
+                    <div style="background: #ecf0f1; border-radius: 10px; height: 8px; overflow: hidden;">
+                        <div id="logoProgressBar" style="background: #3498db; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <small style="color: #666;">Subiendo...</small>
+                </div>
+                
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ecf0f1;">
+                    <small style="color: var(--text-muted);">O usa una URL externa:</small>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <input type="url" class="form-input" id="logo_url" value="{{ restaurante.logo_url or '' }}" placeholder="https://..." style="font-size: 0.85rem;">
+                        <button type="button" class="btn-secondary" onclick="guardarLogoUrl()" style="white-space: nowrap;">
+                            <i class="fas fa-link"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Redes Sociales -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-share-alt"></i> Redes Sociales</h2>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label"><i class="fab fa-instagram" style="color: #e4405f;"></i> Instagram</label>
+                <input type="text" class="form-input" id="instagram" value="{{ restaurante.instagram or '' }}" placeholder="@turestaurante">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label"><i class="fab fa-facebook" style="color: #1877f2;"></i> Facebook</label>
+                <input type="text" class="form-input" id="facebook" value="{{ restaurante.facebook or '' }}" placeholder="facebook.com/turestaurante">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label"><i class="fab fa-whatsapp" style="color: #25d366;"></i> WhatsApp</label>
+                <input type="text" class="form-input" id="whatsapp" value="{{ restaurante.whatsapp or '' }}" placeholder="+56912345678">
+                <small style="color: var(--text-muted);">Este número aparecerá en tu menú público</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const BASE_URL = '{{ base_url }}';
+
+// ============================================================
+// HORARIOS
+// ============================================================
+const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+
+function toggleDia(dia) {
+    const diaEl = document.querySelector(`.horario-dia[data-dia="${dia}"]`);
+    const checkbox = diaEl.querySelector('input[type="checkbox"]');
+    const horas = diaEl.querySelector('.horario-horas');
+    const cerradoLabel = diaEl.querySelector('.horario-cerrado-label');
+    
+    if (checkbox.checked) {
+        horas.classList.remove('cerrado');
+        horas.style.display = 'flex';
+        cerradoLabel.style.display = 'none';
+    } else {
+        horas.classList.add('cerrado');
+        horas.style.display = 'none';
+        cerradoLabel.style.display = 'inline';
+    }
+}
+
+function getHorarioJSON() {
+    const horarios = {};
+    DIAS.forEach(dia => {
+        const diaEl = document.querySelector(`.horario-dia[data-dia="${dia}"]`);
+        const abierto = diaEl.querySelector('input[type="checkbox"]').checked;
+        const apertura = diaEl.querySelector('.hora-apertura').value;
+        const cierre = diaEl.querySelector('.hora-cierre').value;
+        
+        horarios[dia] = {
+            abierto: abierto,
+            apertura: apertura,
+            cierre: cierre
+        };
+    });
+    return JSON.stringify(horarios);
+}
+
+function cargarHorarios() {
+    const horarioStr = document.getElementById('horario').value;
+    if (!horarioStr) return;
+    
+    try {
+        const horarios = JSON.parse(horarioStr);
+        DIAS.forEach(dia => {
+            const diaEl = document.querySelector(`.horario-dia[data-dia="${dia}"]`);
+            if (!diaEl || !horarios[dia]) return;
+            
+            const checkbox = diaEl.querySelector('input[type="checkbox"]');
+            const apertura = diaEl.querySelector('.hora-apertura');
+            const cierre = diaEl.querySelector('.hora-cierre');
+            
+            checkbox.checked = horarios[dia].abierto !== false;
+            if (horarios[dia].apertura) apertura.value = horarios[dia].apertura;
+            if (horarios[dia].cierre) cierre.value = horarios[dia].cierre;
+            
+            toggleDia(dia);
+        });
+    } catch (e) {
+        // Si el horario no es JSON, es el formato antiguo (texto libre)
+        console.log('Horario en formato antiguo, se usará el editor');
+    }
+}
+
+// ============================================================
+// LOGO - SUBIDA DE ARCHIVO
+// ============================================================
+const uploadArea = document.getElementById('logoUploadArea');
+
+// Drag & Drop
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        subirLogoFile(files[0]);
+    }
+});
+
+function subirLogo(input) {
+    if (input.files && input.files[0]) {
+        subirLogoFile(input.files[0]);
+    }
+}
+
+async function subirLogoFile(file) {
+    // Validar tipo
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('Tipo de archivo no permitido. Usa PNG, JPG o WEBP.');
+        return;
+    }
+    
+    // Validar tamaño (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('El archivo es muy grande. Máximo 5MB.');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('logo', file);
+    
+    // Mostrar progreso
+    document.getElementById('logoProgress').style.display = 'block';
+    document.getElementById('logoProgressBar').style.width = '30%';
+    
+    try {
+        const response = await fetch('/api/mi-restaurante/logo', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.csrfToken },
+            body: formData
+        });
+        
+        document.getElementById('logoProgressBar').style.width = '80%';
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('logoProgressBar').style.width = '100%';
+            
+            // Actualizar preview
+            const preview = document.getElementById('logoPreview');
+            preview.innerHTML = `
+                <img src="${result.logo_url}" alt="Logo" id="logoImg">
+                <div class="logo-overlay">
+                    <i class="fas fa-camera" style="color: white; font-size: 1.5rem;"></i>
+                </div>
+            `;
+            
+            // Actualizar campo URL
+            document.getElementById('logo_url').value = result.logo_url;
+            
+            setTimeout(() => {
+                document.getElementById('logoProgress').style.display = 'none';
+                document.getElementById('logoProgressBar').style.width = '0%';
+            }, 500);
+        } else {
+            alert('Error: ' + result.error);
+            document.getElementById('logoProgress').style.display = 'none';
+        }
+    } catch (error) {
+        alert('Error de conexión al subir logo');
+        console.error(error);
+        document.getElementById('logoProgress').style.display = 'none';
+    }
+}
+
+async function guardarLogoUrl() {
+    const url = document.getElementById('logo_url').value;
+    if (!url) {
+        alert('Ingresa una URL');
+        return;
+    }
+    
+    try {
+        const response = await fetchWithCSRF('/api/mi-restaurante', {
+            method: 'PUT',
+            body: JSON.stringify({ 
+                nombre: document.getElementById('nombre').value,
+                logo_url: url 
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // Actualizar preview
+            const preview = document.getElementById('logoPreview');
+            preview.innerHTML = `
+                <img src="${url}" alt="Logo" id="logoImg" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-exclamation-triangle\\' style=\\'font-size: 2rem; color: #e74c3c;\\'></i>'">
+                <div class="logo-overlay">
+                    <i class="fas fa-camera" style="color: white; font-size: 1.5rem;"></i>
+                </div>
+            `;
+            alert('Logo actualizado');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error de conexión');
+        console.error(error);
+    }
+}
+
+// ============================================================
+// FORMULARIO PRINCIPAL
+// ============================================================
+function copiarURL() {
+    const url = BASE_URL + '/menu/{{ restaurante.url_slug }}';
+    navigator.clipboard.writeText(url).then(() => {
+        alert('URL copiada: ' + url);
+    });
+}
+
+document.getElementById('formRestaurante').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const horarioJSON = getHorarioJSON();
+    console.log('Horario a guardar:', horarioJSON);
+    
+    // Verificar que todos los campos existen
+    const camposRequeridos = ['nombre', 'descripcion', 'telefono', 'email', 'direccion', 'logo_url', 'instagram', 'facebook', 'whatsapp'];
+    camposRequeridos.forEach(campo => {
+        const el = document.getElementById(campo);
+        console.log(`Campo ${campo}:`, el ? el.value : 'NO EXISTE');
+    });
+    
+    const data = {
+        nombre: document.getElementById('nombre').value,
+        descripcion: document.getElementById('descripcion').value,
+        telefono: document.getElementById('telefono').value,
+        email: document.getElementById('email').value,
+        direccion: document.getElementById('direccion').value,
+        horario: horarioJSON,
+        logo_url: document.getElementById('logo_url') ? document.getElementById('logo_url').value : '',
+        instagram: document.getElementById('instagram') ? document.getElementById('instagram').value : '',
+        facebook: document.getElementById('facebook') ? document.getElementById('facebook').value : '',
+        whatsapp: document.getElementById('whatsapp') ? document.getElementById('whatsapp').value : ''
+    };
+    
+    console.log('Datos completos a enviar:', JSON.stringify(data, null, 2));
+    
+    try {
+        const response = await fetchWithCSRF('/api/mi-restaurante', {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        console.log('Respuesta del servidor:', result);
+        
+        if (result.success) {
+            // Actualizar el campo hidden con el nuevo horario
+            document.getElementById('horario').value = horarioJSON;
+            alert('¡Cambios guardados correctamente!');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error de conexión');
+        console.error(error);
+    }
+});
+
+// Cargar horarios al iniciar
+document.addEventListener('DOMContentLoaded', cargarHorarios);
+</script>
+{% endblock %}

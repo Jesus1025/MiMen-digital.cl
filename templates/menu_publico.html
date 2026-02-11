@@ -1,0 +1,2001 @@
+<!DOCTYPE html>
+<html lang="es" data-tema="{{ restaurante.tema or 'calido' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="description" content="Menú digital de {{ restaurante.nombre }}{% if restaurante.slogan %} - {{ restaurante.slogan }}{% endif %}. Consulta nuestras categorías, platos y precios actualizados.">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:title" content="{{ restaurante.nombre }} - Menú Digital">
+    <meta property="og:description" content="{% if restaurante.slogan %}{{ restaurante.slogan }} - {% endif %}Consulta nuestro menú digital con precios actualizados.">
+    {% if restaurante.logo_url %}
+    <meta property="og:image" content="{{ restaurante.logo_url }}">
+    {% endif %}
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ restaurante.nombre }} - Menú Digital">
+    <meta name="twitter:description" content="{% if restaurante.slogan %}{{ restaurante.slogan }} - {% endif %}Consulta nuestro menú digital.">
+    {% if restaurante.logo_url %}
+    <meta name="twitter:image" content="{{ restaurante.logo_url }}">
+    {% endif %}
+    
+    <!-- PWA Support -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="{{ restaurante.nombre }}">
+    {% if restaurante.logo_url %}
+    <link rel="apple-touch-icon" href="{{ restaurante.logo_url }}">
+    {% endif %}
+    
+    <title>{{ restaurante.nombre }} - Menú Digital</title>
+    
+    <!-- Preconnect para mejorar rendimiento -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
+    
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="https://api.qrserver.com">
+    
+    <!-- CSS crítico inline para First Contentful Paint rápido -->
+        <!-- Preload fuentes y CSS para mejorar FCP móvil -->
+        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" as="style">
+        <link rel="preload" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" as="style">
+        <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
+    <style>
+        body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f8f9fa}
+        .menu-header{background:linear-gradient(135deg,#e74c3c 0%,#c0392b 100%);color:#fff;padding:2rem 1rem;text-align:center}
+        .menu-container{max-width:1200px;margin:0 auto;padding:1rem}
+        .loading-placeholder{text-align:center;padding:2rem;color:#7f8c8d}
+    </style>
+    
+    <!-- CSS externo con carga no bloqueante -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    </noscript>
+    
+    <style>
+        /* ============================================
+           VARIABLES CSS - TEMA BASE (CÁLIDO)
+           ============================================ */
+        :root {
+            --primary-color: #e74c3c;
+            --primary-dark: #c0392b;
+            --secondary-color: #2c3e50;
+            --accent-color: #f39c12;
+            --bg-light: #f8f9fa;
+            --bg-white: #ffffff;
+            --text-dark: #2c3e50;
+            --text-muted: #7f8c8d;
+            --border-color: #ecf0f1;
+            --header-gradient: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        /* ============================================
+           TEMA: CLÁSICO
+           ============================================ */
+        [data-tema="clasico"] {
+            --primary-color: #2c3e50;
+            --primary-dark: #1a252f;
+            --header-gradient: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+            --accent-color: #3498db;
+        }
+
+        /* ============================================
+           TEMA: MODERNO
+           ============================================ */
+        [data-tema="moderno"] {
+            --primary-color: #667eea;
+            --primary-dark: #764ba2;
+            --header-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --accent-color: #f093fb;
+        }
+
+        /* ============================================
+           TEMA: ELEGANTE (Oscuro)
+           ============================================ */
+        [data-tema="elegante"] {
+            --primary-color: #d4af37;
+            --primary-dark: #b8960c;
+            --secondary-color: #1a1a1a;
+            --bg-light: #1a1a1a;
+            --bg-white: #2d2d2d;
+            --text-dark: #f5f5f5;
+            --text-muted: #a0a0a0;
+            --border-color: #404040;
+            --header-gradient: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            --accent-color: #d4af37;
+        }
+
+        /* ============================================
+           TEMA: NATURAL
+           ============================================ */
+        [data-tema="natural"] {
+            --primary-color: #27ae60;
+            --primary-dark: #1e8449;
+            --bg-light: #e8f5e9;
+            --header-gradient: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+            --accent-color: #81c784;
+        }
+
+        /* ============================================
+           TEMA: MARINO
+           ============================================ */
+        [data-tema="marino"] {
+            --primary-color: #0077b6;
+            --primary-dark: #023e8a;
+            --bg-light: #e3f2fd;
+            --header-gradient: linear-gradient(135deg, #0077b6 0%, #023e8a 100%);
+            --accent-color: #00b4d8;
+        }
+
+        /* ============================================
+           TEMA: CÁLIDO (Default)
+           ============================================ */
+        [data-tema="calido"] {
+            --primary-color: #e74c3c;
+            --primary-dark: #c0392b;
+            --header-gradient: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            --accent-color: #f39c12;
+        }
+
+        /* ============================================
+           TEMA: HIPSTER COFFEE
+           ============================================ */
+        [data-tema="hipster"] {
+            --primary-color: #8b6914;
+            --primary-dark: #5d4e37;
+            --secondary-color: #2c2c2c;
+            --bg-light: #f5f0e8;
+            --bg-white: #fffdf8;
+            --header-gradient: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+            --accent-color: #d4a574;
+        }
+
+        /* ============================================
+           TEMA: INDUSTRIAL
+           ============================================ */
+        [data-tema="industrial"] {
+            --primary-color: #ff5722;
+            --primary-dark: #e64a19;
+            --secondary-color: #37474f;
+            --bg-light: #eceff1;
+            --header-gradient: linear-gradient(135deg, #37474f 0%, #263238 100%);
+            --accent-color: #ff7043;
+        }
+
+        /* ============================================
+           TEMA: VINTAGE
+           ============================================ */
+        [data-tema="vintage"] {
+            --primary-color: #795548;
+            --primary-dark: #5d4037;
+            --bg-light: #efebe9;
+            --bg-white: #faf8f6;
+            --header-gradient: linear-gradient(135deg, #5d4037 0%, #4e342e 100%);
+            --accent-color: #a1887f;
+        }
+
+        /* ============================================
+           TEMA: NÓRDICO
+           ============================================ */
+        [data-tema="nordico"] {
+            --primary-color: #546e7a;
+            --primary-dark: #455a64;
+            --bg-light: #fafafa;
+            --bg-white: #ffffff;
+            --header-gradient: linear-gradient(135deg, #546e7a 0%, #455a64 100%);
+            --accent-color: #90a4ae;
+        }
+
+        /* ============================================
+           TEMA: BOTÁNICO
+           ============================================ */
+        [data-tema="botanico"] {
+            --primary-color: #2e7d32;
+            --primary-dark: #1b5e20;
+            --bg-light: #e8f5e9;
+            --bg-white: #f1f8e9;
+            --header-gradient: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+            --accent-color: #81c784;
+        }
+
+        /* ============================================
+           TEMA: MINIMALISTA
+           ============================================ */
+        [data-tema="minimalista"] {
+            --primary-color: #212121;
+            --primary-dark: #000000;
+            --bg-light: #fafafa;
+            --bg-white: #ffffff;
+            --border-color: #e0e0e0;
+            --header-gradient: linear-gradient(135deg, #212121 0%, #424242 100%);
+            --accent-color: #757575;
+        }
+
+        /* ============================================
+           ESTILOS BASE
+           ============================================ */
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ============================================
+           HEADER DEL RESTAURANTE
+           ============================================ */
+        .restaurant-header {
+            background: var(--header-gradient);
+            color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .restaurant-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .restaurant-logo {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid rgba(255,255,255,0.3);
+            margin-bottom: 1rem;
+            background: white;
+        }
+
+        .restaurant-logo-placeholder {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 2.5rem;
+        }
+
+        .restaurant-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .restaurant-slogan {
+            font-size: 1rem;
+            font-style: italic;
+            opacity: 0.95;
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+        }
+
+        .restaurant-subtitle {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            font-weight: 300;
+        }
+
+        /* ============================================
+           NAVEGACIÓN DE CATEGORÍAS (STICKY)
+           ============================================ */
+        .category-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-white);
+            padding: 0.75rem 0;
+            box-shadow: var(--shadow-sm);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .category-nav::-webkit-scrollbar {
+            display: none;
+        }
+
+        .category-nav-inner {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0 1rem;
+            min-width: max-content;
+        }
+
+        .category-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.2rem;
+            background: var(--bg-light);
+            color: var(--text-dark);
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .category-pill:hover,
+        .category-pill.active {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .category-pill i {
+            margin-right: 0.5rem;
+        }
+
+        /* ============================================
+           INFORMACIÓN DEL RESTAURANTE
+           ============================================ */
+        .restaurant-info-section {
+            background: var(--bg-white);
+            border-top: 1px solid var(--border-color);
+            padding: 1rem;
+        }
+        
+        .info-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+            background: var(--bg-light);
+            border-radius: 25px;
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .info-item:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .info-item i {
+            color: var(--primary-color);
+        }
+        
+        .info-item:hover i {
+            color: white;
+        }
+        
+        .info-item.whatsapp-item {
+            background: #25d366;
+            color: white;
+        }
+        
+        .info-item.whatsapp-item i {
+            color: white;
+        }
+        
+        .info-item.whatsapp-item:hover {
+            background: #128c7e;
+        }
+        
+        .horario-item {
+            cursor: pointer;
+        }
+        
+        .horarios-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: var(--bg-light);
+            border-radius: 12px;
+            margin-top: 0;
+        }
+        
+        .horarios-dropdown.open {
+            max-height: 400px;
+            margin-top: 1rem;
+        }
+        
+        .horarios-content {
+            padding: 1rem;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .horario-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+        
+        .horario-row:last-child {
+            border-bottom: none;
+        }
+        
+        .horario-row.hoy {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .horario-dia {
+            color: var(--text-dark);
+        }
+        
+        .horario-horas {
+            color: var(--text-muted);
+        }
+        
+        .horario-cerrado {
+            color: #e74c3c;
+        }
+
+        #horarioChevron {
+            transition: transform 0.3s ease;
+            font-size: 0.7rem;
+            margin-left: 0.3rem;
+        }
+        
+        .horarios-dropdown.open ~ .info-container #horarioChevron,
+        .horario-item.open #horarioChevron {
+            transform: rotate(180deg);
+        }
+
+        /* ============================================
+           SECCIONES DE CATEGORÍA
+           ============================================ */
+        .menu-section {
+            padding: 1.5rem 1rem;
+        }
+
+        .category-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--primary-color);
+            display: inline-block;
+        }
+
+        .category-title i {
+            margin-right: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        /* ============================================
+           TARJETAS DE PLATOS
+           ============================================ */
+        .dishes-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .dishes-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .dishes-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .dish-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dish-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .dish-card-horizontal {
+            flex-direction: row;
+        }
+
+        .dish-image-wrapper {
+            position: relative;
+            overflow: hidden;
+            aspect-ratio: 16/10;
+        }
+
+        .dish-card-horizontal .dish-image-wrapper {
+            width: 120px;
+            min-width: 120px;
+            aspect-ratio: 1;
+        }
+
+        .dish-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .dish-card:hover .dish-image {
+            transform: scale(1.08);
+        }
+
+        .dish-image-placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--bg-light) 0%, var(--border-color) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 2.5rem;
+        }
+
+        /* ============================================
+           CARRUSEL DE IMÁGENES
+           ============================================ */
+        .dish-carousel {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .dish-carousel .carousel-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+            pointer-events: none;
+        }
+
+        .dish-carousel .carousel-image.active {
+            opacity: 1;
+            pointer-events: auto;
+            position: relative;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dark);
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .dish-carousel:hover .carousel-btn,
+        .dish-carousel:focus-within .carousel-btn {
+            opacity: 1;
+        }
+
+        .carousel-prev {
+            left: 8px;
+        }
+
+        .carousel-next {
+            right: 8px;
+        }
+
+        .carousel-btn:hover {
+            background: var(--bg-white);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .carousel-btn:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+
+        .carousel-indicators {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .carousel-dot:hover {
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .carousel-dot.active {
+            background: var(--primary-color);
+            transform: scale(1.2);
+        }
+
+        /* En móvil, mostrar botones siempre */
+        @media (max-width: 768px) {
+            .carousel-btn {
+                opacity: 0.9;
+                width: 28px;
+                height: 28px;
+                font-size: 0.75rem;
+            }
+            
+            .carousel-dot {
+                width: 6px;
+                height: 6px;
+            }
+            
+            /* Mejorar touch targets en móvil */
+            .carousel-indicators {
+                bottom: 8px;
+                padding: 4px 8px;
+                background: rgba(0,0,0,0.2);
+                border-radius: 12px;
+            }
+        }
+
+        /* Modo horizontal en móvil */
+        .dish-card-horizontal .dish-carousel {
+            aspect-ratio: 1;
+        }
+
+        .dish-content {
+            padding: 1rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dish-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.4rem;
+            line-height: 1.3;
+        }
+
+        .dish-description {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 0.75rem;
+            flex: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .dish-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: auto;
+        }
+
+        .dish-price {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .dish-price .currency {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        /* ============================================
+           ETIQUETAS / TAGS
+           ============================================ */
+        .dish-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .dish-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* === ETIQUETAS ESTÁNDAR === */
+        /* Popularidad */
+        .tag-nuevo { background: #27ae60; color: white; }
+        .tag-popular { background: var(--accent-color); color: white; }
+        .tag-recomendado { background: #f39c12; color: white; }
+        .tag-oferta { background: #e74c3c; color: white; }
+        .tag-destacado { background: #9b59b6; color: white; }
+        
+        /* Restricciones alimenticias */
+        .tag-vegano { background: #2ecc71; color: white; }
+        .tag-vegetariano { background: #3498db; color: white; }
+        .tag-sin-gluten { background: #9b59b6; color: white; }
+        .tag-sin-lactosa { background: #1abc9c; color: white; }
+        .tag-sin-azucar { background: #16a085; color: white; }
+        .tag-keto { background: #8e44ad; color: white; }
+        .tag-organico { background: #27ae60; color: white; }
+        .tag-integral { background: #795548; color: white; }
+        
+        /* Características del plato */
+        .tag-picante { background: #e74c3c; color: white; }
+        .tag-muy-picante { background: #c0392b; color: white; }
+        .tag-frio { background: #3498db; color: white; }
+        .tag-caliente { background: #e67e22; color: white; }
+        .tag-crudo { background: #1abc9c; color: white; }
+        
+        /* Tipo de plato */
+        .tag-entrada { background: #f1c40f; color: #2c3e50; }
+        .tag-principal { background: #e74c3c; color: white; }
+        .tag-postre { background: #e91e63; color: white; }
+        .tag-bebida { background: #00bcd4; color: white; }
+        .tag-acompanamiento { background: #9e9e9e; color: white; }
+        
+        /* Cafetería / Panadería */
+        .tag-cafe { background: #795548; color: white; }
+        .tag-te { background: #4caf50; color: white; }
+        .tag-dulce { background: #e91e63; color: white; }
+        .tag-salado { background: #ff9800; color: white; }
+        .tag-artesanal { background: #8d6e63; color: white; }
+        .tag-recien-horneado { background: #ff7043; color: white; }
+        
+        /* Tamaño / Porción */
+        .tag-grande { background: #3f51b5; color: white; }
+        .tag-mediano { background: #2196f3; color: white; }
+        .tag-pequeno { background: #03a9f4; color: white; }
+        .tag-para-compartir { background: #673ab7; color: white; }
+        .tag-individual { background: #607d8b; color: white; }
+        
+        /* Otros */
+        .tag-kosher { background: #1a237e; color: white; }
+        .tag-halal { background: #004d40; color: white; }
+        .tag-casero { background: #8d6e63; color: white; }
+        .tag-importado { background: #37474f; color: white; }
+        .tag-local { background: #558b2f; color: white; }
+        .tag-temporada { background: #ff6f00; color: white; }
+        
+        /* Etiqueta por defecto (personalizadas) */
+        .tag-default {
+            background: var(--bg-light);
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           BUSCADOR
+           ============================================ */
+        .search-container {
+            padding: 1rem;
+            background: var(--bg-white);
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.9rem 1rem 0.9rem 3rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            font-size: 1rem;
+            background: var(--bg-light);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background: var(--bg-white);
+            box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .clear-search {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.3rem;
+            display: none;
+        }
+
+        .clear-search.visible {
+            display: block;
+        }
+
+        /* ============================================
+           ESTADO VACÍO
+           ============================================ */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .menu-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-white);
+            padding: 0.75rem 1rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .menu-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        /* ============================================
+           TOAST NOTIFICATIONS
+           ============================================ */
+        .toast-notification {
+            position: fixed;
+            bottom: 130px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text-dark);
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.3s ease;
+            max-width: 90%;
+        }
+
+        .toast-notification.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast-success { background: #27ae60; }
+        .toast-error { background: #e74c3c; }
+        .toast-warning { background: #f39c12; }
+        .toast-info { background: #3498db; }
+
+        /* ============================================
+           ANIMACIONES
+           ============================================ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dish-card {
+            animation: fadeInUp 0.4s ease forwards;
+        }
+
+        @media (max-width: 600px) {
+            .dish-card {
+                animation: none !important;
+            }
+            .dish-card:nth-child(n) {
+                animation-delay: 0s !important;
+            }
+        }
+
+        .dish-card:nth-child(1) { animation-delay: 0.05s; }
+        .dish-card:nth-child(2) { animation-delay: 0.1s; }
+        .dish-card:nth-child(3) { animation-delay: 0.15s; }
+        .dish-card:nth-child(4) { animation-delay: 0.2s; }
+        .dish-card:nth-child(5) { animation-delay: 0.25s; }
+        .dish-card:nth-child(6) { animation-delay: 0.3s; }
+
+        /* ============================================
+           LOADING SKELETON
+           ============================================ */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-light) 25%, var(--border-color) 50%, var(--bg-light) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ============================================
+           MODO COMPACTO (Vista lista)
+           ============================================ */
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .view-btn {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-light);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .view-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* Vista lista compacta */
+        .dishes-list .dish-card {
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .dishes-list .dish-image-wrapper {
+            width: 80px;
+            min-width: 80px;
+            height: 80px;
+            aspect-ratio: 1;
+            border-radius: var(--radius-sm);
+            margin: 0.75rem;
+        }
+
+        .dishes-list .dish-content {
+            padding: 0.75rem 0.75rem 0.75rem 0;
+        }
+
+        .dishes-list .dish-name {
+            font-size: 1rem;
+        }
+
+        .dishes-list .dish-description {
+            -webkit-line-clamp: 1;
+            margin-bottom: 0.25rem;
+        }
+
+        /* ============================================
+           UTILIDADES
+           ============================================ */
+        .hidden {
+            display: none !important;
+        }
+
+        .container-menu {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Print styles */
+        @media print {
+            .category-nav,
+            .search-container,
+            .menu-footer,
+            .view-toggle {
+                display: none !important;
+            }
+            
+            body {
+                padding-bottom: 0;
+            }
+        }
+
+        /* ============================================
+           MEJORAS MÓVILES ADICIONALES
+           ============================================ */
+        @media (max-width: 480px) {
+            .restaurant-header {
+                padding: 1.5rem 1rem;
+            }
+            
+            .restaurant-name {
+                font-size: 1.5rem;
+            }
+            
+            .restaurant-logo {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .category-nav-inner {
+                gap: 0.4rem;
+                padding: 0 0.75rem;
+            }
+            
+            .category-pill {
+                padding: 0.5rem 0.9rem;
+                font-size: 0.8rem;
+            }
+            
+            .menu-section {
+                padding: 1rem 0.75rem;
+            }
+            
+            .category-title {
+                font-size: 1.2rem;
+            }
+            
+            .dish-card {
+                border-radius: var(--radius-sm);
+            }
+            
+            .dish-content {
+                padding: 0.75rem;
+            }
+            
+            .dish-name {
+                font-size: 1rem;
+            }
+            
+            .dish-price {
+                font-size: 1.1rem;
+            }
+            
+            .dish-description {
+                font-size: 0.8rem;
+            }
+            
+            .search-input {
+                font-size: 16px; /* Evita zoom en iOS */
+            }
+        }
+
+        @media (max-width: 360px) {
+            .restaurant-name {
+                font-size: 1.3rem;
+            }
+            
+            .category-pill {
+                padding: 0.4rem 0.7rem;
+                font-size: 0.75rem;
+            }
+            
+            .dish-name {
+                font-size: 0.95rem;
+            }
+            
+            .dish-price {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body data-theme="{{ restaurante.tema or 'default' }}">
+
+    <!-- Skip link para accesibilidad -->
+    <a href="#menu-content" class="skip-link" style="position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden;">Saltar al menú</a>
+
+    <!-- Header del Restaurante -->
+    <header class="restaurant-header" role="banner">
+        {% if restaurante.logo_url %}
+            <img src="{{ restaurante.logo_url }}" alt="Logo de {{ restaurante.nombre }}" class="restaurant-logo" loading="eager" fetchpriority="high">
+        {% else %}
+            <div class="restaurant-logo-placeholder" role="img" aria-label="Icono de restaurante">
+                <i class="fas fa-utensils" aria-hidden="true"></i>
+            </div>
+        {% endif %}
+        <h1 class="restaurant-name">{{ restaurante.nombre }}</h1>
+        {% if restaurante.slogan %}
+        <p class="restaurant-slogan">{{ restaurante.slogan }}</p>
+        {% endif %}
+        <p class="restaurant-subtitle">
+            <i class="fas fa-qrcode" aria-hidden="true"></i> Menú Digital
+        </p>
+    </header>
+
+    <!-- Barra de búsqueda -->
+    <div class="search-container" role="search">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search search-icon" aria-hidden="true"></i>
+            <input 
+                type="search" 
+                id="searchInput" 
+                class="search-input" 
+                placeholder="Buscar en el menú..."
+                autocomplete="off"
+                aria-label="Buscar platos en el menú"
+            >
+            <button type="button" class="clear-search" id="clearSearch" aria-label="Limpiar búsqueda">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Navegación de categorías (sticky) -->
+    <nav class="category-nav" aria-label="Categorías del menú">
+        <div class="category-nav-inner">
+            {% for categoria in menu %}
+                <a href="#categoria-{{ loop.index }}" class="category-pill" data-target="categoria-{{ loop.index }}" aria-label="Ir a {{ categoria.nombre }}">
+                    <i class="fas fa-tag" aria-hidden="true"></i>
+                    {{ categoria.nombre }}
+                </a>
+            {% endfor %}
+        </div>
+    </nav>
+
+    <!-- Contenido principal del menú -->
+    <main class="container-menu" id="menu-content" role="main">
+        
+        <!-- Toggle de vista -->
+        <div class="view-toggle" role="group" aria-label="Cambiar vista del menú">
+            <button class="view-btn active" data-view="grid" title="Vista cuadrícula" aria-pressed="true" aria-label="Vista cuadrícula">
+                <i class="fas fa-th-large" aria-hidden="true"></i>
+            </button>
+            <button class="view-btn" data-view="list" title="Vista lista" aria-pressed="false" aria-label="Vista lista">
+                <i class="fas fa-list" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        {% if menu %}
+            {% for categoria in menu %}
+                <section class="menu-section" id="categoria-{{ loop.index }}" aria-labelledby="cat-title-{{ loop.index }}">
+                    <h2 class="category-title" id="cat-title-{{ loop.index }}">
+                        <i class="fas fa-utensils" aria-hidden="true"></i>
+                        {{ categoria.nombre }}
+                    </h2>
+                    
+                    {% if categoria.platos %}
+                        <div class="dishes-grid" id="dishes-{{ loop.index }}" role="list">
+                            {% for plato in categoria.platos %}
+                                <article class="dish-card" role="listitem" data-nombre="{{ plato.nombre|lower }}" data-descripcion="{{ plato.descripcion|lower if plato.descripcion else '' }}" tabindex="0" aria-label="{{ plato.nombre }}{% if restaurante.mostrar_precios != 0 %}, ${{ '{:,.0f}'.format(plato.precio)|replace(',', '.') }}{% endif %}">
+                                    {% if restaurante.mostrar_imagenes != 0 %}
+                                    <div class="dish-image-wrapper">
+                                        {% if plato.imagenes and plato.imagenes|length > 1 %}
+                                            <!-- Carrusel para múltiples imágenes -->
+                                            <div class="dish-carousel" data-plato-id="{{ plato.id }}" role="region" aria-label="Galería de imágenes de {{ plato.nombre }}">
+                                                {% for img in plato.imagenes %}
+                                                    <img 
+                                                        src="{{ img.imagen_src or img.imagen_url }}"
+                                                        alt="{{ plato.nombre }} - imagen {{ loop.index }} de {{ plato.imagenes|length }}" 
+                                                        class="dish-image carousel-image {% if loop.first %}active{% endif %}"
+                                                        loading="lazy" fetchpriority="low"
+                                                        sizes="(max-width: 600px) 100vw, 33vw"
+                                                        {% if img.imagen_srcset %} srcset="{{ img.imagen_srcset }}" {% endif %}
+                                                    >
+                                                {% endfor %}
+                                                <div class="carousel-indicators" role="tablist">
+                                                    {% for img in plato.imagenes %}
+                                                        <span class="carousel-dot {% if loop.first %}active{% endif %}" data-index="{{ loop.index0 }}" role="tab" aria-selected="{% if loop.first %}true{% else %}false{% endif %}" aria-label="Imagen {{ loop.index }}"></span>
+                                                    {% endfor %}
+                                                </div>
+                                                <button class="carousel-btn carousel-prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+                                                <button class="carousel-btn carousel-next" aria-label="Siguiente"><i class="fas fa-chevron-right"></i></button>
+                                            </div>
+                                        {% elif plato.imagenes and plato.imagenes|length == 1 %}
+                                            <!-- Una sola imagen de la tabla platos_imagenes -->
+                                            <img 
+                                                src="{{ plato.imagenes[0].imagen_src or plato.imagenes[0].imagen_url }}"
+                                                alt="{{ plato.nombre }}" 
+                                                class="dish-image"
+                                                loading="lazy" fetchpriority="low"
+                                                sizes="(max-width: 600px) 100vw, 33vw"
+                                                {% if plato.imagenes[0].imagen_srcset %} srcset="{{ plato.imagenes[0].imagen_srcset }}" {% endif %}
+                                            >
+                                        {% elif plato.imagen_src %}
+                                            <!-- Fallback: imagen de la tabla platos -->
+                                            <img 
+                                                src="{{ plato.imagen_src }}"
+                                                {% if plato.imagen_srcset %} srcset="{{ plato.imagen_srcset }}" sizes="(max-width: 600px) 100vw, 33vw" {% endif %}
+                                                alt="{{ plato.nombre }}" 
+                                                class="dish-image"
+                                                loading="lazy" fetchpriority="low"
+                                                sizes="(max-width: 600px) 100vw, 33vw"
+                                            >
+                                        {% else %}
+                                            <div class="dish-image-placeholder">
+                                                <i class="fas fa-hamburger"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    <div class="dish-content">
+                                        {% if plato.etiquetas %}
+                                            <div class="dish-tags">
+                                                {% for tag in plato.etiquetas %}
+                                                    {% set tag_lower = tag|lower|trim|replace(' ', '-') %}
+                                                    {% set etiquetas_estandar = ['nuevo', 'popular', 'recomendado', 'oferta', 'destacado', 'vegano', 'vegetariano', 'sin-gluten', 'sin-lactosa', 'sin-azucar', 'keto', 'organico', 'integral', 'picante', 'muy-picante', 'frio', 'caliente', 'crudo', 'entrada', 'principal', 'postre', 'bebida', 'acompanamiento', 'cafe', 'te', 'dulce', 'salado', 'artesanal', 'recien-horneado', 'grande', 'mediano', 'pequeno', 'para-compartir', 'individual', 'kosher', 'halal', 'casero', 'importado', 'local', 'temporada'] %}
+                                                    <span class="dish-tag tag-{{ tag_lower if tag_lower in etiquetas_estandar else 'default' }}">
+                                                        {{ tag|trim }}
+                                                    </span>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <h3 class="dish-name">{{ plato.nombre }}</h3>
+                                        {% if restaurante.mostrar_descripciones != 0 and plato.descripcion %}
+                                            <p class="dish-description">{{ plato.descripcion }}</p>
+                                        {% endif %}
+                                        {% if restaurante.mostrar_precios != 0 %}
+                                        <div class="dish-footer">
+                                            <span class="dish-price">
+                                                <span class="currency">$</span>{{ "{:,.0f}".format(plato.precio)|replace(",", ".") }}
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-utensils"></i>
+                            <h3>Sin platos disponibles</h3>
+                            <p>Pronto agregaremos platos a esta categoría.</p>
+                        </div>
+                    {% endif %}
+                </section>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state" style="padding: 5rem 1.5rem;">
+                <i class="fas fa-book-open"></i>
+                <h3>Menú en construcción</h3>
+                <p>Estamos preparando un delicioso menú para ti. ¡Vuelve pronto!</p>
+            </div>
+        {% endif %}
+        
+        <!-- Resultado de búsqueda vacío -->
+        <div class="empty-state hidden" id="noResults" role="alert" aria-live="polite">
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <h3>No encontramos resultados</h3>
+            <p>Intenta con otra palabra o revisa el menú completo.</p>
+        </div>
+
+    </main>
+
+    <!-- Información del Restaurante -->
+    {% if restaurante.telefono or restaurante.direccion or restaurante.horario %}
+    <section class="restaurant-info-section" aria-label="Información de contacto">
+        <div class="info-container">
+            {% if restaurante.telefono %}
+            <a href="tel:{{ restaurante.telefono }}" class="info-item" aria-label="Llamar al {{ restaurante.telefono }}">
+                <i class="fas fa-phone" aria-hidden="true"></i>
+                <span>{{ restaurante.telefono }}</span>
+            </a>
+            {% endif %}
+            
+            {% if restaurante.direccion %}
+            <a href="https://www.google.com/maps/search/?api=1&query={{ restaurante.direccion|urlencode }}" class="info-item" target="_blank" rel="noopener noreferrer" aria-label="Ver dirección en Google Maps">
+                <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                <span>{{ restaurante.direccion }}</span>
+            </a>
+            {% endif %}
+            
+            {% if restaurante.horario %}
+            <button type="button" class="info-item horario-item" onclick="toggleHorarios()" aria-expanded="false" aria-controls="horariosDropdown">
+                <i class="fas fa-clock" aria-hidden="true"></i>
+                <span>Ver horarios <i class="fas fa-chevron-down" id="horarioChevron" aria-hidden="true"></i></span>
+            </button>
+            {% endif %}
+            
+            <!-- Debug: whatsapp='{{ restaurante.whatsapp }}' -->
+            {% if restaurante.whatsapp and restaurante.whatsapp|trim %}
+            <a href="https://wa.me/{{ restaurante.whatsapp|replace('+', '')|replace(' ', '')|replace('-', '') }}" class="info-item whatsapp-item" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
+                <i class="fab fa-whatsapp" aria-hidden="true"></i>
+                <span>WhatsApp</span>
+            </a>
+            {% endif %}
+        </div>
+        
+        {% if restaurante.horario %}
+        <div class="horarios-dropdown" id="horariosDropdown" role="region" aria-label="Horarios de atención">
+            <div class="horarios-content" id="horariosContent">
+                <!-- Renderizado por JavaScript -->
+            </div>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+    
+    <!-- Datos de horario para JavaScript (siempre incluir) -->
+    <script id="horarioData" type="application/json">{{ restaurante.horario|default('{}', true)|safe }}</script>
+
+    <!-- Footer -->
+    <footer class="menu-footer" role="contentinfo">
+        <i class="fas fa-bolt" aria-hidden="true"></i>
+        Powered by <a href="https://divergent.studio" target="_blank" rel="noopener">Divergent Studio</a>
+    </footer>
+
+    <!-- Modal para ver plato en detalle -->
+    <div class="dish-modal" id="dishModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
+        <div class="dish-modal-backdrop" onclick="cerrarModal()" aria-label="Cerrar modal"></div>
+        <div class="dish-modal-content">
+            <button class="dish-modal-close" onclick="cerrarModal()" aria-label="Cerrar detalles del plato">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="dish-modal-image" id="modalImage"></div>
+            <div class="dish-modal-body">
+                <div class="dish-modal-tags" id="modalTags"></div>
+                <h2 class="dish-modal-title" id="modalTitle"></h2>
+                <p class="dish-modal-description" id="modalDescription"></p>
+                <div class="dish-modal-price" id="modalPrice"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Modal de detalle del plato */
+        .dish-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .dish-modal.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .dish-modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+        }
+        
+        .dish-modal-content {
+            position: relative;
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .dish-modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .dish-modal-close:hover {
+            background: rgba(0,0,0,0.7);
+        }
+        
+        .dish-modal-image {
+            width: 100%;
+            height: 250px;
+            background-size: cover;
+            background-position: center;
+            background-color: var(--bg-light);
+        }
+        
+        .dish-modal-image.no-image {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            color: var(--text-muted);
+        }
+        
+        .dish-modal-body {
+            padding: 1.5rem;
+        }
+        
+        .dish-modal-tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+        
+        .dish-modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 0.75rem;
+        }
+        
+        .dish-modal-description {
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+        
+        .dish-modal-price {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+    </style>
+
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // ============================================
+            // BÚSQUEDA EN TIEMPO REAL
+            // ============================================
+            const searchInput = document.getElementById('searchInput');
+            const clearSearchBtn = document.getElementById('clearSearch');
+            const dishCards = document.querySelectorAll('.dish-card');
+            const menuSections = document.querySelectorAll('.menu-section');
+            const noResults = document.getElementById('noResults');
+            const categoryNav = document.querySelector('.category-nav');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                let hasResults = false;
+
+                // Mostrar/ocultar botón de limpiar
+                clearSearchBtn.classList.toggle('visible', query.length > 0);
+
+                // Filtrar platos
+                dishCards.forEach(card => {
+                    const nombre = card.dataset.nombre || '';
+                    const descripcion = card.dataset.descripcion || '';
+                    const matches = nombre.includes(query) || descripcion.includes(query);
+                    
+                    card.classList.toggle('hidden', !matches && query.length > 0);
+                    if (matches) hasResults = true;
+                });
+
+                // Ocultar secciones vacías
+                menuSections.forEach(section => {
+                    const visibleDishes = section.querySelectorAll('.dish-card:not(.hidden)');
+                    section.classList.toggle('hidden', visibleDishes.length === 0 && query.length > 0);
+                });
+
+                // Mostrar mensaje de sin resultados
+                noResults.classList.toggle('hidden', hasResults || query.length === 0);
+                
+                // Ocultar navegación cuando hay búsqueda activa
+                categoryNav.style.display = query.length > 0 ? 'none' : 'block';
+            });
+
+            clearSearchBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input'));
+                searchInput.focus();
+            });
+
+            // ============================================
+            // NAVEGACIÓN SUAVE A CATEGORÍAS
+            // ============================================
+            const categoryPills = document.querySelectorAll('.category-pill');
+
+            categoryPills.forEach(pill => {
+                pill.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    const targetSection = document.getElementById(targetId);
+                    
+                    if (targetSection) {
+                        const navHeight = categoryNav.offsetHeight;
+                        const targetPosition = targetSection.offsetTop - navHeight - 10;
+                        
+                        window.scrollTo({
+                            top: targetPosition,
+                            behavior: 'smooth'
+                        });
+
+                        // Actualizar pill activo
+                        categoryPills.forEach(p => p.classList.remove('active'));
+                        this.classList.add('active');
+                    }
+                });
+            });
+
+            // Actualizar pill activo al hacer scroll
+            const observerOptions = {
+                root: null,
+                rootMargin: '-100px 0px -70% 0px',
+                threshold: 0
+            };
+
+            const sectionObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const sectionId = entry.target.id;
+                        categoryPills.forEach(pill => {
+                            pill.classList.toggle('active', 
+                                pill.getAttribute('href') === '#' + sectionId);
+                        });
+                    }
+                });
+            }, observerOptions);
+
+            menuSections.forEach(section => sectionObserver.observe(section));
+
+            // ============================================
+            // TOGGLE DE VISTA (Grid/List)
+            // ============================================
+            const viewBtns = document.querySelectorAll('.view-btn');
+            const dishesGrids = document.querySelectorAll('.dishes-grid');
+
+            viewBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const view = this.dataset.view;
+                    
+                    viewBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+
+                    dishesGrids.forEach(grid => {
+                        if (view === 'list') {
+                            grid.classList.add('dishes-list');
+                            grid.style.gridTemplateColumns = '1fr';
+                        } else {
+                            grid.classList.remove('dishes-list');
+                            grid.style.gridTemplateColumns = '';
+                        }
+                    });
+
+                    // Guardar preferencia
+                    localStorage.setItem('menuViewPreference', view);
+                });
+            });
+
+            // Restaurar preferencia de vista
+            const savedView = localStorage.getItem('menuViewPreference');
+            if (savedView) {
+                const targetBtn = document.querySelector(`[data-view="${savedView}"]`);
+                if (targetBtn) targetBtn.click();
+            }
+
+            // ============================================
+            // MODAL DE DETALLE DEL PLATO
+            // ============================================
+            dishCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const nombre = this.querySelector('.dish-name').textContent;
+                    const descripcion = this.querySelector('.dish-description')?.textContent || '';
+                    const precio = this.querySelector('.dish-price').textContent;
+                    const imgElement = this.querySelector('.dish-image');
+                    const imgUrl = imgElement ? imgElement.src : null;
+                    const tagsContainer = this.querySelector('.dish-tags');
+                    
+                    // Poblar modal
+                    document.getElementById('modalTitle').textContent = nombre;
+                    document.getElementById('modalDescription').textContent = descripcion;
+                    document.getElementById('modalPrice').textContent = precio;
+                    
+                    const modalImage = document.getElementById('modalImage');
+                    if (imgUrl) {
+                        modalImage.style.backgroundImage = `url(${imgUrl})`;
+                        modalImage.classList.remove('no-image');
+                        modalImage.innerHTML = '';
+                    } else {
+                        modalImage.style.backgroundImage = '';
+                        modalImage.classList.add('no-image');
+                        modalImage.innerHTML = '<i class="fas fa-utensils"></i>';
+                    }
+                    
+                    const modalTags = document.getElementById('modalTags');
+                    if (tagsContainer) {
+                        modalTags.innerHTML = tagsContainer.innerHTML;
+                    } else {
+                        modalTags.innerHTML = '';
+                    }
+                    
+                    // Mostrar modal
+                    document.getElementById('dishModal').classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                });
+            });
+
+            // ============================================
+            // LAZY LOADING DE IMÁGENES (fallback)
+            // ============================================
+            if ('loading' in HTMLImageElement.prototype) {
+                // El navegador soporta lazy loading nativo
+            } else {
+                // Fallback para navegadores antiguos
+                const lazyImages = document.querySelectorAll('img[loading="lazy"]');
+                const imageObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            img.src = img.src;
+                            imageObserver.unobserve(img);
+                        }
+                    });
+                });
+                lazyImages.forEach(img => imageObserver.observe(img));
+            }
+
+        });
+        
+        // Función para cerrar modal
+        function cerrarModal() {
+            const modal = document.getElementById('dishModal');
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+
+        // Función para abrir modal (actualizada para accesibilidad)
+        function abrirModal() {
+            const modal = document.getElementById('dishModal');
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            // Focus trap
+            modal.querySelector('.dish-modal-close').focus();
+        }
+        
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                cerrarModal();
+            }
+        });
+
+        // ============================================
+        // HORARIOS DEL RESTAURANTE
+        // ============================================
+        const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+        const DIAS_NOMBRES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        
+        function toggleHorarios() {
+            const dropdown = document.getElementById('horariosDropdown');
+            const chevron = document.getElementById('horarioChevron');
+            const item = document.querySelector('.horario-item');
+            
+            if (dropdown) {
+                const isOpen = dropdown.classList.toggle('open');
+                if (item) {
+                    item.classList.toggle('open');
+                    item.setAttribute('aria-expanded', isOpen);
+                }
+            }
+        }
+        
+        function cargarHorarios() {
+            const container = document.getElementById('horariosContent');
+            const dataElement = document.getElementById('horarioData');
+            
+            if (!container) return;
+            
+            // Si no hay elemento de datos o está vacío
+            if (!dataElement || !dataElement.textContent.trim()) {
+                container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
+                return;
+            }
+            
+            try {
+                const horarioStr = dataElement.textContent.trim();
+                
+                // Si está vacío o es un objeto vacío
+                if (!horarioStr || horarioStr === '{}' || horarioStr === '') {
+                    container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
+                    return;
+                }
+                
+                // Parsear el JSON
+                const horarios = JSON.parse(horarioStr);
+                
+                const hoy = new Date().getDay(); // 0 = Domingo
+                
+                let html = '';
+                // Iterar en orden de lunes a domingo
+                const ordenDias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+                const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+                // Mapeo: 0(dom)->6, 1(lun)->0, 2(mar)->1, etc.
+                const diaHoyIndex = hoy === 0 ? 6 : hoy - 1;
+                
+                ordenDias.forEach((dia, index) => {
+                    const esHoy = index === diaHoyIndex;
+                    const info = horarios[dia];
+                    
+                    if (info) {
+                        const estaAbierto = info.abierto === true || info.abierto === 'true' || info.abierto === 1;
+                        const horasText = estaAbierto 
+                            ? `${info.apertura || '00:00'} - ${info.cierre || '00:00'}` 
+                            : '<span class="horario-cerrado">Cerrado</span>';
+                        
+                        html += `
+                            <div class="horario-row ${esHoy ? 'hoy' : ''}" role="row">
+                                <span class="horario-dia">${nombresDias[index]}${esHoy ? ' (Hoy)' : ''}</span>
+                                <span class="horario-horas">${horasText}</span>
+                            </div>
+                        `;
+                    }
+                });
+                
+                if (html) {
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
+                }
+            } catch (e) {
+                console.error('Error parsing horarios:', e);
+                container.innerHTML = '<div class="horario-row"><span style="color: #7f8c8d;">Horarios no configurados</span></div>';
+            }
+        }
+        
+        // Helper para escapar HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Cargar horarios al iniciar
+        document.addEventListener('DOMContentLoaded', cargarHorarios);
+
+        // ============================================
+        // TOAST NOTIFICATION SYSTEM
+        // ============================================
+        function mostrarToast(mensaje, tipo = 'info', duracion = 3000) {
+            // Eliminar toast anterior si existe
+            const existingToast = document.querySelector('.toast-notification');
+            if (existingToast) existingToast.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast-notification toast-${tipo}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'polite');
+            
+            const iconos = {
+                'success': 'fa-check-circle',
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle'
+            };
+            
+            toast.innerHTML = `
+                <i class="fas ${iconos[tipo] || iconos.info}" aria-hidden="true"></i>
+                <span>${mensaje}</span>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, duracion);
+        }
+
+        // ==========================================
+        // CARRUSEL DE IMÁGENES
+        // ==========================================
+        function initCarousels() {
+            const carousels = document.querySelectorAll('.dish-carousel');
+            
+            carousels.forEach(carousel => {
+                const images = carousel.querySelectorAll('.carousel-image');
+                const dots = carousel.querySelectorAll('.carousel-dot');
+                const prevBtn = carousel.querySelector('.carousel-prev');
+                const nextBtn = carousel.querySelector('.carousel-next');
+                let currentIndex = 0;
+                let touchStartX = 0;
+                let touchEndX = 0;
+
+                function showSlide(index) {
+                    // Manejar índice circular
+                    if (index >= images.length) index = 0;
+                    if (index < 0) index = images.length - 1;
+                    currentIndex = index;
+
+                    // Actualizar imágenes
+                    images.forEach((img, i) => {
+                        img.classList.toggle('active', i === currentIndex);
+                    });
+
+                    // Actualizar indicadores (con ARIA)
+                    dots.forEach((dot, i) => {
+                        dot.classList.toggle('active', i === currentIndex);
+                        dot.setAttribute('aria-selected', i === currentIndex);
+                    });
+                }
+
+                // Botón anterior
+                if (prevBtn) {
+                    prevBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSlide(currentIndex - 1);
+                    });
+                }
+
+                // Botón siguiente
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSlide(currentIndex + 1);
+                    });
+                }
+
+                // Click en indicadores
+                dots.forEach((dot, i) => {
+                    dot.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showSlide(i);
+                    });
+                });
+
+                // Soporte táctil (swipe)
+                carousel.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+
+                carousel.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    handleSwipe();
+                }, { passive: true });
+
+                function handleSwipe() {
+                    const swipeThreshold = 50;
+                    const diff = touchStartX - touchEndX;
+                    
+                    if (Math.abs(diff) > swipeThreshold) {
+                        if (diff > 0) {
+                            // Swipe izquierda -> siguiente
+                            showSlide(currentIndex + 1);
+                        } else {
+                            // Swipe derecha -> anterior
+                            showSlide(currentIndex - 1);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Inicializar carruseles cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', initCarousels);
+    </script>
+
+</body>
+</html>
