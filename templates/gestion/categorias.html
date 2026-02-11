@@ -1,0 +1,371 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block title %}Categorías - {{ session.get('restaurante_nombre', 'Mi Restaurante') }}{% endblock %}
+
+{% block page_title %}Gestión de Categorías{% endblock %}
+
+{% block content %}
+<div class="columns">
+    <div class="column is-8">
+        <!-- Lista de Categorías -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-layer-group"></i> Categorías del Menú</h2>
+                <button class="btn-primary" onclick="abrirModalCategoria()">
+                    <i class="fas fa-plus"></i> Nueva Categoría
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table" id="tablaCategorias">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Orden</th>
+                            <th>Nombre</th>
+                            <th style="width: 100px;">Platos</th>
+                            <th style="width: 100px;">Estado</th>
+                            <th style="width: 150px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listaCategorias">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 2rem;">
+                                <i class="fas fa-spinner fa-spin"></i> Cargando categorías...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-4">
+        <!-- Tips -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-lightbulb"></i> Consejos</h2>
+            </div>
+            <div class="tips-card" style="background: #f8f9fa; border-left: 4px solid var(--primary-color); padding: 1rem; border-radius: 8px;">
+                <ul style="margin-left: 1rem; color: var(--text-muted);">
+                    <li style="margin-bottom: 0.5rem;">Usa el <strong>orden</strong> para controlar cómo aparecen las categorías en el menú</li>
+                    <li style="margin-bottom: 0.5rem;">Las categorías inactivas no se muestran en el menú público</li>
+                    <li style="margin-bottom: 0.5rem;">No puedes eliminar una categoría que tiene platos asociados</li>
+                    <li>Ejemplos: Entradas, Platos Fuertes, Postres, Bebidas</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Resumen -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-chart-pie"></i> Resumen</h2>
+            </div>
+            <div class="columns">
+                <div class="column">
+                    <div style="text-align: center; padding: 1rem;">
+                        <h3 style="font-size: 2rem; font-weight: 700; color: var(--primary-color);" id="totalCategorias">0</h3>
+                        <p style="color: var(--text-muted);">Categorías</p>
+                    </div>
+                </div>
+                <div class="column">
+                    <div style="text-align: center; padding: 1rem;">
+                        <h3 style="font-size: 2rem; font-weight: 700; color: #27ae60;" id="categoriasActivas">0</h3>
+                        <p style="color: var(--text-muted);">Activas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva/Editar Categoría -->
+<div class="modal-overlay" id="modalCategoria">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalCategoriaTitle">Nueva Categoría</h3>
+            <button class="modal-close" onclick="cerrarModalCategoria()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="formCategoria">
+                <input type="hidden" id="categoriaId">
+                
+                <div class="form-group">
+                    <label class="form-label">Nombre de la Categoría *</label>
+                    <input type="text" class="form-input" id="categoriaNombre" placeholder="Ej: Platos Fuertes" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Orden de Aparición</label>
+                    <input type="number" class="form-input" id="categoriaOrden" value="0" min="0">
+                    <small style="color: var(--text-muted);">Las categorías se ordenan de menor a mayor</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="categoriaActiva" checked>
+                        Categoría activa (visible en el menú)
+                    </label>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="cerrarModalCategoria()">Cancelar</button>
+            <button class="btn-primary" onclick="guardarCategoria()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Estilos móviles para categorías */
+    @media (max-width: 768px) {
+        .columns {
+            flex-direction: column;
+        }
+        
+        .column.is-8, .column.is-4 {
+            width: 100%;
+            flex: none;
+        }
+        
+        .card-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch !important;
+        }
+        
+        .card-header .btn-primary {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        /* Tabla a tarjetas */
+        .data-table thead {
+            display: none;
+        }
+        
+        .data-table tbody tr {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .data-table tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border: none !important;
+        }
+        
+        .data-table tbody td:before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+        }
+        
+        .data-table tbody td:last-child {
+            justify-content: flex-end;
+            padding-top: 1rem;
+            margin-top: 0.5rem;
+            border-top: 1px solid #eee !important;
+        }
+        
+        .data-table tbody td:last-child:before {
+            display: none;
+        }
+        
+        /* Tips card */
+        .tips-card ul {
+            padding-left: 0.5rem;
+        }
+        
+        /* Modal */
+        .modal-content {
+            width: 95%;
+            max-width: none;
+            margin: 0.5rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .form-input {
+            font-size: 16px; /* Evita zoom iOS */
+        }
+        
+        .dashboard-card {
+            padding: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let categorias = [];
+
+// Cargar categorías al iniciar
+document.addEventListener('DOMContentLoaded', cargarCategorias);
+
+async function cargarCategorias() {
+    try {
+        const response = await fetch('/api/categorias');
+        categorias = await response.json();
+        renderizarCategorias();
+        actualizarResumen();
+    } catch (error) {
+        console.error('Error cargando categorías:', error);
+        document.getElementById('listaCategorias').innerHTML = `
+            <tr><td colspan="5" style="text-align: center; color: #e74c3c;">
+                <i class="fas fa-exclamation-triangle"></i> Error al cargar categorías
+            </td></tr>
+        `;
+    }
+}
+
+function renderizarCategorias() {
+    const lista = document.getElementById('listaCategorias');
+    
+    if (categorias.length === 0) {
+        lista.innerHTML = `
+            <tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                <i class="fas fa-folder-open" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                No hay categorías. ¡Crea la primera!
+            </td></tr>
+        `;
+        return;
+    }
+    
+    lista.innerHTML = categorias.map(cat => `
+        <tr>
+            <td>
+                <span style="background: #f0f0f0; padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: 600;">
+                    ${cat.orden}
+                </span>
+            </td>
+            <td>
+                <strong>${cat.nombre}</strong>
+            </td>
+            <td>
+                <span class="tag" style="background: #3498db; color: white; padding: 0.25rem 0.5rem; border-radius: 4px;">
+                    ${cat.total_platos || 0} platos
+                </span>
+            </td>
+            <td>
+                ${cat.activo ? 
+                    '<span style="color: #27ae60;"><i class="fas fa-check-circle"></i> Activa</span>' : 
+                    '<span style="color: #e74c3c;"><i class="fas fa-times-circle"></i> Inactiva</span>'
+                }
+            </td>
+            <td>
+                <button class="btn-secondary" style="padding: 0.4rem 0.75rem; margin-right: 0.25rem;" onclick="editarCategoria(${cat.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-secondary" style="padding: 0.4rem 0.75rem; background: #fee; color: #e74c3c;" onclick="eliminarCategoria(${cat.id}, '${cat.nombre}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function actualizarResumen() {
+    document.getElementById('totalCategorias').textContent = categorias.length;
+    document.getElementById('categoriasActivas').textContent = categorias.filter(c => c.activo).length;
+}
+
+function abrirModalCategoria() {
+    document.getElementById('modalCategoriaTitle').textContent = 'Nueva Categoría';
+    document.getElementById('categoriaId').value = '';
+    document.getElementById('categoriaNombre').value = '';
+    document.getElementById('categoriaOrden').value = categorias.length;
+    document.getElementById('categoriaActiva').checked = true;
+    document.getElementById('modalCategoria').classList.add('active');
+}
+
+function cerrarModalCategoria() {
+    document.getElementById('modalCategoria').classList.remove('active');
+}
+
+function editarCategoria(id) {
+    const cat = categorias.find(c => c.id === id);
+    if (!cat) return;
+    
+    document.getElementById('modalCategoriaTitle').textContent = 'Editar Categoría';
+    document.getElementById('categoriaId').value = cat.id;
+    document.getElementById('categoriaNombre').value = cat.nombre;
+    document.getElementById('categoriaOrden').value = cat.orden;
+    document.getElementById('categoriaActiva').checked = cat.activo == 1;
+    document.getElementById('modalCategoria').classList.add('active');
+}
+
+async function guardarCategoria() {
+    const id = document.getElementById('categoriaId').value;
+    const data = {
+        nombre: document.getElementById('categoriaNombre').value,
+        orden: parseInt(document.getElementById('categoriaOrden').value) || 0,
+        activo: document.getElementById('categoriaActiva').checked ? 1 : 0
+    };
+    
+    if (!data.nombre.trim()) {
+        alert('El nombre es obligatorio');
+        return;
+    }
+    
+    try {
+        const url = id ? `/api/categorias/${id}` : '/api/categorias';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetchWithCSRF(url, {
+            method: method,
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            cerrarModalCategoria();
+            cargarCategorias();
+            alert(id ? 'Categoría actualizada' : 'Categoría creada');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    }
+}
+
+async function eliminarCategoria(id, nombre) {
+    if (!confirm(`¿Eliminar la categoría "${nombre}"?\n\nNota: Solo puedes eliminar categorías sin platos asociados.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetchWithCSRF(`/api/categorias/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            cargarCategorias();
+            alert('Categoría eliminada');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    }
+}
+</script>
+{% endblock %}

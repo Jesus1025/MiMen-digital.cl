@@ -1,0 +1,571 @@
+{% extends "superadmin/base_superadmin.html" %}
+
+{% block title %}Suscripciones - SuperAdmin{% endblock %}
+{% block page_title %}Gestión de Suscripciones{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .stat-mini {
+        background: white;
+        border-radius: 10px;
+        padding: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .stat-mini-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+    }
+    
+    .stat-mini-icon.green { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+    .stat-mini-icon.orange { background: linear-gradient(135deg, #f39c12, #e67e22); }
+    .stat-mini-icon.red { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .stat-mini-icon.blue { background: linear-gradient(135deg, #3498db, #2980b9); }
+    
+    .stat-mini-info h4 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        line-height: 1;
+    }
+    
+    .stat-mini-info p {
+        font-size: 0.8rem;
+        color: #7f8c8d;
+        margin-top: 0.25rem;
+    }
+    
+    .filter-bar {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .filter-bar .select, .filter-bar .input {
+        min-width: 200px;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-badge.active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-badge.expiring {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-badge.expired {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-badge.trial {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-sm {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-sm.btn-extend {
+        background: #27ae60;
+        color: white;
+    }
+    
+    .btn-sm.btn-extend:hover {
+        background: #1e8449;
+    }
+    
+    .days-remaining {
+        font-weight: 600;
+    }
+    
+    .days-remaining.positive {
+        color: #27ae60;
+    }
+    
+    .days-remaining.warning {
+        color: #f39c12;
+    }
+    
+    .days-remaining.negative {
+        color: #e74c3c;
+    }
+    
+    @media (max-width: 768px) {
+        .filter-bar {
+            flex-direction: column;
+        }
+        
+        .filter-bar .select, .filter-bar .input {
+            min-width: 100%;
+        }
+        
+        .data-table {
+            font-size: 0.85rem;
+        }
+        
+        .data-table th, .data-table td {
+            padding: 0.75rem 0.5rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stat-mini {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Estadísticas Rápidas -->
+<div class="stats-grid">
+    <div class="stat-mini">
+        <div class="stat-mini-icon green">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-mini-info">
+            <h4 id="statActivas">-</h4>
+            <p>Activas</p>
+        </div>
+    </div>
+    <div class="stat-mini">
+        <div class="stat-mini-icon orange">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="stat-mini-info">
+            <h4 id="statPorVencer">-</h4>
+            <p>Por Vencer</p>
+        </div>
+    </div>
+    <div class="stat-mini">
+        <div class="stat-mini-icon red">
+            <i class="fas fa-times-circle"></i>
+        </div>
+        <div class="stat-mini-info">
+            <h4 id="statVencidas">-</h4>
+            <p>Vencidas</p>
+        </div>
+    </div>
+    <div class="stat-mini">
+        <div class="stat-mini-icon blue">
+            <i class="fas fa-flask"></i>
+        </div>
+        <div class="stat-mini-info">
+            <h4 id="statPrueba">-</h4>
+            <p>En Prueba</p>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-credit-card"></i> Suscripciones</h2>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="filter-bar">
+        <div class="control">
+            <div class="select">
+                <select id="filtroEstado">
+                    <option value="">Todos los estados</option>
+                    <option value="activa">Activas</option>
+                    <option value="por_vencer">Por Vencer</option>
+                    <option value="vencida">Vencidas</option>
+                    <option value="prueba">En Prueba</option>
+                </select>
+            </div>
+        </div>
+        <div class="control is-expanded">
+            <input class="input" type="text" id="buscarRestaurante" placeholder="Buscar restaurante...">
+        </div>
+    </div>
+    
+    <!-- Tabla -->
+    <div class="table-container">
+        <table class="data-table" id="tablaSuscripciones">
+            <thead>
+                <tr>
+                    <th>Restaurante</th>
+                    <th>Plan</th>
+                    <th>Estado</th>
+                    <th>Vencimiento</th>
+                    <th>Días</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="suscripcionesBody">
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p style="margin-top: 1rem; color: #7f8c8d;">Cargando...</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Extender Suscripción -->
+<div class="modal-overlay" id="modalExtender">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Extender Suscripción</h3>
+            <button class="modal-close" onclick="cerrarModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 1rem;">Restaurante: <strong id="modalRestauranteNombre">-</strong></p>
+            <p style="margin-bottom: 1rem;">Vencimiento actual: <strong id="modalFechaActual">-</strong></p>
+            
+            <input type="hidden" id="modalRestauranteId">
+            
+            <div class="form-group">
+                <label class="form-label">Extender por:</label>
+                <div class="select is-fullwidth">
+                    <select id="diasExtension" class="form-input">
+                        <option value="30">1 Mes (30 días)</option>
+                        <option value="60">2 Meses (60 días)</option>
+                        <option value="90">3 Meses (90 días)</option>
+                        <option value="180">6 Meses (180 días)</option>
+                        <option value="365">1 Año (365 días)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">O fecha específica:</label>
+                <input type="date" id="fechaEspecifica" class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Cambiar estado a:</label>
+                <div class="select is-fullwidth">
+                    <select id="nuevoEstado" class="form-input">
+                        <option value="activa">✅ Activa (suscripción pagada y vigente)</option>
+                        <option value="prueba">🎁 Prueba (período gratuito)</option>
+                        <option value="vencida">❌ Vencida (requiere pago)</option>
+                        <option value="suspendida">⛔ Suspendida (cuenta bloqueada)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Cambiar plan a:</label>
+                <div class="select is-fullwidth">
+                    <select id="nuevoPlan" class="form-input">
+                        <!-- Se llena con JS -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Notas (opcional):</label>
+                <textarea id="notasExtension" class="form-input" rows="2" placeholder="Ej: Pago recibido"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn-primary" onclick="guardarExtension()">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let suscripciones = [];
+    let planes = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        cargarSuscripciones();
+        document.getElementById('filtroEstado').addEventListener('change', filtrarSuscripciones);
+        document.getElementById('buscarRestaurante').addEventListener('input', filtrarSuscripciones);
+    });
+
+    async function cargarSuscripciones() {
+        try {
+            const res = await fetch('/api/superadmin/suscripciones');
+            const data = await res.json();
+            suscripciones = data.suscripciones;
+            planes = data.planes;
+            actualizarEstadisticas();
+            renderizarSuscripciones(suscripciones);
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('suscripcionesBody').innerHTML = `
+                <tr><td colspan="6" style="text-align: center; color: #e74c3c; padding: 2rem;">
+                    <i class="fas fa-exclamation-triangle"></i> Error al cargar
+                </td></tr>`;
+        }
+    }
+
+    function actualizarEstadisticas() {
+        const hoy = new Date();
+        const en7dias = new Date();
+        en7dias.setDate(hoy.getDate() + 7);
+        let activas = 0, porVencer = 0, vencidas = 0, enPrueba = 0;
+        
+        suscripciones.forEach(s => {
+            const venc = s.fecha_vencimiento ? new Date(s.fecha_vencimiento) : null;
+            const planNombre = planes[s.plan_id] || '';
+            const esPlanGratuito = planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis');
+            
+            if (esPlanGratuito) {
+                // Plan Gratuito = En Prueba
+                enPrueba++;
+            } else {
+                // Plan Premium - verificar estado según fecha
+                if (!venc || venc < hoy) { 
+                    vencidas++; 
+                } else if (venc <= en7dias) { 
+                    porVencer++; 
+                } else { 
+                    activas++; 
+                }
+            }
+        });
+        
+        document.getElementById('statActivas').textContent = activas;
+        document.getElementById('statPorVencer').textContent = porVencer;
+        document.getElementById('statVencidas').textContent = vencidas;
+        document.getElementById('statPrueba').textContent = enPrueba;
+    }
+
+    function renderizarSuscripciones(lista) {
+        const tbody = document.getElementById('suscripcionesBody');
+        if (lista.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #7f8c8d;">Sin resultados</td></tr>`;
+            return;
+        }
+        const hoy = new Date();
+        tbody.innerHTML = lista.map(s => {
+            const venc = s.fecha_vencimiento ? new Date(s.fecha_vencimiento) : null;
+            const dias = venc ? Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24)) : null;
+            
+            // Determinar el plan basado en el nombre del plan en la BD
+            const planNombreBD = planes[s.plan_id] || '';
+            const esPlanGratuito = planNombreBD.toLowerCase().includes('gratuito') || planNombreBD.toLowerCase().includes('gratis');
+            
+            // Determinar estado basado en el PLAN, no en estado_suscripcion
+            let statusClass, statusText, statusIcon;
+            let planIcon, planStyle, planNombre;
+            
+            if (esPlanGratuito) {
+                // Plan Gratuito - siempre muestra "En Prueba" o "Prueba Vencida"
+                planIcon = '<i class="fas fa-gift" style="margin-right: 4px;"></i>';
+                planStyle = 'background: #3498db; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;';
+                planNombre = 'Gratuito';
+                
+                if (!venc || dias < 0) {
+                    statusClass = 'expired'; 
+                    statusText = 'Prueba Vencida'; 
+                    statusIcon = 'fa-times-circle';
+                } else {
+                    statusClass = 'trial'; 
+                    statusText = 'En Prueba'; 
+                    statusIcon = 'fa-flask';
+                }
+            } else {
+                // Plan Premium - muestra estados de suscripción pagada
+                planIcon = '<i class="fas fa-crown" style="margin-right: 4px;"></i>';
+                planStyle = 'background: #9b59b6; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;';
+                planNombre = 'Premium';
+                
+                if (!venc || dias < 0) { 
+                    statusClass = 'expired'; 
+                    statusText = 'Vencida'; 
+                    statusIcon = 'fa-times-circle'; 
+                } else if (dias <= 7) { 
+                    statusClass = 'expiring'; 
+                    statusText = 'Por Vencer'; 
+                    statusIcon = 'fa-exclamation-triangle'; 
+                } else { 
+                    statusClass = 'active'; 
+                    statusText = 'Activa'; 
+                    statusIcon = 'fa-check-circle'; 
+                }
+            }
+            
+            let diasClass = dias === null ? '' : (dias < 0 ? 'negative' : dias <= 7 ? 'warning' : 'positive');
+            
+            return `
+                <tr>
+                    <td><strong>${s.nombre}</strong><br><small style="color: #7f8c8d;">${s.email || '-'}</small></td>
+                    <td><span style="${planStyle}">${planIcon}${planNombre}</span></td>
+                    <td><span class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i> ${statusText}</span></td>
+                    <td>${venc ? venc.toLocaleDateString('es-CL') : '-'}</td>
+                    <td><span class="days-remaining ${diasClass}">${dias !== null ? dias : '-'}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-sm btn-extend" onclick="abrirModalExtender(${s.id}, '${s.nombre.replace(/'/g, "\\'")}', '${s.fecha_vencimiento || ''}', ${s.plan_id || 'null'}, '${s.estado_suscripcion || 'activa'}')">
+                                <i class="fas fa-cog"></i> Gestionar
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+    }
+
+    function filtrarSuscripciones() {
+        const estado = document.getElementById('filtroEstado').value;
+        const busqueda = document.getElementById('buscarRestaurante').value.toLowerCase();
+        const hoy = new Date();
+        const en7dias = new Date();
+        en7dias.setDate(hoy.getDate() + 7);
+        
+        let filtradas = suscripciones;
+        if (estado) {
+            filtradas = filtradas.filter(s => {
+                const venc = s.fecha_vencimiento ? new Date(s.fecha_vencimiento) : null;
+                const planNombre = planes[s.plan_id] || '';
+                const esPlanGratuito = planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis');
+                const dias = venc ? Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24)) : null;
+                
+                switch(estado) {
+                    case 'activa': 
+                        // Premium con más de 7 días
+                        return !esPlanGratuito && venc && dias > 7;
+                    case 'por_vencer': 
+                        // Premium con 7 días o menos
+                        return !esPlanGratuito && venc && dias > 0 && dias <= 7;
+                    case 'vencida': 
+                        // Premium vencida o Gratuito vencido
+                        return !esPlanGratuito && (!venc || dias < 0);
+                    case 'prueba': 
+                        // Plan Gratuito (en prueba)
+                        return esPlanGratuito;
+                    default: return true;
+                }
+            });
+        }
+        if (busqueda) {
+            filtradas = filtradas.filter(s => s.nombre.toLowerCase().includes(busqueda) || (s.email && s.email.toLowerCase().includes(busqueda)));
+        }
+        renderizarSuscripciones(filtradas);
+    }
+
+    function abrirModalExtender(id, nombre, fechaActual, planActual, estadoActual) {
+        document.getElementById('modalRestauranteId').value = id;
+        document.getElementById('modalRestauranteNombre').textContent = nombre;
+        document.getElementById('modalFechaActual').textContent = fechaActual ? new Date(fechaActual).toLocaleDateString('es-CL') : 'Sin fecha';
+        document.getElementById('diasExtension').value = '30';
+        document.getElementById('fechaEspecifica').value = '';
+        document.getElementById('notasExtension').value = '';
+        
+        // Cargar solo 2 planes (Gratuito y Premium)
+        const selectPlan = document.getElementById('nuevoPlan');
+        
+        // Encontrar IDs de los planes Gratuito y Premium
+        let gratuiID = null;
+        let premiumID = null;
+        
+        Object.entries(planes).forEach(([planeId, planNombre]) => {
+            if (planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis')) {
+                if (!gratuiID) gratuiID = planeId;
+            } else if (planNombre.toLowerCase().includes('premium')) {
+                if (!premiumID) premiumID = planeId;
+            }
+        });
+        
+        // Crear opciones solo para los 2 planes principales
+        let optionsHTML = '';
+        if (gratuiID) optionsHTML += `<option value="${gratuiID}" ${gratuiID == planActual ? 'selected' : ''}>🎁 Plan Gratuito</option>`;
+        if (premiumID) optionsHTML += `<option value="${premiumID}" ${premiumID == planActual ? 'selected' : ''}>👑 Plan Premium</option>`;
+        
+        selectPlan.innerHTML = optionsHTML;
+        
+        // Establecer estado actual
+        document.getElementById('nuevoEstado').value = estadoActual || 'activa';
+        
+        document.getElementById('modalExtender').classList.add('active');
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalExtender').classList.remove('active');
+    }
+
+    async function guardarExtension() {
+        const id = document.getElementById('modalRestauranteId').value;
+        const dias = document.getElementById('diasExtension').value;
+        const fechaEspecifica = document.getElementById('fechaEspecifica').value;
+        const estado = document.getElementById('nuevoEstado').value;
+        const planId = document.getElementById('nuevoPlan').value;
+        
+        try {
+            const res = await fetchWithCSRF(`/api/superadmin/suscripciones/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    dias_extension: fechaEspecifica ? null : parseInt(dias),
+                    fecha_especifica: fechaEspecifica || null,
+                    estado_suscripcion: estado,
+                    plan_id: planId ? parseInt(planId) : null
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                cerrarModal();
+                cargarSuscripciones();
+                alert('Suscripción actualizada');
+            } else {
+                alert(result.error || 'Error al actualizar');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,514 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block title %}Dashboard - {{ restaurante_nombre }}{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="columns is-multiline">
+    <!-- Stats Cards -->
+    <div class="column is-6-tablet is-3-desktop">
+        <div class="stat-card">
+            <div class="stat-icon bg-primary">
+                <i class="fas fa-hamburger"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalPlatos">--</h3>
+                <p>Platos Activos</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-6-tablet is-3-desktop">
+        <div class="stat-card">
+            <div class="stat-icon bg-success">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalCategorias">--</h3>
+                <p>Categorías</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-6-tablet is-3-desktop">
+        <div class="stat-card" style="cursor: pointer;" onclick="mostrarDetalleVisitas()">
+            <div class="stat-icon bg-info">
+                <i class="fas fa-eye"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalVistas">--</h3>
+                <p>Vistas este mes</p>
+                <small id="visitasHoy" style="color: #27ae60; font-size: 0.75rem;"></small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="column is-6-tablet is-3-desktop">
+        <div class="stat-card" style="cursor: pointer;" onclick="mostrarDetalleScans()">
+            <div class="stat-icon bg-warning">
+                <i class="fas fa-qrcode"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="totalScans">--</h3>
+                <p>Escaneos QR/NFC</p>
+                <small id="scansHoy" style="color: #27ae60; font-size: 0.75rem;"></small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h2 class="card-title">
+            <i class="fas fa-bolt" style="color: #f39c12; margin-right: 0.5rem;"></i>
+            Acciones Rápidas
+        </h2>
+    </div>
+    <div class="columns is-multiline is-mobile">
+        <div class="column is-6-mobile is-3-tablet">
+            <a href="{{ url_for('gestion_platos') }}" class="button is-primary is-fullwidth quick-action-btn">
+                <i class="fas fa-plus fa-lg"></i>
+                <span>Agregar Plato</span>
+            </a>
+        </div>
+        <div class="column is-6-mobile is-3-tablet">
+            <button onclick="mostrarQR()" class="button is-info is-fullwidth quick-action-btn">
+                <i class="fas fa-qrcode fa-lg"></i>
+                <span>Ver Código QR</span>
+            </button>
+        </div>
+        <div class="column is-6-mobile is-3-tablet">
+            {% if menu_url_global %}
+            <a href="{{ menu_url_global }}" id="btnVerMenu" class="button is-success is-fullwidth quick-action-btn" target="_blank">
+                <i class="fas fa-external-link-alt fa-lg"></i>
+                <span>Ver Mi Menú</span>
+            </a>
+            {% else %}
+            <button class="button is-success is-fullwidth quick-action-btn" style="opacity: 0.6; cursor: not-allowed;" disabled>
+                <i class="fas fa-external-link-alt fa-lg"></i>
+                <span>Ver Mi Menú</span>
+            </button>
+            {% endif %}
+        </div>
+        <div class="column is-6-mobile is-3-tablet">
+            <button onclick="abrirModalSoporte()" class="button is-fullwidth quick-action-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                <i class="fas fa-headset fa-lg"></i>
+                <span>¿Necesitas Ayuda?</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Link del Menú -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h2 class="card-title">
+            <i class="fas fa-link" style="color: #3498db; margin-right: 0.5rem;"></i>
+            Tu Link del Menú
+        </h2>
+    </div>
+    <div class="field has-addons">
+        <div class="control is-expanded">
+            <input class="input is-medium" type="text" id="menuLink" value="https://tudominio.com/menu/tu-restaurante" readonly>
+        </div>
+        <div class="control">
+            <button class="button is-primary is-medium" onclick="copyMenuLink()">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+    </div>
+    <p class="help">Comparte este link con tus clientes o genéralo como código QR.</p>
+</div>
+
+<!-- Últimos platos agregados -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h2 class="card-title">
+            <i class="fas fa-clock" style="color: #9b59b6; margin-right: 0.5rem;"></i>
+            Últimos Platos Agregados
+        </h2>
+        <a href="{{ url_for('gestion_platos') }}" class="btn-secondary">
+            Ver todos <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    <div class="table-container">
+        <table class="data-table" id="ultimosPlatos">
+            <thead>
+                <tr>
+                    <th>Plato</th>
+                    <th>Categoría</th>
+                    <th>Precio</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                        <i class="fas fa-spinner fa-spin"></i> Cargando...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Sección de Soporte - Banner informativo -->
+<div class="dashboard-card" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border: 1px solid #667eea30;">
+    <div class="columns is-vcentered" style="margin: 0;">
+        <div class="column">
+            <p style="color: #555; margin: 0;">
+                <i class="fas fa-lightbulb" style="color: #f39c12; margin-right: 0.5rem;"></i>
+                <strong>Tip:</strong> ¿Necesitas menús 3D, más productos o funciones especiales? Contáctanos desde el botón <strong>"¿Necesitas Ayuda?"</strong> arriba.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Soporte -->
+<div class="modal" id="modalSoporte">
+    <div class="modal-background" onclick="cerrarModalSoporte()"></div>
+    <div class="modal-card" style="max-width: 500px;">
+        <header class="modal-card-head" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <p class="modal-card-title" style="color: white;">
+                <i class="fas fa-headset" style="margin-right: 0.5rem;"></i>
+                Contactar Soporte
+            </p>
+            <button class="delete" aria-label="close" onclick="cerrarModalSoporte()"></button>
+        </header>
+        <section class="modal-card-body">
+            <div class="field">
+                <label class="label">Tipo de consulta</label>
+                <div class="control">
+                    <div class="select is-fullwidth">
+                        <select id="ticketTipo">
+                            <option value="consulta">Consulta general</option>
+                            <option value="problema">Problema técnico</option>
+                            <option value="sugerencia">Sugerencia</option>
+                            <option value="pago">Consulta de pago/suscripción</option>
+                            <option value="menu_3d">🎨 Necesito menús 3D</option>
+                            <option value="mas_productos">📦 Necesito más productos/funciones</option>
+                            <option value="personalizacion">✨ Personalización especial</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="field">
+                <label class="label">Asunto *</label>
+                <div class="control">
+                    <input class="input" type="text" id="ticketAsunto" placeholder="Resumen de tu consulta" maxlength="200">
+                </div>
+            </div>
+            
+            <div class="field">
+                <label class="label">Mensaje *</label>
+                <div class="control">
+                    <textarea class="textarea" id="ticketMensaje" rows="5" placeholder="Describe tu consulta o problema con el mayor detalle posible..."></textarea>
+                </div>
+                <p class="help">Mínimo 10 caracteres</p>
+            </div>
+        </section>
+        <footer class="modal-card-foot" style="justify-content: flex-end;">
+            <button class="button" onclick="cerrarModalSoporte()">Cancelar</button>
+            <button class="button is-primary" id="btnEnviarTicket" onclick="enviarTicket()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                <i class="fas fa-paper-plane" style="margin-right: 0.5rem;"></i>
+                Enviar Ticket
+            </button>
+        </footer>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Botones de acciones rápidas */
+    .quick-action-btn {
+        height: 80px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .quick-action-btn:active {
+        transform: translateY(0);
+    }
+    
+    @media (max-width: 768px) {
+        .quick-action-btn {
+            height: 70px;
+            font-size: 0.8rem;
+            gap: 0.35rem;
+            border-radius: 10px;
+        }
+        
+        .quick-action-btn i {
+            font-size: 1.2rem !important;
+        }
+    }
+    
+    @media (max-width: 375px) {
+        .quick-action-btn {
+            height: 60px;
+            font-size: 0.75rem;
+            gap: 0.25rem;
+        }
+        
+        .quick-action-btn i {
+            font-size: 1rem !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let urlSlug = '';
+    let baseUrl = '';
+    
+    // Cargar estadísticas al iniciar
+    document.addEventListener('DOMContentLoaded', function() {
+        cargarEstadisticas();
+        cargarUltimosPlatos();
+    });
+
+    async function cargarEstadisticas() {
+        try {
+            // Usar el nuevo endpoint de estadísticas
+            const statsRes = await fetch('/api/dashboard/stats');
+            const stats = await statsRes.json();
+            
+            document.getElementById('totalPlatos').textContent = stats.total_platos || 0;
+            document.getElementById('totalCategorias').textContent = stats.total_categorias || 0;
+            document.getElementById('totalVistas').textContent = stats.total_vistas || 0;
+            document.getElementById('totalScans').textContent = stats.total_scans || 0;
+            
+            // Mostrar visitas de hoy
+            if (stats.visitas_hoy > 0) {
+                document.getElementById('visitasHoy').textContent = `+${stats.visitas_hoy} hoy`;
+            }
+            if (stats.scans_hoy > 0) {
+                document.getElementById('scansHoy').textContent = `+${stats.scans_hoy} hoy`;
+            }
+            
+            // Guardar URL base y slug
+            urlSlug = stats.url_slug || '';
+            baseUrl = stats.base_url || window.location.origin;
+            
+            if (urlSlug) {
+                const menuUrl = `${baseUrl}/menu/${urlSlug}`;
+                document.getElementById('menuLink').value = menuUrl;
+                
+                // Actualizar botón "Ver Mi Menú"
+                const verMenuBtn = document.getElementById('btnVerMenu');
+                if (verMenuBtn) {
+                    verMenuBtn.href = menuUrl;
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+        }
+    }
+
+    async function cargarUltimosPlatos() {
+        try {
+            const [platosRes, categoriasRes] = await Promise.all([
+                fetch('/api/platos'),
+                fetch('/api/categorias')
+            ]);
+            const platos = await platosRes.json();
+            const categorias = await categoriasRes.json();
+            
+            // Crear mapa de categorías
+            const catMap = {};
+            categorias.forEach(c => catMap[c.id] = c.nombre);
+            
+            const tbody = document.querySelector('#ultimosPlatos tbody');
+            
+            if (platos.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                            <i class="fas fa-utensils" style="font-size: 2rem; margin-bottom: 0.5rem;"></i><br>
+                            No hay platos aún. ¡Agrega el primero!
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Mostrar últimos 5 platos
+            const ultimos = platos.slice(-5).reverse();
+            tbody.innerHTML = ultimos.map(plato => `
+                <tr>
+                    <td>
+                        <strong>${plato.nombre}</strong>
+                    </td>
+                    <td><span class="tag is-light">${catMap[plato.categoria_id] || 'Sin categoría'}</span></td>
+                    <td><strong>$${Number(plato.precio).toLocaleString('es-CL')}</strong></td>
+                    <td>
+                        <span class="tag ${plato.activo ? 'is-success' : 'is-warning'}">
+                            ${plato.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            console.error('Error cargando platos:', error);
+        }
+    }
+
+    function copyMenuLink() {
+        const input = document.getElementById('menuLink');
+        input.select();
+        input.setSelectionRange(0, 99999); // Para móviles
+        navigator.clipboard.writeText(input.value).then(() => {
+            // Feedback visual
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.add('is-success');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('is-success');
+            }, 2000);
+        });
+    }
+    
+    // Función para mostrar código QR
+    function mostrarQR() {
+        if (!urlSlug) {
+            alert('No se pudo obtener el link del menú');
+            return;
+        }
+        const menuUrl = encodeURIComponent(`${baseUrl}/menu/${urlSlug}`);
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${menuUrl}`;
+        
+        // Crear modal para mostrar QR
+        const modal = document.createElement('div');
+        modal.className = 'modal is-active';
+        modal.innerHTML = `
+            <div class="modal-background" onclick="this.parentElement.remove()"></div>
+            <div class="modal-content" style="text-align: center; background: white; padding: 2rem; border-radius: 12px; max-width: 400px;">
+                <h3 class="title is-4 mb-4">Código QR de tu Menú</h3>
+                <img src="${qrUrl}" alt="QR Code" style="margin: 0 auto; display: block; border-radius: 8px;">
+                <p class="mt-4 mb-4" style="color: #666; font-size: 0.9rem;">Escanea este código para ver tu menú</p>
+                <p style="font-size: 0.8rem; color: #999; word-break: break-all;">${baseUrl}/menu/${urlSlug}</p>
+                <div class="buttons is-centered mt-4">
+                    <a href="${qrUrl}" download="qr-menu.png" class="button is-primary">
+                        <i class="fas fa-download mr-2"></i> Descargar QR
+                    </a>
+                    <button class="button" onclick="this.closest('.modal').remove()">Cerrar</button>
+                </div>
+            </div>
+            <button class="modal-close is-large" aria-label="close" onclick="this.parentElement.remove()"></button>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // Mostrar detalle de visitas
+    function mostrarDetalleVisitas() {
+        alert('Visitas del mes: Cada vez que alguien abre tu menú digital (desde PC o móvil)');
+    }
+    
+    // Mostrar detalle de escaneos QR/NFC
+    function mostrarDetalleScans() {
+        alert('Escaneos QR/NFC: Visitas desde dispositivos móviles (smartphones/tablets). Estos son clientes que escanearon tu código QR o tocaron tu tag NFC en el restaurante.');
+    }
+    
+    // ========== FUNCIONES DE SOPORTE ==========
+    
+    function abrirModalSoporte() {
+        document.getElementById('ticketTipo').value = 'consulta';
+        document.getElementById('ticketAsunto').value = '';
+        document.getElementById('ticketMensaje').value = '';
+        document.getElementById('modalSoporte').classList.add('is-active');
+        setTimeout(() => document.getElementById('ticketAsunto').focus(), 100);
+    }
+    
+    function cerrarModalSoporte() {
+        document.getElementById('modalSoporte').classList.remove('is-active');
+    }
+    
+    async function enviarTicket() {
+        const tipo = document.getElementById('ticketTipo').value;
+        const asunto = document.getElementById('ticketAsunto').value.trim();
+        const mensaje = document.getElementById('ticketMensaje').value.trim();
+        
+        if (!asunto) {
+            alert('Por favor ingresa un asunto');
+            document.getElementById('ticketAsunto').focus();
+            return;
+        }
+        
+        if (!mensaje || mensaje.length < 10) {
+            alert('El mensaje debe tener al menos 10 caracteres');
+            document.getElementById('ticketMensaje').focus();
+            return;
+        }
+        
+        const btn = document.getElementById('btnEnviarTicket');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+        
+        try {
+            const res = await fetchWithCSRF('/api/tickets', {
+                method: 'POST',
+                body: JSON.stringify({ tipo, asunto, mensaje })
+            });
+            
+            const result = await res.json();
+            
+            if (result.success) {
+                cerrarModalSoporte();
+                
+                // Mostrar mensaje de éxito bonito
+                const successModal = document.createElement('div');
+                successModal.className = 'modal is-active';
+                successModal.innerHTML = `
+                    <div class="modal-background" onclick="this.parentElement.remove()"></div>
+                    <div class="modal-content" style="text-align: center; background: white; padding: 2.5rem; border-radius: 16px; max-width: 400px;">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+                            <i class="fas fa-check" style="font-size: 2.5rem; color: white;"></i>
+                        </div>
+                        <h3 class="title is-4" style="color: #2c3e50;">¡Ticket Enviado!</h3>
+                        <p style="color: #666; margin-bottom: 1rem;">Tu ticket <strong>#${result.ticket_id}</strong> ha sido registrado correctamente.</p>
+                        <p style="color: #888; font-size: 0.9rem;">Te responderemos por email lo antes posible.</p>
+                        <button class="button is-primary mt-4" onclick="this.closest('.modal').remove()" style="background: #27ae60; border: none;">
+                            Entendido
+                        </button>
+                    </div>
+                    <button class="modal-close is-large" aria-label="close" onclick="this.parentElement.remove()"></button>
+                `;
+                document.body.appendChild(successModal);
+            } else {
+                alert(result.error || 'Error al enviar el ticket');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error de conexión. Intenta de nuevo.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    }
+    
+    // Cerrar modal con Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            cerrarModalSoporte();
+        }
+    });
+</script>
+{% endblock %}

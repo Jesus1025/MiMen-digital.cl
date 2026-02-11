@@ -1,0 +1,270 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block content %}
+{# Definir el estado normalizado una vez para usar en toda la plantilla #}
+{% set estado = (restaurante.estado_suscripcion or 'prueba')|lower|trim %}
+{% set es_activo = estado in ['activa', 'activo', 'premium', 'active'] %}
+{% set es_prueba = estado in ['prueba', 'trial', 'gratuito', 'gratis', 'free', ''] %}
+{% set es_vencida = estado in ['vencida', 'vencido', 'expired', 'expirada'] %}
+{% set es_suspendida = estado in ['suspendida', 'suspendido', 'suspended', 'inactiva', 'inactivo'] %}
+
+<div class="container" style="max-width: 600px; margin: 50px auto;">
+    <div class="box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 12px; text-align: center;">
+        
+        <div style="font-size: 48px; margin-bottom: 20px;">
+            {% if dias_vencido > 0 %}
+                <i class="fas fa-exclamation-circle"></i>
+            {% else %}
+                <i class="fas fa-info-circle"></i>
+            {% endif %}
+        </div>
+        
+        <h1 style="font-size: 28px; margin-bottom: 10px;">
+            {% if es_prueba and dias_vencido > 0 %}
+                Período de Prueba Terminado
+            {% elif es_vencida %}
+                Suscripción Vencida
+            {% elif es_activo and dias_vencido <= 0 %}
+                Renovar Suscripción
+            {% elif es_suspendida %}
+                Cuenta Suspendida
+            {% else %}
+                Gestionar Suscripción
+            {% endif %}
+        </h1>
+        
+        <p style="font-size: 16px; opacity: 0.9; margin-bottom: 30px;">
+            {% if dias_vencido > 0 %}
+                Tu suscripción venció hace <strong>{{ dias_vencido }} día(s)</strong>
+            {% elif dias_vencido == 0 %}
+                Tu suscripción vence <strong>hoy</strong>
+            {% else %}
+                Tu suscripción vence en <strong>{{ (-dias_vencido) }} día(s)</strong>
+            {% endif %}
+        </p>
+        
+        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: left;">
+            <p><strong>Restaurante:</strong> {{ restaurante.nombre }}</p>
+            <p><strong>Plan actual:</strong> 
+                {% if es_prueba %}
+                    <span style="background: #3498db; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-gift" style="margin-right: 5px;"></i>Plan Gratuito</span>
+                {% else %}
+                    <span style="background: #9b59b6; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-crown" style="margin-right: 5px;"></i>Plan Premium</span>
+                {% endif %}
+            </p>
+            <p><strong>Estado:</strong> 
+                {% if es_activo and dias_vencido < 0 %}
+                    <span style="background: #27ae60; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-check-circle" style="margin-right: 5px;"></i>Activa</span>
+                {% elif es_activo and dias_vencido >= 0 and dias_vencido <= 7 %}
+                    <span style="background: #f39c12; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-exclamation-triangle" style="margin-right: 5px;"></i>Por Vencer</span>
+                {% elif es_activo and dias_vencido > 7 %}
+                    <span style="background: #e74c3c; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-times-circle" style="margin-right: 5px;"></i>Vencida</span>
+                {% elif es_prueba and dias_vencido < 0 %}
+                    <span style="background: #3498db; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-clock" style="margin-right: 5px;"></i>En Período de Prueba</span>
+                {% elif es_prueba and dias_vencido >= 0 %}
+                    <span style="background: #e74c3c; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-times-circle" style="margin-right: 5px;"></i>Prueba Terminada</span>
+                {% elif es_vencida %}
+                    <span style="background: #e74c3c; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-times-circle" style="margin-right: 5px;"></i>Vencida</span>
+                {% elif es_suspendida %}
+                    <span style="background: #95a5a6; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-ban" style="margin-right: 5px;"></i>Suspendida</span>
+                {% else %}
+                    {# Estado desconocido - mostrar como "En Revisión" con un ícono #}
+                    <span style="background: #6c757d; padding: 4px 12px; border-radius: 4px;"><i class="fas fa-question-circle" style="margin-right: 5px;"></i>En Revisión</span>
+                {% endif %}
+            </p>
+            <p><strong>Vencimiento:</strong> {{ restaurante.fecha_vencimiento.strftime('%d/%m/%Y') if restaurante.fecha_vencimiento else 'No definido' }}</p>
+        </div>
+        
+        <div style="background: rgba(255, 255, 255, 0.15); padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <h3 style="font-size: 18px; margin-bottom: 15px;">¿Qué sucede ahora?</h3>
+            <ul style="text-align: left; list-style: none; padding: 0;">
+                <li style="margin-bottom: 10px;"><i class="fas fa-check-circle" style="margin-right: 10px;"></i> Tu menú seguirá siendo público</li>
+                <li style="margin-bottom: 10px;"><i class="fas fa-lock" style="margin-right: 10px;"></i> No puedes editar ni agregar contenido</li>
+                <li style="margin-bottom: 10px;"><i class="fas fa-chart-line" style="margin-right: 10px;"></i> No se registran nuevas estadísticas</li>
+            </ul>
+        </div>
+        
+        <!-- Precio dinámico -->
+        <div style="background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Suscripción mensual</p>
+            <p style="font-size: 32px; font-weight: bold; margin: 0;">${{ (config_pagos.precio_mensual|default(14990)|int)|precio_cl }}/mes</p>
+        </div>
+        
+        <!-- Botones de pago -->
+        <div id="metodos-pago" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+            <!-- Mercado Pago -->
+            <div id="seccion-mercadopago" style="{% if config_pagos.mercadopago_activo != 'true' %}display: none;{% endif %}">
+                <button id="btn-pagar-mercadopago" class="button" style="width: 100%; background: #009EE3; color: white; font-weight: bold; border: none; padding: 15px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-credit-card" style="margin-right: 8px;"></i> Pagar con Tarjeta (Mercado Pago)
+                </button>
+                <p style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Tarjeta de crédito, débito o dinero en cuenta</p>
+            </div>
+            
+            <!-- Depósito Bancario -->
+            <div id="seccion-deposito" style="{% if config_pagos.deposito_activo != 'true' %}display: none;{% endif %}">
+                <button id="btn-mostrar-deposito" class="button" style="width: 100%; background: #27ae60; color: white; font-weight: bold; border: none; padding: 15px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-university" style="margin-right: 8px;"></i> Pagar por Transferencia Bancaria
+                </button>
+                
+                <!-- Datos bancarios (ocultos inicialmente) -->
+                <div id="datos-bancarios" style="display: none; background: rgba(255, 255, 255, 0.95); color: #333; padding: 20px; border-radius: 8px; margin-top: 15px; text-align: left;">
+                    <h4 style="margin-bottom: 15px; color: #27ae60;"><i class="fas fa-info-circle"></i> Datos para transferencia</h4>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-family: monospace;">
+                        <p><strong>Banco:</strong> <span id="banco-nombre">{{ config_pagos.banco_nombre }}</span></p>
+                        <p><strong>Tipo:</strong> <span id="banco-tipo">{{ config_pagos.banco_tipo_cuenta }}</span></p>
+                        <p><strong>N° Cuenta:</strong> <span id="banco-numero">{{ config_pagos.banco_numero }}</span></p>
+                        <p><strong>RUT:</strong> <span id="banco-rut">{{ config_pagos.banco_rut }}</span></p>
+                        <p><strong>Titular:</strong> <span id="banco-titular">{{ config_pagos.banco_titular }}</span></p>
+                        <p><strong>Monto:</strong> <span style="color: #27ae60; font-weight: bold;">${{ (config_pagos.precio_mensual|default(14990)|int)|precio_cl }}</span></p>
+                    </div>
+                    <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107;">
+                        <p style="margin-bottom: 10px;"><strong><i class="fas fa-envelope"></i> Importante:</strong></p>
+                        <p style="font-size: 14px;">Después de transferir, envía el comprobante a:</p>
+                        <p style="font-weight: bold; color: #667eea;"><span id="banco-email">{{ config_pagos.banco_email }}</span></p>
+                        <p style="font-size: 13px; margin-top: 10px;">Incluye el nombre de tu restaurante: <strong>{{ restaurante.nombre }}</strong></p>
+                    </div>
+                    <a href="mailto:{{ config_pagos.banco_email }}?subject=Comprobante%20de%20pago%20-%20{{ restaurante.nombre }}&body=Adjunto%20comprobante%20de%20pago%20para%20suscripción%20mensual%20del%20restaurante%20{{ restaurante.nombre }}." class="button" style="width: 100%; margin-top: 15px; background: #667eea; color: white; font-weight: bold; border: none; padding: 12px; text-decoration: none; border-radius: 6px; display: inline-block; text-align: center;">
+                        <i class="fas fa-paper-plane"></i> Enviar comprobante por email
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Si no hay métodos activos -->
+            <div id="sin-metodos" style="{% if config_pagos.mercadopago_activo == 'true' or config_pagos.deposito_activo == 'true' %}display: none;{% endif %}">
+                <div style="background: rgba(255, 255, 255, 0.2); padding: 20px; border-radius: 8px;">
+                    <p><i class="fas fa-clock"></i> Los métodos de pago estarán disponibles pronto.</p>
+                    <p style="font-size: 14px; margin-top: 10px;">Contáctanos para más información.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 15px;">
+            {% if config_pagos.soporte_whatsapp %}
+                <a href="https://wa.me/{{ config_pagos.soporte_whatsapp }}?text=Hola%2C%20soy%20{{ restaurante.nombre|urlencode }}%20y%20quisiera%20reactivar%20mi%20suscripci%C3%B3n" target="_blank" class="button is-fullwidth" style="background: #25d366; color: white; font-weight: bold; border: none; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                </a>
+            {% endif %}
+            
+            {% if config_pagos.banco_email %}
+                <a href="mailto:{{ config_pagos.banco_email }}?subject=Reactivar%20suscripci%C3%B3n%20-%20{{ restaurante.nombre }}" class="button is-fullwidth" style="background: rgba(255, 255, 255, 0.2); color: white; font-weight: bold; border: 2px solid white; padding: 12px; text-decoration: none; border-radius: 6px; cursor: pointer;">
+                    <i class="fas fa-envelope"></i> Enviar Email
+                </a>
+            {% endif %}
+        </div>
+        
+        <hr style="border: none; border-top: 2px solid rgba(255, 255, 255, 0.3); margin: 30px 0;">
+        
+        <p style="font-size: 13px; opacity: 0.8;">
+            Si tienes preguntas o necesitas ayuda, no dudes en contactarnos.<br>
+            Estaremos felices de ayudarte a reactivar tu suscripción.
+        </p>
+    </div>
+    
+    <div class="box" style="margin-top: 30px; background: #f5f5f5;">
+        <h3 style="margin-bottom: 15px;">¿Por qué contratar una suscripción?</h3>
+        <ul style="list-style-position: inside;">
+            <li><strong>Edición completa:</strong> Agrega, modifica y elimina platos sin límites</li>
+            <li><strong>Analítica detallada:</strong> Monitorea visitas, escaneos QR/NFC y alcance</li>
+            <li><strong>Temas premium:</strong> Acceso a diseños exclusivos y personalizables</li>
+            <li><strong>Soporte prioritario:</strong> Asistencia técnica dedicada</li>
+            <li><strong>Sin anuncios:</strong> Un menú limpio y profesional</li>
+        </ul>
+    </div>
+    
+    <a href="{{ url_for('logout') }}" class="button is-fullwidth" style="margin-top: 20px; background: #e0e0e0; color: #333;">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+    </a>
+</div>
+
+<style>
+    .button {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .box {
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    #datos-bancarios p {
+        margin-bottom: 8px;
+    }
+</style>
+
+<script>
+    // Expose Mercado Pago public key to client-side JS (may be empty if not configured)
+    window.MERCADO_PAGO_PUBLIC_KEY = "{{ mercado_pago_public_key }}";
+    
+    // Mostrar/ocultar datos bancarios
+    const btnDeposito = document.getElementById('btn-mostrar-deposito');
+    const datosBancarios = document.getElementById('datos-bancarios');
+    
+    if (btnDeposito) {
+        btnDeposito.addEventListener('click', function() {
+            if (datosBancarios.style.display === 'none') {
+                datosBancarios.style.display = 'block';
+                this.innerHTML = '<i class="fas fa-times" style="margin-right: 8px;"></i> Ocultar datos bancarios';
+                this.style.background = '#2c3e50';
+            } else {
+                datosBancarios.style.display = 'none';
+                this.innerHTML = '<i class="fas fa-university" style="margin-right: 8px;"></i> Pagar por Transferencia Bancaria';
+                this.style.background = '#27ae60';
+            }
+        });
+    }
+    
+    // Mercado Pago
+    const btnMercadoPago = document.getElementById('btn-pagar-mercadopago');
+    if (btnMercadoPago) {
+        btnMercadoPago.addEventListener('click', function() {
+            const btn = this;
+            const originalHTML = btn.innerHTML;
+            
+            // Mostrar estado de carga
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+            
+            // Obtener CSRF token
+            const csrfToken = '{{ csrf_token() }}';
+            
+            // Crear preferencia de pago
+            fetch('/api/pago/crear-preferencia', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    plan_type: 'mensual'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Redirigir a Mercado Pago
+                    window.location.href = data.init_point;
+                } else {
+                    throw new Error(data.error || 'Error al crear preferencia de pago');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                alert('Error: ' + error.message);
+            });
+        });
+    }
+</script>
+{% endblock %}
+
