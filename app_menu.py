@@ -4035,6 +4035,7 @@ def superadmin_estadisticas():
 
 # ============================================================
 # RUTAS DE SOPORTE / TICKETS
+# Última actualización: 11 Feb 2026 - Flujo de deploy optimizado
 # ============================================================
 
 @app.route('/api/tickets', methods=['POST'])
@@ -4113,7 +4114,7 @@ def api_crear_ticket():
                 ))
                 db.commit()
                 ticket_id = cur.lastrowid
-                logger.info("Ticket #%s creado correctamente en BD", ticket_id)
+                logger.info("✅ Ticket #%s creado correctamente en BD (v2.1)", ticket_id)
             except Exception as db_err:
                 logger.exception("Error SQL al crear ticket: %s", db_err)
                 db.rollback()
@@ -4145,7 +4146,7 @@ def api_crear_ticket():
         return jsonify({
             'success': True, 
             'ticket_id': ticket_id,
-            'message': f'Ticket #{ticket_id} creado exitosamente'
+            'message': f'¡Ticket #{ticket_id} creado exitosamente! Te responderemos pronto.'
         })
         
     except Exception as e:
