@@ -291,11 +291,15 @@ def add_security_headers(response):
     # Habilitar XSS filter del navegador
     response.headers['X-XSS-Protection'] = '1; mode=block'
     
-    # Referrer policy
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    # Referrer policy - más permisivo para navegadores in-app (Instagram, Facebook, TikTok)
+    response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
     
     # Permissions policy (reemplaza Feature-Policy)
     response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+    
+    # Cross-Origin headers para navegadores in-app de redes sociales
+    response.headers['Cross-Origin-Resource-Policy'] = 'cross-origin'
+    response.headers['Cross-Origin-Opener-Policy'] = 'unsafe-none'
     
     # Content Security Policy básica (ajustar según necesidades)
     # Permite scripts y estilos inline necesarios para la app
@@ -304,8 +308,8 @@ def add_security_headers(response):
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://sdk.mercadopago.com; "
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
-        "img-src 'self' data: https: blob:; "
-        "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com; "
+        "img-src 'self' data: https: blob: https://res.cloudinary.com; "
+        "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com; "
         "frame-src 'self' https://www.mercadopago.com https://www.mercadopago.cl; "
         "object-src 'none'; "
         "base-uri 'self';"
