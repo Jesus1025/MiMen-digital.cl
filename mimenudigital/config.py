@@ -2,10 +2,34 @@
 # CONFIGURACIÓN - MENU DIGITAL SAAS
 # ============================================================
 import os
+import secrets
+
+def _get_secret_key():
+    """Obtiene SECRET_KEY de forma segura. Genera una temporal en desarrollo, falla en producción."""
+    key = os.environ.get('SECRET_KEY')
+    if key:
+        return key
+    
+    # En producción, DEBE estar configurada
+    if os.environ.get('FLASK_ENV') == 'production':
+        raise RuntimeError(
+            "SECRET_KEY no está configurada. "
+            "En producción DEBES establecer la variable de entorno SECRET_KEY con un valor seguro. "
+            "Genera una con: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    
+    # En desarrollo, generar una temporal (con warning)
+    import warnings
+    warnings.warn(
+        "SECRET_KEY no configurada. Usando clave temporal para desarrollo. "
+        "¡NO usar en producción!",
+        RuntimeWarning
+    )
+    return secrets.token_hex(32)
 
 class Config:
     """Configuración base para todos los entornos."""
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'menu_digital_divergent_secret_key_2025_prod')
+    SECRET_KEY = _get_secret_key()
     
     # Configuración de sesiones - Seguridad mejorada
     SESSION_COOKIE_SECURE = False  # Se sobreescribe en ProductionConfig

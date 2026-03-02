@@ -1026,8 +1026,8 @@ def forbidden_error(error):
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': 'Acceso prohibido'}), 403
     return render_template('error_publico.html', 
-                          error_code=403, 
-                          error_message='Acceso prohibido'), 403
+                        error_code=403, 
+                        error_message='Acceso prohibido'), 403
 
 
 
@@ -1041,8 +1041,8 @@ def internal_error(error):
             'error': 'Error interno del servidor'
         }), 500
     return render_template('error_publico.html', 
-                          error_code=500, 
-                          error_message='Error interno del servidor'), 500
+                        error_code=500, 
+                        error_message='Error interno del servidor'), 500
 
 
 @app.errorhandler(404)
@@ -1052,8 +1052,8 @@ def not_found_error(error):
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': 'Recurso no encontrado'}), 404
     return render_template('error_publico.html', 
-                          error_code=404, 
-                          error_message='Página no encontrada'), 404
+                        error_code=404, 
+                        error_message='Página no encontrada'), 404
 
 
 @app.errorhandler(Exception)
@@ -1087,8 +1087,8 @@ def handle_exception(e):
             'type': type(e).__name__
         }), 500
     return render_template('error_publico.html', 
-                          error_code=500, 
-                          error_message=f'Error: {str(e)}'), 500
+                        error_code=500, 
+                        error_message=f'Error: {str(e)}'), 500
 
 
 # Helper: register the same Sentry-aware error handler onto another Flask app instance
@@ -1138,15 +1138,31 @@ def list_from_rows(rows):
     return [dict(row) for row in rows] if rows else []
 
 
-# --- Configuración Global ---
-def get_config_global():
-    """Obtiene todas las configuraciones globales como diccionario."""
+# --- Configuración Global (con caché) ---
+_config_cache = {'data': None, 'timestamp': 0}
+_CONFIG_CACHE_TTL = 300  # 5 minutos de caché
+
+def get_config_global(use_cache=True):
+    """Obtiene todas las configuraciones globales como diccionario. Con caché de 5 min."""
+    global _config_cache
+    
+    # Usar caché si está disponible y no expiró
+    if use_cache and _config_cache['data'] is not None:
+        if time.time() - _config_cache['timestamp'] < _CONFIG_CACHE_TTL:
+            return _config_cache['data'].copy()
+    
     try:
         db = get_db()
         with db.cursor() as cur:
             cur.execute("SELECT clave, valor FROM configuracion_global")
             rows = cur.fetchall()
-            return {row['clave']: row['valor'] for row in rows}
+            result = {row['clave']: row['valor'] for row in rows}
+            
+            # Actualizar caché
+            _config_cache['data'] = result
+            _config_cache['timestamp'] = time.time()
+            
+            return result
     except Exception:
         # Si la tabla no existe todavía, retornar valores por defecto
         return {
@@ -1154,6 +1170,11 @@ def get_config_global():
             'deposito_activo': 'true',
             'precio_mensual': '14990'
         }
+
+def invalidar_config_cache():
+    """Invalida el caché de configuración global."""
+    global _config_cache
+    _config_cache = {'data': None, 'timestamp': 0}
 
 
 def get_config_value(clave, default=None):
@@ -1178,6 +1199,8 @@ def set_config_value(clave, valor):
             ON DUPLICATE KEY UPDATE valor = VALUES(valor)
         """, (clave, valor))
         db.commit()
+    # Invalidar caché para que se lea el nuevo valor
+    invalidar_config_cache()
 
 
 def allowed_file(filename):
@@ -1375,7 +1398,7 @@ def verificar_suscripcion(f):
                 if not fecha_vencimiento:
                     fecha_vencimiento = date.today() + timedelta(days=30)
                     cur.execute('UPDATE restaurantes SET fecha_vencimiento = %s, estado_suscripcion = %s WHERE id = %s',
-                               (fecha_vencimiento.isoformat(), 'prueba', restaurante_id))
+                            (fecha_vencimiento.isoformat(), 'prueba', restaurante_id))
                     db.commit()
                     session[cache_key] = 'ok'
                     session[cache_time_key] = ahora
@@ -1554,6 +1577,7 @@ def _procesar_batch_visitas(batch):
                     stats['visitas'], stats['qr'], stats['movil'], stats['desktop']
                 ))
             
+            conn.commit()
             logger.debug("Processed batch of %d visits", len(batch))
             
     except Exception as e:
@@ -1670,8 +1694,8 @@ def ver_menu_publico(url_slug):
             # Registrar visita aunque venga del cache
             registrar_visita(restaurante['id'], request)
             return render_template('menu_publico.html', 
-                                   restaurante=restaurante, 
-                                   menu=list(menu_estructurado.values()))
+                                restaurante=restaurante, 
+                                menu=list(menu_estructurado.values()))
         
         db = get_db()
         with db.cursor() as cur:
@@ -1694,9 +1718,9 @@ def ver_menu_publico(url_slug):
             # 3. Obtener categorías y platos
             cur.execute('''
                 SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.icono as categoria_icono,
-                       p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
-                       p.precio_oferta, p.imagen_url, p.imagen_public_id, p.etiquetas, p.es_nuevo, p.es_popular,
-                       p.es_vegetariano, p.es_vegano, p.es_sin_gluten, p.es_picante
+                    p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
+                    p.precio_oferta, p.imagen_url, p.imagen_public_id, p.etiquetas, p.es_nuevo, p.es_popular,
+                    p.es_vegetariano, p.es_vegano, p.es_sin_gluten, p.es_picante
                 FROM categorias c
                 LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1
                 WHERE c.restaurante_id = %s AND c.activo = 1
@@ -1786,8 +1810,8 @@ def ver_menu_publico(url_slug):
                 get_cache().set(cache_key, (restaurante, menu_estructurado), ttl=300)
 
             return render_template('menu_publico.html', 
-                                   restaurante=restaurante, 
-                                   menu=list(menu_estructurado.values()))
+                                restaurante=restaurante, 
+                                menu=list(menu_estructurado.values()))
 
     except Exception as e:
         logger.exception("Error al cargar menú para %s", url_slug)
@@ -1817,7 +1841,7 @@ def login():
         with db.cursor() as cur:
             cur.execute('''
                 SELECT u.*, r.nombre as restaurante_nombre, r.url_slug as restaurante_url_slug,
-                       r.fecha_vencimiento, r.estado_suscripcion
+                    r.fecha_vencimiento, r.estado_suscripcion
                 FROM usuarios_admin u
                 LEFT JOIN restaurantes r ON u.restaurante_id = r.id
                 WHERE u.username = %s AND u.activo = 1
@@ -1886,12 +1910,23 @@ def logout():
 @app.route('/recuperar-contraseña', methods=['GET', 'POST'])
 def recuperar_contraseña():
     """Solicita recuperación de contraseña."""
+    # Obtener email de soporte para mostrar en template
+    config = get_config_global()
+    soporte_email = config.get('soporte_email', 'soporte@ejemplo.com')
+    
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         
         if not email:
             flash('Por favor ingresa tu email', 'error')
-            return render_template('recuperar_contraseña.html')
+            return render_template('recuperar_contraseña.html', soporte_email=soporte_email)
+        
+        # Validar formato de email
+        from validators import validar_email
+        email_valido, error_email = validar_email(email)
+        if not email_valido:
+            flash(error_email, 'error')
+            return render_template('recuperar_contraseña.html', soporte_email=soporte_email)
         
         db = get_db()
         try:
@@ -1903,7 +1938,7 @@ def recuperar_contraseña():
                 if not user:
                     # No revelar si el email existe
                     flash('Si el email está registrado, recibirás instrucciones en breve', 'info')
-                    return render_template('recuperar_contraseña.html')
+                    return render_template('recuperar_contraseña.html', soporte_email=soporte_email)
                 
                 # Generar token único (40 caracteres hexadecimales)
                 import secrets
@@ -1937,6 +1972,40 @@ def recuperar_contraseña():
                             flash(f'Error con email. Link de reset: <a href="{reset_url}">Haz clic aquí</a>', 'warning')
                         else:
                             flash('Error enviando el email. Por favor intenta de nuevo.', 'error')
+                    
+                    # Notificar al admin (email de contacto configurado)
+                    try:
+                        soporte_cfg = get_config_global()
+                        soporte_email = soporte_cfg.get('soporte_email', '')
+                        if soporte_email and EMAIL_SERVICE_AVAILABLE:
+                            from email.mime.text import MIMEText
+                            import smtplib
+                            nombre_empresa = soporte_cfg.get('soporte_nombre_empresa', 'Menú Digital')
+                            msg_body = (
+                                f"Se ha solicitado una recuperación de contraseña.\n\n"
+                                f"Usuario: {user['nombre']}\n"
+                                f"Email: {user['email']}\n"
+                                f"Fecha: {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC\n\n"
+                                f"Este es un aviso informativo. El usuario recibirá un link de recuperación."
+                            )
+                            msg = MIMEText(msg_body, 'plain', 'utf-8')
+                            msg['Subject'] = f"[{nombre_empresa}] Solicitud de recuperación de contraseña - {user['email']}"
+                            msg['From'] = app.config.get('MAIL_USERNAME', '')
+                            msg['To'] = soporte_email
+                            
+                            mail_server = app.config.get('MAIL_SERVER', 'smtp.gmail.com')
+                            mail_port = app.config.get('MAIL_PORT', 587)
+                            mail_user = app.config.get('MAIL_USERNAME', '')
+                            mail_pass = app.config.get('MAIL_PASSWORD', '')
+                            
+                            if mail_user and mail_pass:
+                                with smtplib.SMTP(mail_server, mail_port) as server:
+                                    server.starttls()
+                                    server.login(mail_user, mail_pass)
+                                    server.send_message(msg)
+                                logger.info("Notificación de recovery enviada al admin: %s", soporte_email)
+                    except Exception as admin_err:
+                        logger.warning("Error notificando al admin sobre recovery: %s", admin_err)
                 else:
                     # Email no configurado
                     token_mask = (token[:6] + '...') if token else None
@@ -1948,13 +2017,13 @@ def recuperar_contraseña():
                     else:
                         flash('Se ha enviado un link de recuperación a tu email si está registrado', 'info')
                 
-                return render_template('recuperar_contraseña.html')
+                return render_template('recuperar_contraseña.html', soporte_email=soporte_email)
         
         except Exception as e:
             logger.exception("Error en recuperar_contraseña")
             flash('Error al procesar la solicitud', 'error')
     
-    return render_template('recuperar_contraseña.html')
+    return render_template('recuperar_contraseña.html', soporte_email=soporte_email)
 
 
 @app.route('/resetear-contraseña/<token>', methods=['GET', 'POST'])
@@ -1981,8 +2050,11 @@ def resetear_contraseña(token):
                 password = request.form.get('password', '').strip()
                 password_confirm = request.form.get('password_confirm', '').strip()
                 
-                if not password or len(password) < 6:
-                    flash('La contraseña debe tener al menos 6 caracteres', 'error')
+                # Validación robusta de contraseña
+                from validators import validar_password
+                is_valid, error_msg = validar_password(password, min_length=8, require_complexity=True)
+                if not is_valid:
+                    flash(error_msg, 'error')
                     return render_template('resetear_contraseña.html', token=token, email=reset['email'])
                 
                 if password != password_confirm:
@@ -2094,10 +2166,10 @@ def gestion_codigo_qr():
         qr_filename = None
     
     return render_template('gestion/codigo_qr.html', 
-                          restaurante=restaurante, 
-                          menu_url=menu_url,
-                          menu_url_display=menu_url_display,
-                          qr_filename=qr_filename)
+                        restaurante=restaurante, 
+                        menu_url=menu_url,
+                        menu_url_display=menu_url_display,
+                        qr_filename=qr_filename)
 
 
 @app.route('/gestion/apariencia')
@@ -2130,8 +2202,8 @@ def gestion_descargas():
             # Obtener categorías y platos en una sola consulta (evita N+1)
             cur.execute("""
                 SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.orden as categoria_orden,
-                       p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
-                       p.precio_oferta, p.imagen_url, p.etiquetas
+                    p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
+                    p.precio_oferta, p.imagen_url, p.etiquetas
                 FROM categorias c 
                 LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1 AND p.restaurante_id = %s
                 WHERE c.restaurante_id = %s AND c.activo = 1 
@@ -2192,8 +2264,8 @@ def api_menu_pdf():
             # Obtener categorías y platos en una sola consulta (evita N+1)
             cur.execute("""
                 SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.orden as categoria_orden,
-                       p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
-                       p.precio_oferta, p.imagen_url, p.etiquetas
+                    p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
+                    p.precio_oferta, p.imagen_url, p.etiquetas
                 FROM categorias c 
                 LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1 AND p.restaurante_id = %s
                 WHERE c.restaurante_id = %s AND c.activo = 1 
@@ -2330,10 +2402,10 @@ def gestion_pago_pendiente():
     config_pagos = get_config_global()
 
     return render_template('gestion/pago_pendiente.html', 
-                          restaurante=restaurante, 
-                          dias_vencido=dias_vencido,
-                          config_pagos=config_pagos,
-                          mercado_pago_public_key=os.environ.get('MERCADO_PAGO_PUBLIC_KEY', ''))
+                        restaurante=restaurante, 
+                        dias_vencido=dias_vencido,
+                        config_pagos=config_pagos,
+                        mercado_pago_public_key=os.environ.get('MERCADO_PAGO_PUBLIC_KEY', ''))
 
 
 @app.route('/api/pago/crear-preferencia', methods=['POST'])
@@ -3003,7 +3075,7 @@ def api_plato(plato_id):
         with db.cursor() as cur:
             if request.method == 'GET':
                 cur.execute("SELECT * FROM platos WHERE id = %s AND restaurante_id = %s", 
-                           (plato_id, restaurante_id))
+                        (plato_id, restaurante_id))
                 plato = cur.fetchone()
                 if not plato:
                     return jsonify({'error': 'Plato no encontrado'}), 404
@@ -3068,12 +3140,29 @@ def api_plato(plato_id):
                     plato_id, restaurante_id
                 ))
                 
-                # Actualizar imágenes múltiples si existen
-                imagenes = data.get('imagenes', [])
-                if imagenes:
-                    # Eliminar imágenes anteriores
+                # Actualizar imágenes múltiples si se enviaron
+                imagenes = data.get('imagenes', None)
+                if imagenes is not None:
+                    # Limpiar Cloudinary de imágenes viejas que ya no están
+                    try:
+                        cur.execute("SELECT imagen_public_id FROM platos_imagenes WHERE plato_id = %s", (plato_id,))
+                        old_public_ids = {row['imagen_public_id'] for row in cur.fetchall() if row.get('imagen_public_id')}
+                        new_public_ids = {img.get('imagen_public_id') for img in imagenes if img.get('imagen_public_id')}
+                        removed_ids = old_public_ids - new_public_ids
+                        
+                        if removed_ids and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED and hasattr(cloudinary, 'uploader'):
+                            for pid in removed_ids:
+                                try:
+                                    cloudinary.uploader.destroy(pid, resource_type='image')
+                                    logger.info('Imagen Cloudinary %s eliminada (update plato %s)', pid, plato_id)
+                                except Exception:
+                                    pass
+                    except Exception as cleanup_err:
+                        logger.warning("Error limpiando Cloudinary en update: %s", cleanup_err)
+                    
+                    # Eliminar imágenes anteriores de la BD
                     cur.execute("DELETE FROM platos_imagenes WHERE plato_id = %s", (plato_id,))
-                    # Insertar las nuevas
+                    # Insertar las nuevas (si hay)
                     for img in imagenes:
                         cur.execute('''
                             INSERT INTO platos_imagenes (plato_id, restaurante_id, imagen_url, imagen_public_id, orden, es_principal)
@@ -3093,22 +3182,35 @@ def api_plato(plato_id):
                 return jsonify({'success': True})
                 
             if request.method == 'DELETE':
-                # Antes de borrar, intentar eliminar la imagen en Cloudinary si existe
+                # Antes de borrar, limpiar TODAS las imágenes en Cloudinary (principal + galería)
                 try:
+                    all_public_ids = set()
+                    
+                    # Imagen principal del plato
                     cur.execute("SELECT imagen_public_id FROM platos WHERE id = %s AND restaurante_id = %s", (plato_id, restaurante_id))
                     row = cur.fetchone()
-                    public_id = row.get('imagen_public_id') if row else None
-                    if public_id and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED and hasattr(cloudinary, 'uploader'):
-                        try:
-                            cloudinary.uploader.destroy(public_id, resource_type='image')
-                            logger.info('Imagen Cloudinary %s eliminada para plato %s', public_id, plato_id)
-                        except Exception as e:
-                            logger.warning('No se pudo eliminar imagen en Cloudinary: %s', e)
+                    if row and row.get('imagen_public_id'):
+                        all_public_ids.add(row['imagen_public_id'])
+                    
+                    # Imágenes de galería
+                    cur.execute("SELECT imagen_public_id FROM platos_imagenes WHERE plato_id = %s", (plato_id,))
+                    for img_row in cur.fetchall():
+                        if img_row.get('imagen_public_id'):
+                            all_public_ids.add(img_row['imagen_public_id'])
+                    
+                    # Eliminar todas de Cloudinary
+                    if all_public_ids and CLOUDINARY_AVAILABLE and CLOUDINARY_CONFIGURED and hasattr(cloudinary, 'uploader'):
+                        for pid in all_public_ids:
+                            try:
+                                cloudinary.uploader.destroy(pid, resource_type='image')
+                                logger.info('Imagen Cloudinary %s eliminada para plato %s', pid, plato_id)
+                            except Exception as e:
+                                logger.warning('No se pudo eliminar imagen en Cloudinary: %s', e)
                 except Exception as e:
-                    logger.warning('Error comprobando imagen_public_id antes de borrar plato: %s', e)
+                    logger.warning('Error limpiando Cloudinary antes de borrar plato: %s', e)
 
                 cur.execute("DELETE FROM platos WHERE id = %s AND restaurante_id = %s", 
-                           (plato_id, restaurante_id))
+                        (plato_id, restaurante_id))
                 db.commit()
                 # Invalidar cache del menú público
                 invalidar_cache_restaurante(restaurante_id)
@@ -3171,7 +3273,7 @@ def api_apariencia():
         # Invalidar cache del menú público
         invalidar_cache_restaurante(restaurante_id)
         logger.info("Apariencia actualizada para restaurante %s: tema=%s, precios=%s, descripciones=%s, imagenes=%s", 
-                   restaurante_id, tema, mostrar_precios, mostrar_descripciones, mostrar_imagenes)
+                restaurante_id, tema, mostrar_precios, mostrar_descripciones, mostrar_imagenes)
         return jsonify({'success': True, 'message': 'Apariencia actualizada'})
     except Exception as e:
         try:
@@ -3198,7 +3300,7 @@ def api_categorias():
             if request.method == 'GET':
                 cur.execute('''
                     SELECT c.*, 
-                           (SELECT COUNT(*) FROM platos WHERE categoria_id = c.id AND activo = 1) as total_platos
+                        (SELECT COUNT(*) FROM platos WHERE categoria_id = c.id AND activo = 1) as total_platos
                     FROM categorias c 
                     WHERE c.restaurante_id = %s 
                     ORDER BY c.orden, c.nombre
@@ -3254,7 +3356,7 @@ def api_categoria(categoria_id):
         with db.cursor() as cur:
             if request.method == 'GET':
                 cur.execute("SELECT * FROM categorias WHERE id = %s AND restaurante_id = %s", 
-                           (categoria_id, restaurante_id))
+                        (categoria_id, restaurante_id))
                 cat = cur.fetchone()
                 if not cat:
                     return jsonify({'error': 'Categoría no encontrada'}), 404
@@ -3266,7 +3368,7 @@ def api_categoria(categoria_id):
                 
                 # Obtener el orden actual de la categoría
                 cur.execute("SELECT orden FROM categorias WHERE id = %s AND restaurante_id = %s", 
-                           (categoria_id, restaurante_id))
+                        (categoria_id, restaurante_id))
                 cat_actual = cur.fetchone()
                 orden_actual = cat_actual['orden'] if cat_actual else 0
                 
@@ -3307,9 +3409,9 @@ def api_categoria(categoria_id):
             if request.method == 'DELETE':
                 # Primero eliminar platos de la categoría
                 cur.execute("DELETE FROM platos WHERE categoria_id = %s AND restaurante_id = %s", 
-                           (categoria_id, restaurante_id))
+                        (categoria_id, restaurante_id))
                 cur.execute("DELETE FROM categorias WHERE id = %s AND restaurante_id = %s", 
-                           (categoria_id, restaurante_id))
+                        (categoria_id, restaurante_id))
                 db.commit()
                 # Invalidar cache del menú público
                 invalidar_cache_restaurante(restaurante_id)
@@ -3405,7 +3507,7 @@ def api_etiqueta(etiqueta_id):
         with db.cursor() as cur:
             # Verificar que la etiqueta pertenece al restaurante
             cur.execute('SELECT id FROM etiquetas WHERE id = %s AND restaurante_id = %s', 
-                       (etiqueta_id, restaurante_id))
+                    (etiqueta_id, restaurante_id))
             if not cur.fetchone():
                 return jsonify({'error': 'Etiqueta no encontrada'}), 404
             
@@ -3436,7 +3538,7 @@ def api_etiqueta(etiqueta_id):
                 
             if request.method == 'DELETE':
                 cur.execute('DELETE FROM etiquetas WHERE id = %s AND restaurante_id = %s', 
-                           (etiqueta_id, restaurante_id))
+                        (etiqueta_id, restaurante_id))
                 db.commit()
                 return jsonify({'success': True})
                 
@@ -3469,11 +3571,19 @@ def api_mi_restaurante():
             if request.method == 'PUT':
                 data = request.get_json()
                 
+                # Validar email del restaurante si se proporciona
+                email_restaurante = data.get('email', '').strip()
+                if email_restaurante:
+                    from validators import validar_email
+                    email_valido, error_email = validar_email(email_restaurante)
+                    if not email_valido:
+                        return jsonify({'success': False, 'error': error_email}), 400
+                
                 # Log para debug
                 logger.info("Actualizando restaurante %s - horario: %s, whatsapp: %s", 
-                           restaurante_id, 
-                           data.get('horario', '')[:100] if data.get('horario') else 'None',
-                           data.get('whatsapp', ''))
+                        restaurante_id, 
+                        data.get('horario', '')[:100] if data.get('horario') else 'None',
+                        data.get('whatsapp', ''))
                 
                 cur.execute('''
                     UPDATE restaurantes SET 
@@ -3585,7 +3695,7 @@ def api_subir_logo():
             db = get_db()
             with db.cursor() as cur:
                 cur.execute("UPDATE restaurantes SET logo_url = %s WHERE id = %s", 
-                           (logo_url, session['restaurante_id']))
+                        (logo_url, session['restaurante_id']))
                 db.commit()
             
             logger.info("Logo subido a Cloudinary para restaurante %s", session['restaurante_id'])
@@ -3712,8 +3822,11 @@ def superadmin_cambiar_password():
         if password_nuevo != password_confirmar:
             return jsonify({'success': False, 'error': 'Las contraseñas no coinciden'}), 400
         
-        if len(password_nuevo) < 8:
-            return jsonify({'success': False, 'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+        # Validación robusta de contraseña
+        from validators import validar_password
+        is_valid, error_msg = validar_password(password_nuevo, min_length=8, require_complexity=True)
+        if not is_valid:
+            return jsonify({'success': False, 'error': error_msg}), 400
         
         usuario_id = session.get('user_id')
         if not usuario_id:
@@ -3751,10 +3864,10 @@ def superadmin_restaurantes():
         # Obtener restaurantes con estadísticas
         cur.execute("""
             SELECT r.*, 
-                   (SELECT COUNT(*) FROM categorias WHERE restaurante_id = r.id) as total_categorias,
-                   (SELECT COUNT(*) FROM platos WHERE restaurante_id = r.id) as total_platos,
-                   (SELECT COUNT(*) FROM usuarios_admin WHERE restaurante_id = r.id) as total_usuarios,
-                   (SELECT COALESCE(SUM(visitas), 0) FROM estadisticas_diarias WHERE restaurante_id = r.id) as total_visitas
+                (SELECT COUNT(*) FROM categorias WHERE restaurante_id = r.id) as total_categorias,
+                (SELECT COUNT(*) FROM platos WHERE restaurante_id = r.id) as total_platos,
+                (SELECT COUNT(*) FROM usuarios_admin WHERE restaurante_id = r.id) as total_usuarios,
+                (SELECT COALESCE(SUM(visitas), 0) FROM estadisticas_diarias WHERE restaurante_id = r.id) as total_visitas
             FROM restaurantes r 
             ORDER BY r.nombre
         """)
@@ -3770,9 +3883,9 @@ def superadmin_restaurantes():
         total_usuarios = cur.fetchone()['total']
     
     return render_template('superadmin/restaurantes.html', 
-                           restaurantes=restaurantes,
-                           nuevos_este_mes=nuevos_este_mes,
-                           total_usuarios=total_usuarios)
+                        restaurantes=restaurantes,
+                        nuevos_este_mes=nuevos_este_mes,
+                        total_usuarios=total_usuarios)
 
 
 @app.route('/superadmin/usuarios')
@@ -3783,8 +3896,8 @@ def superadmin_usuarios():
     with db.cursor() as cur:
         cur.execute("""
             SELECT u.id, u.username, u.nombre, u.email, u.rol, u.activo, 
-                   u.ultimo_login, u.fecha_creacion,
-                   r.nombre as restaurante_nombre
+                u.ultimo_login, u.fecha_creacion,
+                r.nombre as restaurante_nombre
             FROM usuarios_admin u
             LEFT JOIN restaurantes r ON u.restaurante_id = r.id
             WHERE u.rol != 'superadmin' 
@@ -3825,7 +3938,7 @@ def api_superadmin_suscripciones():
         # Obtener restaurantes con info de suscripción
         cur.execute('''
             SELECT r.id, r.nombre, r.email, r.plan_id, r.estado_suscripcion, 
-                   r.fecha_vencimiento, r.activo, r.fecha_creacion
+                r.fecha_vencimiento, r.activo, r.fecha_creacion
             FROM restaurantes r
             ORDER BY r.fecha_vencimiento ASC
         ''')
@@ -3938,7 +4051,7 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
             db.commit()
             
             logger.info("Suscripción actualizada: restaurante=%s (%s), nueva_fecha=%s, estado=%s (anterior: %s)", 
-                       restaurante_id, nombre_rest, fecha_mysql, nuevo_estado, estado_actual)
+                    restaurante_id, nombre_rest, fecha_mysql, nuevo_estado, estado_actual)
             
             return jsonify({
                 'success': True, 
@@ -3966,6 +4079,7 @@ def superadmin_estadisticas():
 
 # ============================================================
 # RUTAS DE SOPORTE / TICKETS
+# Última actualización: 11 Feb 2026 - Flujo de deploy optimizado
 # ============================================================
 
 @app.route('/api/tickets', methods=['POST'])
@@ -3974,10 +4088,29 @@ def api_crear_ticket():
     """API para crear tickets desde el dashboard del usuario."""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No se recibieron datos'}), 400
         
-        tipo = data.get('tipo', 'consulta')
+        tipo_original = data.get('tipo', 'consulta')
         asunto = data.get('asunto', '').strip()
         mensaje = data.get('mensaje', '').strip()
+        
+        # Mapear tipos del dashboard a valores válidos del ENUM de la BD
+        # ENUM: 'consulta', 'problema_tecnico', 'facturacion', 'otro'
+        tipo_map = {
+            'consulta': 'consulta',
+            'problema': 'problema_tecnico',
+            'problema_tecnico': 'problema_tecnico',
+            'sugerencia': 'otro',
+            'pago': 'facturacion',
+            'facturacion': 'facturacion',
+            'menu_3d': 'otro',
+            'mas_productos': 'otro',
+            'personalizacion': 'otro',
+            'otro': 'otro'
+        }
+        tipo = tipo_map.get(tipo_original, 'otro')
+        logger.info("Ticket tipo original: '%s' -> mapeado: '%s'", tipo_original, tipo)
         
         if not asunto or not mensaje:
             return jsonify({'success': False, 'error': 'Completa todos los campos'}), 400
@@ -4006,24 +4139,30 @@ def api_crear_ticket():
                     restaurante_nombre = rest['nombre']
             
             # Crear el ticket
-            cur.execute('''
-                INSERT INTO tickets_soporte 
-                (usuario_id, restaurante_id, nombre, email, asunto, mensaje, tipo, ip_address, user_agent, pagina_origen)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (
-                usuario_id,
-                restaurante_id,
-                nombre,
-                email,
-                asunto,
-                mensaje,
-                tipo,
-                get_client_ip(),
-                request.headers.get('User-Agent', '')[:500],
-                'Dashboard'
-            ))
-            db.commit()
-            ticket_id = cur.lastrowid
+            try:
+                cur.execute('''
+                    INSERT INTO tickets_soporte 
+                    (usuario_id, restaurante_id, nombre, email, asunto, mensaje, tipo, ip_address, user_agent, pagina_origen)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', (
+                    usuario_id,
+                    restaurante_id,
+                    nombre,
+                    email,
+                    asunto,
+                    mensaje,
+                    tipo,
+                    get_client_ip(),
+                    request.headers.get('User-Agent', '')[:500],
+                    'Dashboard'
+                ))
+                db.commit()
+                ticket_id = cur.lastrowid
+                logger.info("✅ Ticket #%s creado correctamente en BD (v2.1)", ticket_id)
+            except Exception as db_err:
+                logger.exception("Error SQL al crear ticket: %s", db_err)
+                db.rollback()
+                return jsonify({'success': False, 'error': f'Error en base de datos: {str(db_err)}'}), 500
         
         # Preparar datos para emails
         ticket_data = {
@@ -4051,7 +4190,7 @@ def api_crear_ticket():
         return jsonify({
             'success': True, 
             'ticket_id': ticket_id,
-            'message': f'Ticket #{ticket_id} creado exitosamente'
+            'message': f'¡Ticket #{ticket_id} creado exitosamente! Te responderemos pronto.'
         })
         
     except Exception as e:
@@ -4107,18 +4246,29 @@ def contactar_soporte():
         if not nombre or not email or not asunto or not mensaje:
             flash('Por favor completa todos los campos obligatorios', 'error')
             return render_template('soporte.html', 
-                                   nombre_default=nombre_default,
-                                   email_default=email_default,
-                                   restaurante_nombre=restaurante_nombre,
-                                   soporte=soporte_config)
+                                nombre_default=nombre_default,
+                                email_default=email_default,
+                                restaurante_nombre=restaurante_nombre,
+                                soporte=soporte_config)
+        
+        # Validar formato de email
+        from validators import validar_email
+        email_valido, error_email = validar_email(email)
+        if not email_valido:
+            flash(error_email, 'error')
+            return render_template('soporte.html',
+                                nombre_default=nombre_default,
+                                email_default=email_default,
+                                restaurante_nombre=restaurante_nombre,
+                                soporte=soporte_config)
         
         if len(mensaje) < 20:
             flash('El mensaje debe tener al menos 20 caracteres', 'error')
             return render_template('soporte.html',
-                                   nombre_default=nombre_default,
-                                   email_default=email_default,
-                                   restaurante_nombre=restaurante_nombre,
-                                   soporte=soporte_config)
+                                nombre_default=nombre_default,
+                                email_default=email_default,
+                                restaurante_nombre=restaurante_nombre,
+                                soporte=soporte_config)
         
         db = get_db()
         try:
@@ -4179,20 +4329,20 @@ def contactar_soporte():
             flash(f'¡Mensaje enviado! Hemos recibido tu consulta. Te responderemos pronto a través de {email_soporte}', 'success')
             
             return render_template('soporte.html',
-                                   nombre_default=nombre_default,
-                                   email_default=email_default,
-                                   restaurante_nombre=restaurante_nombre,
-                                   soporte=soporte_config)
+                                nombre_default=nombre_default,
+                                email_default=email_default,
+                                restaurante_nombre=restaurante_nombre,
+                                soporte=soporte_config)
             
         except Exception as e:
             logger.exception("Error al crear ticket de soporte")
             flash('Error al enviar el mensaje. Por favor intenta de nuevo.', 'error')
     
     return render_template('soporte.html',
-                           nombre_default=nombre_default,
-                           email_default=email_default,
-                           restaurante_nombre=restaurante_nombre,
-                           soporte=soporte_config)
+                        nombre_default=nombre_default,
+                        email_default=email_default,
+                        restaurante_nombre=restaurante_nombre,
+                        soporte=soporte_config)
 
 
 @app.route('/superadmin/tickets')
@@ -4245,11 +4395,11 @@ def superadmin_tickets():
         tickets = list_from_rows(cur.fetchall())
     
     return render_template('superadmin/tickets.html',
-                           tickets=tickets,
-                           stats=stats,
-                           filtro_estado=filtro_estado,
-                           filtro_tipo=filtro_tipo,
-                           filtro_prioridad=filtro_prioridad)
+                        tickets=tickets,
+                        stats=stats,
+                        filtro_estado=filtro_estado,
+                        filtro_tipo=filtro_tipo,
+                        filtro_prioridad=filtro_prioridad)
 
 
 @app.route('/superadmin/tickets/responder', methods=['POST'])
@@ -4476,6 +4626,45 @@ def api_superadmin_stats():
     })
 
 
+def _determinar_estado_suscripcion(r, planes_premium, planes_gratuitos, hoy):
+    """Determina el estado real de suscripción de un restaurante."""
+    estado = (r.get('estado_suscripcion') or '').lower().strip()
+    plan_id = r.get('plan_id')
+    fecha_venc = r.get('fecha_vencimiento')
+    activo = r.get('activo', 1)
+    
+    if fecha_venc and hasattr(fecha_venc, 'date'):
+        fecha_venc = fecha_venc.date()
+    
+    es_plan_premium = plan_id in planes_premium if planes_premium else (plan_id and plan_id > 1)
+    
+    # Si está explícitamente marcado como prueba/trial
+    if estado in ('prueba', 'trial', 'periodo_prueba'):
+        return 'prueba'
+    
+    # Si está suspendido/inactivo
+    if estado in ('suspendida', 'suspendido', 'suspended', 'inactiva', 'inactivo', 'cancelada', 'cancelado') or activo == 0:
+        return 'suspendida'
+    
+    # Si tiene plan premium y fecha válida
+    if es_plan_premium and fecha_venc and fecha_venc >= hoy:
+        return 'activa'
+    
+    # Si tiene plan premium pero fecha vencida
+    if es_plan_premium and fecha_venc and fecha_venc < hoy:
+        return 'vencida'
+    
+    # Si está marcado como activo explícitamente
+    if estado in ('activa', 'activo', 'premium', 'active', 'pagada', 'pagado', 'paid'):
+        return 'activa'
+    
+    # Plan gratuito
+    if not es_plan_premium or plan_id in planes_gratuitos:
+        return 'gratuito'
+    
+    return 'activa'
+
+
 @app.route('/api/superadmin/stats-extended')
 @login_required
 @superadmin_required
@@ -4528,9 +4717,9 @@ def api_superadmin_stats_extended():
             try:
                 cur.execute("""
                     SELECT COALESCE(SUM(visitas),0) as visitas, 
-                           COALESCE(SUM(escaneos_qr),0) as escaneos,
-                           COALESCE(SUM(visitas_movil),0) as movil,
-                           COALESCE(SUM(visitas_desktop),0) as desktop
+                        COALESCE(SUM(escaneos_qr),0) as escaneos,
+                        COALESCE(SUM(visitas_movil),0) as movil,
+                        COALESCE(SUM(visitas_desktop),0) as desktop
                     FROM estadisticas_diarias
                 """)
                 row = cur.fetchone()
@@ -4545,13 +4734,13 @@ def api_superadmin_stats_extended():
             try:
                 cur.execute("""
                     SELECT DATE_FORMAT(fecha, '%%Y-%%m-%%d') as fecha, 
-                           COALESCE(SUM(visitas),0) as visitas,
-                           COALESCE(SUM(escaneos_qr),0) as escaneos,
-                           COALESCE(SUM(visitas_movil),0) as movil,
-                           COALESCE(SUM(visitas_desktop),0) as desktop
+                        COALESCE(SUM(visitas),0) as visitas,
+                        COALESCE(SUM(escaneos_qr),0) as escaneos,
+                        COALESCE(SUM(visitas_movil),0) as movil,
+                        COALESCE(SUM(visitas_desktop),0) as desktop
                     FROM estadisticas_diarias
                     WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                    GROUP BY fecha
+                    GROUP BY DATE(fecha)
                     ORDER BY fecha
                 """)
                 visitas_30dias = []
@@ -4571,7 +4760,7 @@ def api_superadmin_stats_extended():
             try:
                 cur.execute("""
                     SELECT COALESCE(SUM(visitas),0) as visitas,
-                           COALESCE(SUM(escaneos_qr),0) as escaneos
+                        COALESCE(SUM(escaneos_qr),0) as escaneos
                     FROM estadisticas_diarias
                     WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                 """)
@@ -4585,10 +4774,10 @@ def api_superadmin_stats_extended():
             try:
                 cur.execute("""
                     SELECT COALESCE(SUM(visitas),0) as visitas,
-                           COALESCE(SUM(escaneos_qr),0) as escaneos
+                        COALESCE(SUM(escaneos_qr),0) as escaneos
                     FROM estadisticas_diarias
                     WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
-                      AND fecha < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    AND fecha < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                 """)
                 row_ant = cur.fetchone()
                 visitas_mes_anterior = int(row_ant['visitas']) if row_ant and row_ant['visitas'] else 0
@@ -4607,17 +4796,37 @@ def api_superadmin_stats_extended():
             else:
                 tendencia_escaneos = 100 if escaneos_mes_actual > 0 else 0
             
-            # Visitas de hoy
+            # Visitas de hoy - consultar estadisticas_diarias Y visitas como fallback
             try:
                 cur.execute("""
                     SELECT COALESCE(SUM(visitas),0) as visitas,
-                           COALESCE(SUM(escaneos_qr),0) as escaneos
+                        COALESCE(SUM(escaneos_qr),0) as escaneos
                     FROM estadisticas_diarias
                     WHERE fecha = CURDATE()
                 """)
                 row_hoy = cur.fetchone()
                 visitas_hoy = int(row_hoy['visitas']) if row_hoy and row_hoy['visitas'] else 0
                 escaneos_hoy = int(row_hoy['escaneos']) if row_hoy and row_hoy['escaneos'] else 0
+                
+                # SIEMPRE verificar tabla visitas directamente para datos más frescos
+                try:
+                    cur.execute("""
+                        SELECT COUNT(*) as visitas,
+                            COALESCE(SUM(CASE WHEN es_qr = 1 THEN 1 ELSE 0 END), 0) as escaneos
+                        FROM visitas
+                        WHERE DATE(fecha) = CURDATE()
+                    """)
+                    row_visitas = cur.fetchone()
+                    if row_visitas:
+                        visitas_directas = int(row_visitas['visitas']) if row_visitas['visitas'] else 0
+                        escaneos_directos = int(row_visitas['escaneos']) if row_visitas['escaneos'] else 0
+                        # Usar el mayor de los dos (estadísticas o directo)
+                        if visitas_directas > visitas_hoy:
+                            visitas_hoy = visitas_directas
+                        if escaneos_directos > escaneos_hoy:
+                            escaneos_hoy = escaneos_directos
+                except Exception as e:
+                    logger.debug("Fallback visitas query: %s", e)
             except Exception:
                 visitas_hoy = escaneos_hoy = 0
             
@@ -4625,7 +4834,7 @@ def api_superadmin_stats_extended():
             try:
                 cur.execute("""
                     SELECT DAYOFWEEK(fecha) as dia, 
-                           COALESCE(AVG(visitas),0) as promedio
+                        COALESCE(AVG(visitas),0) as promedio
                     FROM estadisticas_diarias
                     WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                     GROUP BY DAYOFWEEK(fecha)
@@ -4712,13 +4921,13 @@ def api_superadmin_stats_extended():
             # Restaurantes que vencen en los próximos 7 días
             try:
                 cur.execute("""
-                    SELECT id, nombre, DATE_FORMAT(fecha_vencimiento, '%%Y-%%m-%%d') as fecha_vencimiento, estado_suscripcion
+                    SELECT id, nombre, DATE_FORMAT(fecha_vencimiento, %s) as fecha_vencimiento, estado_suscripcion
                     FROM restaurantes
                     WHERE fecha_vencimiento BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-                      AND LOWER(TRIM(COALESCE(estado_suscripcion, ''))) IN ('activa', 'activo', 'premium', 'active', 'pagada', 'prueba', 'trial', 'demo', '')
+                    AND LOWER(TRIM(COALESCE(estado_suscripcion, ''))) IN ('activa', 'activo', 'premium', 'active', 'pagada', 'prueba', 'trial', 'demo', '')
                     ORDER BY fecha_vencimiento
                     LIMIT 10
-                """)
+                """, ('%Y-%m-%d',))
                 por_vencer = []
                 for r in cur.fetchall():
                     por_vencer.append({
@@ -4735,8 +4944,8 @@ def api_superadmin_stats_extended():
                 cur.execute("""
                     SELECT COUNT(*) as nuevos
                     FROM restaurantes
-                    WHERE fecha_creacion >= DATE_FORMAT(CURDATE(), '%%Y-%%m-01')
-                """)
+                    WHERE fecha_creacion >= DATE_FORMAT(CURDATE(), %s)
+                """, ('%Y-%m-01',))
                 result = cur.fetchone()
                 nuevos_este_mes = result['nuevos'] if result and result['nuevos'] else 0
             except Exception:
@@ -4758,20 +4967,23 @@ def api_superadmin_stats_extended():
             try:
                 cur.execute("""
                     SELECT r.id, r.nombre, r.estado_suscripcion, r.url_slug,
-                           COALESCE(SUM(e.visitas), 0) as total_visitas,
-                           COALESCE(SUM(e.escaneos_qr), 0) as total_escaneos
+                        r.plan_id, r.fecha_vencimiento, r.activo,
+                        COALESCE(SUM(e.visitas), 0) as total_visitas,
+                        COALESCE(SUM(e.escaneos_qr), 0) as total_escaneos
                     FROM restaurantes r
                     LEFT JOIN estadisticas_diarias e ON r.id = e.restaurante_id
-                    GROUP BY r.id, r.nombre, r.estado_suscripcion, r.url_slug
+                    GROUP BY r.id, r.nombre, r.estado_suscripcion, r.url_slug, r.plan_id, r.fecha_vencimiento, r.activo
                     ORDER BY total_visitas DESC
                     LIMIT 10
                 """)
                 top_restaurantes = []
                 for r in cur.fetchall():
+                    # Determinar estado real de suscripción
+                    estado_real = _determinar_estado_suscripcion(r, planes_premium, planes_gratuitos, hoy)
                     top_restaurantes.append({
                         'id': r['id'],
                         'nombre': r['nombre'],
-                        'estado_suscripcion': r['estado_suscripcion'] or 'prueba',
+                        'estado_suscripcion': estado_real,
                         'url_slug': r['url_slug'],
                         'total_visitas': int(r['total_visitas']) if r['total_visitas'] else 0,
                         'total_escaneos': int(r['total_escaneos']) if r['total_escaneos'] else 0
@@ -4784,20 +4996,22 @@ def api_superadmin_stats_extended():
             try:
                 cur.execute("""
                     SELECT r.id, r.nombre, r.estado_suscripcion,
-                           COALESCE(SUM(e.escaneos_qr), 0) as total_escaneos
+                        r.plan_id, r.fecha_vencimiento, r.activo,
+                        COALESCE(SUM(e.escaneos_qr), 0) as total_escaneos
                     FROM restaurantes r
                     LEFT JOIN estadisticas_diarias e ON r.id = e.restaurante_id
-                    GROUP BY r.id, r.nombre, r.estado_suscripcion
+                    GROUP BY r.id, r.nombre, r.estado_suscripcion, r.plan_id, r.fecha_vencimiento, r.activo
                     HAVING total_escaneos > 0
                     ORDER BY total_escaneos DESC
                     LIMIT 10
                 """)
                 top_escaneos = []
                 for r in cur.fetchall():
+                    estado_real = _determinar_estado_suscripcion(r, planes_premium, planes_gratuitos, hoy)
                     top_escaneos.append({
                         'id': r['id'],
                         'nombre': r['nombre'],
-                        'estado_suscripcion': r['estado_suscripcion'] or 'prueba',
+                        'estado_suscripcion': estado_real,
                         'total_escaneos': int(r['total_escaneos']) if r['total_escaneos'] else 0
                     })
             except Exception:
@@ -4810,7 +5024,7 @@ def api_superadmin_stats_extended():
             # Últimos restaurantes creados (usar fecha_creacion, no created_at)
             try:
                 cur.execute("""
-                    SELECT id, nombre, fecha_creacion, estado_suscripcion
+                    SELECT id, nombre, fecha_creacion, estado_suscripcion, plan_id, fecha_vencimiento, activo
                     FROM restaurantes
                     ORDER BY fecha_creacion DESC
                     LIMIT 5
@@ -4825,11 +5039,12 @@ def api_superadmin_stats_extended():
                             fecha_str = str(fecha)
                     else:
                         fecha_str = ''
+                    estado_real = _determinar_estado_suscripcion(r, planes_premium, planes_gratuitos, hoy)
                     ultimos_restaurantes.append({
                         'id': r['id'],
                         'nombre': r['nombre'],
                         'created_at': fecha_str,
-                        'estado_suscripcion': r['estado_suscripcion'] or 'prueba'
+                        'estado_suscripcion': estado_real
                     })
             except Exception as e:
                 logger.warning("Error getting ultimos_restaurantes: %s", e)
@@ -5077,7 +5292,7 @@ def api_usuarios():
             if request.method == 'GET':
                 cur.execute('''
                     SELECT u.id, u.restaurante_id, u.username, u.nombre, u.email, u.rol, 
-                           u.activo, u.ultimo_login, u.fecha_creacion, r.nombre as restaurante_nombre 
+                        u.activo, u.ultimo_login, u.fecha_creacion, r.nombre as restaurante_nombre 
                     FROM usuarios_admin u 
                     LEFT JOIN restaurantes r ON u.restaurante_id = r.id
                     ORDER BY u.nombre
@@ -5092,6 +5307,19 @@ def api_usuarios():
                 
                 if not data.get('username') or not data.get('password') or not data.get('nombre'):
                     return jsonify({'success': False, 'error': 'Username, password y nombre son obligatorios'}), 400
+                
+                # Validar email si se proporciona
+                if data.get('email'):
+                    from validators import validar_email
+                    email_valido, error_email = validar_email(data['email'])
+                    if not email_valido:
+                        return jsonify({'success': False, 'error': error_email}), 400
+                
+                # Validar contraseña
+                from validators import validar_password
+                pwd_valido, error_pwd = validar_password(data['password'], min_length=8, require_complexity=True)
+                if not pwd_valido:
+                    return jsonify({'success': False, 'error': error_pwd}), 400
                 
                 # Verificar si username existe
                 cur.execute("SELECT id FROM usuarios_admin WHERE username = %s", (data['username'],))
@@ -5154,7 +5382,20 @@ def api_usuario(user_id):
             if request.method == 'PUT':
                 data = request.get_json()
                 
+                # Validar email si se proporciona
+                if data.get('email'):
+                    from validators import validar_email
+                    email_valido, error_email = validar_email(data['email'])
+                    if not email_valido:
+                        return jsonify({'success': False, 'error': error_email}), 400
+                
                 if data.get('password'):
+                    # Validar contraseña nueva
+                    from validators import validar_password
+                    pwd_valido, error_pwd = validar_password(data['password'], min_length=8, require_complexity=True)
+                    if not pwd_valido:
+                        return jsonify({'success': False, 'error': error_pwd}), 400
+                    
                     pwd_hash = generate_password_hash(data['password'], method='pbkdf2:sha256')
                     cur.execute('''
                         UPDATE usuarios_admin SET 
