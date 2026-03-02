@@ -232,6 +232,48 @@
         }
 
         /* ============================================
+           TEMA: SUNSET (Atardecer cálido)
+           ============================================ */
+        [data-tema="sunset"] {
+            --primary-color: #ff6b6b;
+            --primary-dark: #ee5a24;
+            --secondary-color: #2d3436;
+            --bg-light: #fff5f5;
+            --bg-white: #ffffff;
+            --header-gradient: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            --accent-color: #feca57;
+        }
+
+        /* ============================================
+           TEMA: OCÉANO (Azul profundo profesional)
+           ============================================ */
+        [data-tema="oceano"] {
+            --primary-color: #1e3799;
+            --primary-dark: #0c2461;
+            --secondary-color: #0a3d62;
+            --bg-light: #e8f4fd;
+            --bg-white: #ffffff;
+            --header-gradient: linear-gradient(135deg, #0c2461 0%, #1e3799 100%);
+            --accent-color: #4a69bd;
+        }
+
+        /* ============================================
+           TEMA: NEÓN (Oscuro moderno con acentos neón)
+           ============================================ */
+        [data-tema="neon"] {
+            --primary-color: #00d2d3;
+            --primary-dark: #01a3a4;
+            --secondary-color: #0f0f0f;
+            --bg-light: #1a1a2e;
+            --bg-white: #16213e;
+            --text-dark: #eaeaea;
+            --text-muted: #a0a0a0;
+            --border-color: #2d3436;
+            --header-gradient: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+            --accent-color: #00ff88;
+        }
+
+        /* ============================================
            ESTILOS BASE
            ============================================ */
         * {
@@ -1190,7 +1232,7 @@
     <!-- Header del Restaurante -->
     <header class="restaurant-header" role="banner">
         {% if restaurante.logo_url %}
-            <img src="{{ restaurante.logo_url }}" alt="Logo de {{ restaurante.nombre }}" class="restaurant-logo" loading="eager" fetchpriority="high">
+            <img src="{{ restaurante.logo_url }}" alt="Logo de {{ restaurante.nombre }}" class="restaurant-logo" loading="eager" fetchpriority="high" crossorigin="anonymous" referrerpolicy="no-referrer-when-downgrade">
         {% else %}
             <div class="restaurant-logo-placeholder" role="img" aria-label="Icono de restaurante">
                 <i class="fas fa-utensils" aria-hidden="true"></i>
@@ -1271,7 +1313,10 @@
                                                         alt="{{ plato.nombre }} - imagen {{ loop.index }} de {{ plato.imagenes|length }}" 
                                                         class="dish-image carousel-image {% if loop.first %}active{% endif %}"
                                                         loading="lazy" fetchpriority="low"
+                                                        crossorigin="anonymous"
+                                                        referrerpolicy="no-referrer-when-downgrade"
                                                         sizes="(max-width: 600px) 100vw, 33vw"
+                                                        onerror="this.onerror=null;this.src=this.src.split('?')[0]+'?t='+Date.now();"
                                                         {% if img.imagen_srcset %} srcset="{{ img.imagen_srcset }}" {% endif %}
                                                     >
                                                 {% endfor %}
@@ -1290,6 +1335,9 @@
                                                 alt="{{ plato.nombre }}" 
                                                 class="dish-image"
                                                 loading="lazy" fetchpriority="low"
+                                                crossorigin="anonymous"
+                                                referrerpolicy="no-referrer-when-downgrade"
+                                                onerror="this.onerror=null;this.src=this.src.split('?')[0]+'?t='+Date.now();"
                                                 sizes="(max-width: 600px) 100vw, 33vw"
                                                 {% if plato.imagenes[0].imagen_srcset %} srcset="{{ plato.imagenes[0].imagen_srcset }}" {% endif %}
                                             >
@@ -1301,6 +1349,9 @@
                                                 alt="{{ plato.nombre }}" 
                                                 class="dish-image"
                                                 loading="lazy" fetchpriority="low"
+                                                crossorigin="anonymous"
+                                                referrerpolicy="no-referrer-when-downgrade"
+                                                onerror="this.onerror=null;this.src=this.src.split('?')[0]+'?t='+Date.now();"
                                                 sizes="(max-width: 600px) 100vw, 33vw"
                                             >
                                         {% else %}
@@ -1413,7 +1464,7 @@
     <!-- Footer -->
     <footer class="menu-footer" role="contentinfo">
         <i class="fas fa-bolt" aria-hidden="true"></i>
-        Powered by <a href="https://divergent.studio" target="_blank" rel="noopener">Divergent Studio</a>
+        Powered by <a href="https://divergentstudio.cl/" target="_blank" rel="noopener">Divergent Studio</a>
     </footer>
 
     <!-- Modal para ver plato en detalle -->
@@ -1556,6 +1607,31 @@
 
     <!-- JavaScript -->
     <script>
+        // ============================================
+        // DETECCIÓN DE NAVEGADOR IN-APP (Instagram, Facebook, TikTok)
+        // ============================================
+        (function() {
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            const isInAppBrowser = /FBAN|FBAV|Instagram|Line\/|Snapchat|TikTok|Twitter|WhatsApp|LinkedIn|Pinterest/i.test(ua);
+            
+            if (isInAppBrowser) {
+                document.documentElement.setAttribute('data-inapp', 'true');
+                // Forzar carga inmediata de todas las imágenes en navegadores in-app
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.querySelectorAll('img[loading="lazy"]').forEach(function(img) {
+                        img.removeAttribute('loading');
+                        img.setAttribute('loading', 'eager');
+                        // Forzar recarga si no tiene naturalWidth
+                        if (!img.complete || img.naturalWidth === 0) {
+                            const src = img.src;
+                            img.src = '';
+                            img.src = src;
+                        }
+                    });
+                });
+            }
+        })();
+        
         document.addEventListener('DOMContentLoaded', function() {
             
             // ============================================

@@ -136,6 +136,19 @@
     .theme-minimalista .theme-body { background: #ffffff; }
     .theme-minimalista .theme-item { background: #424242; }
     
+    /* 3 Nuevos temas - Febrero 2026 */
+    .theme-sunset .theme-header { background: linear-gradient(135deg, #ff6b6b, #feca57); }
+    .theme-sunset .theme-body { background: #fff9f0; }
+    .theme-sunset .theme-item { background: #ff9f43; }
+    
+    .theme-oceano .theme-header { background: linear-gradient(135deg, #0c2461, #1e3799); }
+    .theme-oceano .theme-body { background: #f0f4ff; }
+    .theme-oceano .theme-item { background: #4a69bd; }
+    
+    .theme-neon .theme-header { background: linear-gradient(135deg, #0f0f0f, #1a1a2e); }
+    .theme-neon .theme-body { background: #0f0f0f; }
+    .theme-neon .theme-item { background: linear-gradient(90deg, #00ff87, #60efff); }
+    
     .preview-frame {
         border: 1px solid #ddd;
         border-radius: 12px;
@@ -456,6 +469,52 @@
                     </div>
                     <div class="theme-info">
                         <div class="theme-name">Minimalista</div>
+                    </div>
+                </div>
+                
+                <!-- 3 NUEVOS TEMAS - Febrero 2026 -->
+                <div class="theme-card theme-sunset {% if restaurante.tema == 'sunset' %}active{% endif %}" 
+                     onclick="seleccionarTema('sunset')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🌅 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Sunset</div>
+                    </div>
+                </div>
+                
+                <div class="theme-card theme-oceano {% if restaurante.tema == 'oceano' %}active{% endif %}" 
+                     onclick="seleccionarTema('oceano')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🌊 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Océano</div>
+                    </div>
+                </div>
+                
+                <div class="theme-card theme-neon {% if restaurante.tema == 'neon' %}active{% endif %}" 
+                     onclick="seleccionarTema('neon')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">⚡ Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Neón</div>
                     </div>
                 </div>
             </div>
