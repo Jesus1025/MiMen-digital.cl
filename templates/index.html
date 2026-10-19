@@ -1,330 +1,424 @@
 <!DOCTYPE html>
 {%- macro clp(v) -%}${{ "{:,.0f}".format(v|float)|replace(",", ".") }}{%- endmacro -%}
-{%- set wa_link = 'https://wa.me/' ~ whatsapp ~ '?text=' ~ ('Hola, quiero la carta digital MiMenú para mi local'|urlencode) if whatsapp else url_for('contactar_soporte') -%}
+{%- set wa_link = 'https://wa.me/' ~ whatsapp ~ '?text=' ~ ('Hola, quiero la carta digital MiMenú con tótem QR y NFC para mi local'|urlencode) if whatsapp else url_for('contactar_soporte') -%}
+{%- set wa_attr = 'target="_blank" rel="noopener"' if whatsapp else '' -%}
+{%- macro img(n) -%}{{ url_for('static', filename='img/' ~ n) }}?v=3{%- endmacro -%}
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>MiMenú · Carta digital con QR para tu local</title>
-    <meta name="description" content="Tu carta en el celular de cada cliente: fotos, precios al día, horario y pedidos por WhatsApp. QR para imprimir o tótems QR para tus mesas. Desde $5.990 al mes.">
-    <meta property="og:title" content="MiMenú · Carta digital con QR">
-    <meta property="og:description" content="Cambia precios y platos en segundos, sin reimprimir la carta.">
-    <meta name="theme-color" content="#151410">
+    <title>MiMenú · Carta digital con tótem QR y NFC para tu local</title>
+    <meta name="description" content="Tu carta en el celular de cada cliente con un tótem impreso en 3D con QR y NFC. Fotos, precios al día, horario y pedidos por WhatsApp. Desde $5.990 al mes.">
+    <meta property="og:title" content="MiMenú · Carta digital con tótem QR y NFC">
+    <meta property="og:description" content="Escanean o acercan el celular y ven tu carta. Cambias precios en segundos, sin reimprimir.">
+    <meta property="og:image" content="{{ url_for('static', filename='img/totem-lado.webp', _external=True) }}">
+    <meta name="theme-color" content="#121110">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
     <style>
         :root {
-            --ink: #151410; --ink-2: #2a2924; --soft: #66645c; --bg: #efeee9; --paper: #ffffff; --line: #dedcd3;
-            --sol: #ffc21a; --aji: #e2402a; --verde: #1fae5b;
+            --ink: #121110; --ink-2: #1d1c19; --ink-3: #2a2925; --soft: #67655d; --bg: #f2f1ec; --paper: #ffffff;
+            --line: #e0ded5; --sol: #ffc21a; --sol-2: #ffd75e; --aji: #e2402a; --verde: #1fae5b;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: var(--ink); font: 400 17px/1.55 "Hanken Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+        html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+        body { background: var(--bg); color: var(--ink); font: 400 17px/1.55 "Hanken Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
         a { color: inherit; }
-        img, iframe { display: block; max-width: 100%; }
+        img { display: block; max-width: 100%; }
         :focus-visible { outline: 3px solid var(--sol); outline-offset: 3px; border-radius: 6px; }
-        .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-        .d { font-family: "Bricolage Grotesque", sans-serif; letter-spacing: -.02em; }
+        .wrap { width: 100%; max-width: 1160px; margin: 0 auto; padding: 0 22px; }
+        .d { font-family: "Bricolage Grotesque", sans-serif; letter-spacing: -.025em; }
         .num { font-variant-numeric: tabular-nums; }
+        section { padding: 120px 0; }
+        @media (max-width: 820px) { section { padding: 84px 0; } }
 
-        .btn {
-            display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 54px; padding: 0 24px;
-            border-radius: 16px; font-weight: 700; font-size: 17px; text-decoration: none; transition: transform .15s ease, box-shadow .2s ease;
-        }
+        /* Botones */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 56px; padding: 0 26px; border-radius: 16px; font-weight: 700; font-size: 17px; text-decoration: none; transition: transform .18s ease, box-shadow .25s ease, background .2s ease; white-space: nowrap; }
+        .btn svg { width: 20px; height: 20px; flex: none; }
         .btn:hover { transform: translateY(-2px); }
         .btn:active { transform: translateY(0) scale(.98); }
-        .btn-sol { background: var(--sol); color: var(--ink); box-shadow: 0 10px 24px rgba(255, 194, 26, .35); }
-        .btn-linea { border: 2px solid currentColor; }
-        .btn svg { width: 20px; height: 20px; }
+        .btn-sol { background: var(--sol); color: var(--ink); box-shadow: 0 12px 30px rgba(255,194,26,.35), inset 0 -3px 0 rgba(0,0,0,.12); }
+        .btn-sol:hover { box-shadow: 0 18px 40px rgba(255,194,26,.45), inset 0 -3px 0 rgba(0,0,0,.12); }
+        .btn-vidrio { color: #fff; background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.22); }
+        .btn-vidrio:hover { background: rgba(255,255,255,.14); }
+        .btn-negro { background: var(--ink); color: #fff; }
 
         /* Encabezado */
-        .top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--ink) 92%, transparent); backdrop-filter: blur(12px); color: #fff; }
-        .top .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-        .logo { font: 800 22px/1 "Bricolage Grotesque", sans-serif; text-decoration: none; display: flex; align-items: center; gap: 9px; }
-        .logo i { width: 28px; height: 28px; border-radius: 8px; background: var(--sol); display: grid; place-items: center; }
-        .logo i svg { width: 16px; height: 16px; color: var(--ink); }
-        .top nav { display: flex; gap: 22px; align-items: center; font-weight: 600; font-size: 15px; }
-        .top nav a { text-decoration: none; opacity: .85; }
+        .top { position: fixed; inset: 0 0 auto; z-index: 50; color: #fff; transition: background .3s ease, box-shadow .3s ease; }
+        .top.solido { background: rgba(18,17,16,.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 1px 0 rgba(255,255,255,.06); }
+        .top .wrap { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+        .logo { font: 800 23px/1 "Bricolage Grotesque", sans-serif; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+        .logo i { width: 32px; height: 32px; border-radius: 9px; background: var(--sol); display: grid; place-items: center; }
+        .logo i svg { width: 18px; height: 18px; color: var(--ink); }
+        .top nav { display: flex; gap: 26px; align-items: center; font-weight: 600; font-size: 15px; }
+        .top nav a { text-decoration: none; opacity: .8; transition: opacity .2s; }
         .top nav a:hover { opacity: 1; }
-        .top .entrar { border: 1.5px solid rgba(255,255,255,.35); padding: 8px 14px; border-radius: 10px; opacity: 1; }
-        @media (max-width: 720px) { .top nav .op { display: none; } }
+        .top .cta-top { opacity: 1; background: var(--sol); color: var(--ink); padding: 10px 16px; border-radius: 11px; }
+        .top .entrar { opacity: 1; border: 1.5px solid rgba(255,255,255,.3); padding: 9px 14px; border-radius: 11px; }
+        @media (max-width: 860px) { .top nav .op { display: none; } }
+        @media (max-width: 480px) { .top .cta-top { display: none; } }
 
         /* Portada */
-        .hero { background: var(--ink); color: #fff; overflow: hidden; }
-        .hero .wrap { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding-top: 56px; padding-bottom: 0; }
-        .hero h1 { font-size: clamp(42px, 6.4vw, 78px); line-height: .96; font-weight: 800; }
-        .hero h1 em { font-style: normal; color: var(--sol); }
-        .hero .lede { font-size: 19px; color: rgba(255,255,255,.78); margin-top: 22px; max-width: 32em; }
-        .hero .ctas { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
-        .hero .ctas .btn-linea { color: #fff; }
-        .hero .nota { margin-top: 18px; font-size: 15px; color: rgba(255,255,255,.6); }
-        .hero .texto { padding-bottom: 64px; }
-        .escena { position: relative; justify-self: center; width: 100%; max-width: 520px; height: 600px; }
-        .foto-hero { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 30px; box-shadow: 0 40px 80px rgba(0,0,0,.5); }
-        .escena .telefono { position: absolute; left: 0; bottom: -30px; width: 250px; height: 500px; transform: rotate(-4deg); }
-        @media (max-width: 880px) { .escena { height: 440px; max-width: 520px; margin-bottom: 40px; } .foto-hero { height: 100%; } .escena .telefono { width: 200px; height: 400px; bottom: -20px; } }
-        .telefono {
-            justify-self: center; width: 300px; height: 600px; border-radius: 46px; background: #000; padding: 12px;
-            box-shadow: 0 0 0 2px #3a3934, 0 40px 80px rgba(0,0,0,.55); transform: translateY(40px) rotate(-3deg);
+        .hero { position: relative; background: var(--ink); color: #fff; overflow: hidden; padding: 140px 0 110px; }
+        .hero::before { content: ""; position: absolute; width: 900px; height: 900px; right: -260px; top: -320px; border-radius: 50%; background: radial-gradient(circle, rgba(255,194,26,.22), transparent 62%); pointer-events: none; }
+        .hero::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1px); background-size: 26px 26px; mask-image: linear-gradient(180deg, #000, transparent 75%); pointer-events: none; }
+        .hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: 1.05fr .95fr; gap: 56px; align-items: center; }
+        .chip { display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; border-radius: 99px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); font-size: 14px; font-weight: 600; color: rgba(255,255,255,.88); }
+        .chip b { background: var(--sol); color: var(--ink); border-radius: 99px; padding: 3px 9px; font-size: 12px; }
+        .hero h1 { font-size: clamp(44px, 6.6vw, 84px); line-height: .95; font-weight: 800; margin-top: 24px; }
+        .hero h1 em { font-style: normal; color: var(--sol); position: relative; white-space: nowrap; }
+        .hero h1 em svg { position: absolute; left: 0; bottom: -.12em; width: 100%; height: .28em; color: var(--sol); opacity: .55; }
+        .hero .lede { font-size: 19.5px; color: rgba(255,255,255,.74); margin-top: 26px; max-width: 31em; }
+        .hero .ctas { display: flex; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
+        .confianza { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 30px; font-size: 15px; color: rgba(255,255,255,.7); list-style: none; }
+        .confianza li { display: flex; align-items: center; gap: 8px; }
+        .confianza svg { width: 18px; height: 18px; color: var(--sol); }
+
+        .escena { position: relative; height: 620px; }
+        .escena .foto { position: absolute; right: 0; top: 0; width: 82%; height: 560px; border-radius: 32px; overflow: hidden; box-shadow: 0 50px 90px rgba(0,0,0,.55); }
+        .escena .foto img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.04); transition: transform 1.6s cubic-bezier(.2,.8,.2,1); }
+        .escena .foto::after { content: ""; position: absolute; inset: 0; background: linear-gradient(200deg, transparent 55%, rgba(0,0,0,.45)); }
+        .cel { position: absolute; left: 0; bottom: 0; width: 210px; border-radius: 34px; padding: 8px; background: #050505; box-shadow: 0 0 0 1.5px #3b3a35, 0 40px 70px rgba(0,0,0,.6); transform: rotate(-5deg); }
+        .cel img { border-radius: 27px; width: 100%; aspect-ratio: 390/844; object-fit: cover; object-position: top; }
+        .flota { position: absolute; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.96); color: var(--ink); padding: 12px 16px; border-radius: 18px; box-shadow: 0 20px 40px rgba(0,0,0,.35); font-size: 14px; font-weight: 600; line-height: 1.25; }
+        .flota small { display: block; font-weight: 500; color: var(--soft); font-size: 13px; }
+        .flota .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--ink); color: var(--sol); display: grid; place-items: center; flex: none; }
+        .flota .ic svg { width: 22px; height: 22px; }
+        .flota.nfc { right: -10px; top: 70px; }
+        .flota.vivo { right: 40px; bottom: 30px; }
+        .flota.vivo .ic { background: #e3f6ea; color: var(--verde); }
+        @media (max-width: 960px) {
+            .hero { padding: 116px 0 70px; }
+            .hero .wrap { grid-template-columns: 1fr; gap: 40px; }
+            .escena { height: 520px; max-width: 520px; width: 100%; margin: 0 auto; }
+            .escena .foto { width: 86%; height: 470px; }
+            .cel { width: 170px; }
+            .flota.nfc { right: -4px; top: 30px; }
+            .flota.vivo { display: none; }
         }
-        .telefono .pantalla { width: 100%; height: 100%; border-radius: 35px; overflow: hidden; background: #fbf6f0; position: relative; }
-        .telefono iframe { width: 100%; height: 100%; border: 0; }
-        @media (max-width: 880px) {
-            .hero .wrap { grid-template-columns: 1fr; padding-top: 40px; }
-            .hero .texto { padding-bottom: 8px; }
-            .telefono { width: 270px; height: 520px; transform: translateY(30px); }
+        @media (max-width: 420px) { .escena { height: 450px; } .escena .foto { height: 400px; } .cel { width: 145px; } .flota { font-size: 13px; padding: 10px 12px; } }
+
+        /* Títulos de sección */
+        .cabeza { max-width: 760px; }
+        .cabeza.centro { margin: 0 auto; text-align: center; }
+        .marca { display: inline-block; font-weight: 700; font-size: 14px; color: var(--aji); margin-bottom: 14px; }
+        .titulo { font-size: clamp(34px, 4.8vw, 58px); line-height: 1.02; font-weight: 800; }
+        .bajada { font-size: 19px; color: var(--soft); margin-top: 16px; }
+        .oscuro { background: var(--ink); color: #fff; }
+        .oscuro .bajada { color: rgba(255,255,255,.66); }
+        .oscuro .marca { color: var(--sol); }
+
+        /* Antes y después */
+        .versus { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 54px; }
+        .lado { border-radius: 28px; padding: 34px; }
+        .lado h3 { font: 800 25px/1.1 "Bricolage Grotesque", sans-serif; display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+        .lado ul { list-style: none; display: grid; gap: 14px; }
+        .lado li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; }
+        .lado li svg { width: 22px; height: 22px; margin-top: 2px; }
+        .lado.antes { background: #e9e7df; color: #4b4943; }
+        .lado.antes svg { color: #a8a497; }
+        .lado.ahora { background: var(--ink); color: #fff; box-shadow: 0 30px 60px rgba(18,17,16,.18); }
+        .lado.ahora svg { color: var(--sol); }
+        .lado .tag { font: 700 12px "Hanken Grotesk", sans-serif; padding: 4px 10px; border-radius: 99px; background: rgba(0,0,0,.08); }
+        .lado.ahora .tag { background: var(--sol); color: var(--ink); }
+        @media (max-width: 820px) { .versus { grid-template-columns: 1fr; } .lado { padding: 26px; } }
+
+        /* Tótem */
+        .totem-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 64px; align-items: center; margin-top: 10px; }
+        .galeria { display: grid; grid-template-columns: 1.3fr 1fr; grid-template-rows: 1fr 1fr; gap: 14px; height: 600px; }
+        .galeria figure { border-radius: 24px; overflow: hidden; position: relative; }
+        .galeria figure:first-child { grid-row: 1 / 3; }
+        .galeria img { width: 100%; height: 100%; object-fit: cover; transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+        .galeria figure:hover img { transform: scale(1.05); }
+        .galeria figcaption { position: absolute; left: 12px; bottom: 12px; background: rgba(18,17,16,.82); color: #fff; font-size: 13px; font-weight: 600; padding: 6px 11px; border-radius: 10px; backdrop-filter: blur(6px); }
+        .specs { list-style: none; display: grid; gap: 0; margin-top: 30px; }
+        .specs li { display: grid; grid-template-columns: 48px 1fr; gap: 16px; padding: 18px 0; border-top: 1px solid rgba(255,255,255,.1); }
+        .specs li:last-child { border-bottom: 1px solid rgba(255,255,255,.1); }
+        .specs .ic { width: 48px; height: 48px; border-radius: 14px; background: rgba(255,194,26,.12); color: var(--sol); display: grid; place-items: center; }
+        .specs .ic svg { width: 24px; height: 24px; }
+        .specs b { font: 700 19px "Bricolage Grotesque", sans-serif; display: block; }
+        .specs span { color: rgba(255,255,255,.62); font-size: 16px; }
+        @media (max-width: 960px) { .totem-grid { grid-template-columns: 1fr; gap: 40px; } .galeria { height: 460px; } }
+        @media (max-width: 520px) { .galeria { height: 380px; gap: 10px; } }
+
+        /* La app */
+        .pantallas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; margin-top: 60px; align-items: start; }
+        .pantalla { text-align: center; }
+        .pantalla .marco { width: 100%; max-width: 270px; margin: 0 auto; border-radius: 40px; padding: 10px; background: #050505; box-shadow: 0 0 0 1.5px #c9c6bb, 0 36px 60px rgba(18,17,16,.22); }
+        .pantalla .marco img { border-radius: 31px; width: 100%; aspect-ratio: 390/844; object-fit: cover; object-position: top; }
+        .pantalla:nth-child(2) { margin-top: 48px; }
+        .pantalla h3 { font: 800 21px "Bricolage Grotesque", sans-serif; margin-top: 26px; }
+        .pantalla p { color: var(--soft); margin-top: 6px; font-size: 16px; max-width: 26em; margin-inline: auto; }
+        .ver-demo { text-align: center; margin-top: 50px; }
+        @media (max-width: 860px) {
+            .pantallas { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 18px; margin: 46px -22px 0; padding: 10px 22px 24px; scrollbar-width: none; }
+            .pantallas::-webkit-scrollbar { display: none; }
+            .pantalla { flex: 0 0 74%; scroll-snap-align: center; }
+            .pantalla:nth-child(2) { margin-top: 0; }
         }
 
-        /* Carta de ejemplo (si no hay demo configurada) */
-        .mock { font-size: 13px; color: #2a1a12; }
-        .mock .cab { background: radial-gradient(120% 90% at 85% 0%, #d2481f, #8f2a10); color: #fff; padding: 46px 18px 18px; }
-        .mock .cab b { display: block; font: 800 26px/1 "Bricolage Grotesque", sans-serif; margin: 10px 0 4px; }
-        .mock .chip { display: inline-block; background: rgba(0,0,0,.25); border-radius: 99px; padding: 3px 9px; font-size: 11px; font-weight: 600; }
-        .mock .chip::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #44e08a; margin-right: 6px; }
-        .mock .cats { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #eadfd3; font-weight: 600; color: #7a6558; }
-        .mock .cats span:first-child { background: #d2481f; color: #fff; border-radius: 8px; padding: 2px 8px; }
-        .mock h4 { font: 800 20px "Bricolage Grotesque", sans-serif; padding: 14px 14px 4px; }
-        .mock .row { display: flex; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #eadfd3; }
-        .mock .row div { flex: 1; }
-        .mock .row b { font: 700 14px "Bricolage Grotesque", sans-serif; display: block; }
-        .mock .row small { color: #7a6558; }
-        .mock .row i { width: 54px; height: 54px; border-radius: 12px; flex: none; background: linear-gradient(135deg, #f1c27d, #c2622d); }
-        .mock .row:nth-of-type(2n) i { background: linear-gradient(135deg, #b5d36a, #4f7a3a); }
-
-        /* Secciones */
-        section { padding: 110px 0; }
-        .titulo { font-size: clamp(32px, 4.6vw, 54px); line-height: 1.02; font-weight: 800; max-width: 16em; }
-        .bajada { font-size: 19px; color: var(--soft); margin-top: 14px; max-width: 36em; }
-
-        .pasos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 48px; counter-reset: paso; }
-        .paso { background: var(--paper); border-radius: 24px; padding: 28px; border: 1px solid var(--line); }
-        .paso::before {
-            counter-increment: paso; content: counter(paso); display: grid; place-items: center; width: 40px; height: 40px;
-            border-radius: 12px; background: var(--ink); color: var(--sol); font: 800 20px "Bricolage Grotesque", sans-serif; margin-bottom: 18px;
-        }
-        .paso h3 { font: 700 22px/1.15 "Bricolage Grotesque", sans-serif; }
-        .paso p { color: var(--soft); margin-top: 8px; }
-        @media (max-width: 820px) { .pasos { grid-template-columns: 1fr; } section { padding: 80px 0; } }
-
-        .ven { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
-        .lista-ven { list-style: none; display: grid; gap: 0; }
-        .lista-ven li { padding: 20px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 40px 1fr; gap: 16px; }
-        .lista-ven li:last-child { border-bottom: 1px solid var(--line); }
-        .lista-ven svg { width: 26px; height: 26px; color: var(--aji); margin-top: 2px; }
-        .lista-ven b { font: 700 20px "Bricolage Grotesque", sans-serif; display: block; }
-        .lista-ven span { color: var(--soft); }
-        @media (max-width: 820px) { .ven { grid-template-columns: 1fr; gap: 24px; } }
-
-        /* Tótems */
-        .totems { background: var(--sol); }
-        .totems .wrap { display: grid; grid-template-columns: .9fr 1.1fr; gap: 56px; align-items: center; }
-        .totems .bajada { color: var(--ink-2); }
-        .mesa { position: relative; height: 380px; }
-        .totem {
-            position: absolute; bottom: 40px; width: 150px; height: 230px; border-radius: 18px 18px 8px 8px; background: #fff;
-            box-shadow: 0 24px 40px rgba(60, 40, 0, .25); display: grid; place-items: center; text-align: center; padding: 16px;
-        }
-        .totem::after { content: ""; position: absolute; bottom: -14px; left: 18px; right: 18px; height: 16px; background: #d9d6cc; border-radius: 0 0 10px 10px; }
-        .totem .qr { width: 96px; height: 96px; }
-        .totem small { font: 700 13px/1.2 "Bricolage Grotesque", sans-serif; display: block; margin-top: 8px; }
-        .totem.t1 { left: 4%; transform: rotate(-6deg); }
-        .totem.t2 { left: 36%; bottom: 70px; z-index: 2; }
-        .totem.t3 { left: 68%; transform: rotate(5deg); }
-        .totem .mesa-n { position: absolute; top: 10px; left: 12px; font: 800 12px "Bricolage Grotesque", sans-serif; background: var(--ink); color: var(--sol); border-radius: 6px; padding: 2px 7px; }
-        .base-mesa { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; border-radius: 14px; background: #8a5a35; box-shadow: inset 0 6px 0 rgba(255,255,255,.18); }
-        .totems ul { list-style: none; margin-top: 24px; display: grid; gap: 10px; }
-        .totems li { display: flex; gap: 12px; font-weight: 600; }
-        .totems li::before { content: ""; flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 12 4 4 8-8' fill='none' stroke='%23ffc21a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat; margin-top: 2px; }
-        .fotos-totem { position: relative; min-height: 460px; }
-        .fotos-totem img { position: absolute; border-radius: 22px; object-fit: cover; box-shadow: 0 24px 50px rgba(60,40,0,.3); }
-        .fotos-totem .f1 { width: 74%; height: 420px; left: 0; top: 0; }
-        .fotos-totem .f2 { width: 46%; height: 300px; right: 0; bottom: 0; border: 6px solid var(--sol); }
-        @media (max-width: 820px) { .fotos-totem { min-height: 380px; } .fotos-totem .f1 { height: 330px; } .fotos-totem .f2 { height: 220px; } }
-        @media (max-width: 820px) { .totems .wrap { grid-template-columns: 1fr; } .mesa { height: 320px; } .totem { width: 120px; height: 190px; } .totem .qr { width: 76px; height: 76px; } }
+        /* Pasos */
+        .pasos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 54px; counter-reset: paso; }
+        .paso { position: relative; background: var(--paper); border-radius: 26px; padding: 30px; border: 1px solid var(--line); transition: transform .25s ease, box-shadow .25s ease; }
+        .paso:hover { transform: translateY(-4px); box-shadow: 0 24px 50px rgba(18,17,16,.08); }
+        .paso::before { counter-increment: paso; content: counter(paso); display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: var(--ink); color: var(--sol); font: 800 22px "Bricolage Grotesque", sans-serif; margin-bottom: 22px; }
+        .paso h3 { font: 800 23px/1.15 "Bricolage Grotesque", sans-serif; }
+        .paso p { color: var(--soft); margin-top: 10px; }
+        @media (max-width: 860px) { .pasos { grid-template-columns: 1fr; } }
 
         /* Planes */
-        .planes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 48px; align-items: stretch; }
-        .plan { background: var(--paper); border: 1px solid var(--line); border-radius: 28px; padding: 32px; display: flex; flex-direction: column; }
-        .plan.fuerte { background: var(--ink); color: #fff; border-color: var(--ink); }
-        .plan h3 { font: 800 26px "Bricolage Grotesque", sans-serif; display: flex; align-items: center; gap: 10px; }
-        .plan .sello { font: 700 12px "Hanken Grotesk", sans-serif; background: var(--sol); color: var(--ink); border-radius: 99px; padding: 4px 10px; letter-spacing: 0; }
-        .plan .precio { font: 800 56px/1 "Bricolage Grotesque", sans-serif; margin-top: 18px; letter-spacing: -.03em; }
-        .plan .precio small { font: 600 17px "Hanken Grotesk", sans-serif; letter-spacing: 0; opacity: .7; }
-        .plan .desc { margin-top: 10px; opacity: .75; }
-        .plan ul { list-style: none; margin: 24px 0 28px; display: grid; gap: 10px; flex: 1; }
-        .plan li { display: flex; gap: 10px; }
-        .plan li svg { width: 20px; height: 20px; flex: none; margin-top: 3px; color: var(--verde); }
+        .planes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 56px; max-width: 920px; margin-inline: auto; align-items: stretch; }
+        .plan { position: relative; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 30px; padding: 36px; display: flex; flex-direction: column; }
+        .plan.fuerte { background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: 0 40px 80px rgba(18,17,16,.25); }
+        .plan .recomendado { position: absolute; top: -14px; left: 36px; background: var(--sol); color: var(--ink); font-weight: 700; font-size: 13px; padding: 6px 12px; border-radius: 99px; }
+        .plan h3 { font: 800 28px "Bricolage Grotesque", sans-serif; }
+        .plan .desc { margin-top: 6px; opacity: .7; font-size: 16px; }
+        .plan .precio { font: 800 64px/1 "Bricolage Grotesque", sans-serif; margin-top: 22px; letter-spacing: -.04em; }
+        .plan .precio small { font: 600 17px "Hanken Grotesk", sans-serif; letter-spacing: 0; opacity: .65; }
+        .plan .mini-foto { margin-top: 22px; border-radius: 18px; overflow: hidden; height: 150px; }
+        .plan .mini-foto img { width: 100%; height: 100%; object-fit: cover; }
+        .plan ul { list-style: none; margin: 26px 0 30px; display: grid; gap: 12px; flex: 1; }
+        .plan li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; font-size: 16px; }
+        .plan li svg { width: 20px; height: 20px; margin-top: 2px; color: var(--verde); }
         .plan.fuerte li svg { color: var(--sol); }
         .plan .btn { width: 100%; }
-        .plan:not(.fuerte) .btn { background: var(--ink); color: #fff; }
-        .extra { margin-top: 18px; background: var(--paper); border: 1px dashed #bdb9ad; border-radius: 20px; padding: 18px 22px; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-        .extra b { font: 800 22px "Bricolage Grotesque", sans-serif; }
+        .extra { max-width: 920px; margin: 20px auto 0; background: var(--paper); border: 1.5px dashed #c7c3b6; border-radius: 22px; padding: 20px 26px; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+        .extra b { font: 800 24px "Bricolage Grotesque", sans-serif; }
 
         /* Preguntas */
-        .faq { max-width: 820px; }
-        details { border-top: 1px solid var(--line); padding: 22px 0; }
+        .faq { max-width: 820px; margin: 46px auto 0; }
+        details { border-top: 1px solid var(--line); }
         details:last-of-type { border-bottom: 1px solid var(--line); }
-        summary { cursor: pointer; list-style: none; font: 700 21px/1.3 "Bricolage Grotesque", sans-serif; display: flex; justify-content: space-between; gap: 20px; }
+        summary { cursor: pointer; list-style: none; padding: 24px 0; font: 700 21px/1.3 "Bricolage Grotesque", sans-serif; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
         summary::-webkit-details-marker { display: none; }
-        summary::after { content: "+"; font-size: 28px; line-height: 1; transition: transform .2s ease; }
-        details[open] summary::after { transform: rotate(45deg); }
-        details p { color: var(--soft); margin-top: 10px; max-width: 40em; }
+        summary i { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: var(--sol); display: grid; place-items: center; font-style: normal; font-size: 22px; transition: transform .25s ease; }
+        details[open] summary i { transform: rotate(45deg); }
+        details p { color: var(--soft); padding-bottom: 24px; max-width: 40em; }
 
-        .cierre { background: var(--ink); color: #fff; text-align: center; }
-        .cierre .titulo { margin: 0 auto; }
-        .cierre .bajada { color: rgba(255,255,255,.7); margin: 16px auto 32px; }
-        footer { background: var(--ink); color: rgba(255,255,255,.6); font-size: 14px; padding: 0 0 40px; }
-        footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,.12); padding-top: 24px; }
+        /* Cierre */
+        .cierre { position: relative; overflow: hidden; background: var(--ink); color: #fff; text-align: center; padding: 130px 0; }
+        .cierre::before { content: ""; position: absolute; inset: 0; background: url("{{ img('totem-local.webp') }}") center/cover; opacity: .22; }
+        .cierre::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(18,17,16,.3), var(--ink) 75%); }
+        .cierre .wrap { position: relative; z-index: 1; }
+        .cierre .titulo { max-width: 13em; margin: 0 auto; font-size: clamp(38px, 5.6vw, 70px); }
+        .cierre .bajada { color: rgba(255,255,255,.72); margin: 18px auto 34px; max-width: 30em; }
+        footer { background: var(--ink); color: rgba(255,255,255,.55); font-size: 14px; padding: 0 0 40px; }
+        footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,.1); padding-top: 26px; }
         footer a { color: #fff; text-decoration: none; }
 
-        @media (prefers-reduced-motion: no-preference) {
-            .hero .texto > * { animation: sube .8s cubic-bezier(.2,.8,.2,1) both; }
-            .hero .texto > :nth-child(2) { animation-delay: .08s; }
-            .hero .texto > :nth-child(3) { animation-delay: .16s; }
-            .hero .texto > :nth-child(4) { animation-delay: .24s; }
-            .telefono { animation: telefono 1s .2s cubic-bezier(.2,.8,.2,1) both; }
-            @keyframes sube { from { opacity: 0; transform: translateY(18px); } }
-            @keyframes telefono { from { opacity: 0; transform: translateY(120px) rotate(-3deg); } }
+        /* Botón flotante en celular */
+        .fijo { display: none; }
+        @media (max-width: 640px) {
+            .fijo { display: flex; position: fixed; left: 14px; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 40; transform: translateY(140%); transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+            .fijo.ver { transform: none; }
+            .fijo .btn { width: 100%; }
         }
+
+        /* Animaciones de entrada */
+        .rev { opacity: 0; transform: translateY(26px); transition: opacity .8s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1); }
+        .rev.ver { opacity: 1; transform: none; }
+        .rev.d1 { transition-delay: .08s; } .rev.d2 { transition-delay: .16s; } .rev.d3 { transition-delay: .24s; }
+        .hero .rev { transition-duration: 1s; }
+        .cargado .escena .foto img { transform: none; }
+        @keyframes flotar { 50% { transform: translateY(-8px); } }
+        .flota.nfc { animation: flotar 5s ease-in-out infinite; }
+        .flota.vivo { animation: flotar 5s 1.2s ease-in-out infinite; }
+        @keyframes onda { 0% { box-shadow: 0 0 0 0 rgba(255,194,26,.6); } 100% { box-shadow: 0 0 0 16px rgba(255,194,26,0); } }
+        .flota.nfc .ic { animation: onda 2s ease-out infinite; }
     </style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-wa" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4a.5.5 0 0 0 0-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.6 11.6 0 0 0 4.4 3.9c1.6.7 2.3.8 3.1.6a2.6 2.6 0 0 0 1.7-1.2 2.1 2.1 0 0 0 .2-1.2c-.1-.1-.3-.2-.5-.3Z"/></symbol>
     <symbol id="i-ok" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-no" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
     <symbol id="i-qr" viewBox="0 0 24 24"><path fill="currentColor" d="M3 3h8v8H3V3Zm2 2v4h4V5H5Zm8-2h8v8h-8V3Zm2 2v4h4V5h-4ZM3 13h8v8H3v-8Zm2 2v4h4v-4H5Zm8-2h2v2h-2v-2Zm2 2h2v2h-2v-2Zm-2 2h2v2h-2v-2Zm4 0h4v2h-2v2h-2v-4Zm2-4h2v2h-2v-2Zm-4 6h2v2h-2v-2Z"/></symbol>
-    <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-foto" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="m21 16-5-5-8 8" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
-    <symbol id="i-lapiz" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
-    <symbol id="i-etiqueta" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8L3 12Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7.5" cy="8.5" r="1.5" fill="currentColor"/></symbol>
-    <symbol id="i-plato" viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 0-3.5 2.5-3.5 6v4H17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-nfc" viewBox="0 0 24 24"><path d="M8.5 9.5a5 5 0 0 1 7 0M6 7a8.5 8.5 0 0 1 12 0M11 12a1.4 1.4 0 0 1 2 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="i-3d" viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Zm0 0v9m0 0 8-4.5M12 12l-8-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-graf" viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-rayo" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cel" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 18h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-flecha" viewBox="0 0 24 24"><path d="M5 12h13m-5-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
-<header class="top">
+<header class="top" id="top">
     <div class="wrap">
         <a class="logo" href="/"><i><svg><use href="#i-qr"/></svg></i>MiMenú</a>
         <nav>
-            <a class="op" href="#como">Cómo funciona</a>
+            <a class="op" href="#totem">El tótem</a>
+            <a class="op" href="#app">La carta</a>
             <a class="op" href="#planes">Planes</a>
             <a class="entrar" href="{{ url_for('login') }}">Ingresar</a>
+            <a class="cta-top" href="{{ wa_link }}" {{ wa_attr|safe }}>Quiero mi carta</a>
         </nav>
     </div>
 </header>
 
 <div class="hero">
     <div class="wrap">
-        <div class="texto">
-            <h1 class="d">Tu carta en el celular de <em>cada cliente.</em></h1>
-            <p class="lede">Escanean el QR o acercan el celular al tótem NFC de la mesa y ven tus platos con fotos, precios al día, horario y un botón para pedir por WhatsApp. Si cambia un precio, lo cambias desde tu celular y listo: no se reimprime nada.</p>
-            <div class="ctas">
-                <a class="btn btn-sol" href="{{ wa_link }}" {% if whatsapp %}target="_blank" rel="noopener"{% endif %}><svg><use href="#i-wa"/></svg>Quiero mi carta</a>
-                {% if demo_slug %}<a class="btn btn-linea" href="{{ url_for('ver_menu_publico', url_slug=demo_slug) }}">Ver una carta de ejemplo</a>{% endif %}
+        <div>
+            <span class="chip rev"><b>Nuevo</b> Tótem impreso en 3D con QR y NFC</span>
+            <h1 class="d rev d1">Tu carta, a un toque de <em>cada mesa.<svg viewBox="0 0 200 12" preserveAspectRatio="none"><path d="M2 9c50-6 120-8 196-3" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg></em></h1>
+            <p class="lede rev d2">Tus clientes escanean el QR o acercan el celular al tótem y ven tu carta con fotos, precios al día y un botón para pedir por WhatsApp. Cambias un precio desde tu celular y se ve al instante.</p>
+            <div class="ctas rev d3">
+                <a class="btn btn-sol" href="{{ wa_link }}" {{ wa_attr|safe }}><svg><use href="#i-wa"/></svg>Quiero mi carta</a>
+                {% if demo_slug %}<a class="btn btn-vidrio" href="{{ url_for('ver_menu_publico', url_slug=demo_slug) }}">Ver carta de ejemplo<svg><use href="#i-flecha"/></svg></a>{% endif %}
             </div>
-            {% if planes %}<p class="nota">Desde {{ clp(planes[0].precio_mensual) }} al mes por local.</p>{% endif %}
+            <ul class="confianza rev d3">
+                <li><svg><use href="#i-ok"/></svg>Sin descargar apps</li>
+                <li><svg><use href="#i-ok"/></svg>Cambios al instante</li>
+                {% if planes %}<li><svg><use href="#i-ok"/></svg>Desde {{ clp(planes[0].precio_mensual) }} al mes</li>{% endif %}
+            </ul>
         </div>
-        <div class="escena">
-        <img class="foto-hero" src="{{ url_for('static', filename='img/totem-lado.webp') }}?v=3" alt="Tótem MiMenú con QR y NFC sobre una mesa" fetchpriority="high">
-
+        <div class="escena rev d2" aria-hidden="true">
+            <div class="foto"><img src="{{ img('totem-lado.webp') }}" alt="" fetchpriority="high"></div>
+            <div class="cel"><img src="{{ img('app-portada.webp') }}" alt=""></div>
+            <div class="flota nfc"><span class="ic"><svg><use href="#i-nfc"/></svg></span><span>Acerca el celular<small>y se abre la carta</small></span></div>
+            <div class="flota vivo"><span class="ic"><svg><use href="#i-rayo"/></svg></span><span>Precio actualizado<small>hace un momento</small></span></div>
         </div>
     </div>
 </div>
 
-<section id="como">
+<section>
     <div class="wrap">
-        <h2 class="titulo d">Así de simple.</h2>
+        <div class="cabeza rev">
+            <span class="marca">Por qué cambiarse</span>
+            <h2 class="titulo d">La carta impresa se queda vieja el día que cambias un precio.</h2>
+        </div>
+        <div class="versus">
+            <div class="lado antes rev">
+                <h3>Carta impresa <span class="tag">Lo de siempre</span></h3>
+                <ul>
+                    <li><svg><use href="#i-no"/></svg>Cada cambio de precio es reimprimir.</li>
+                    <li><svg><use href="#i-no"/></svg>Sin fotos, o con fotos que se gastan.</li>
+                    <li><svg><use href="#i-no"/></svg>Se ensucian, se rompen y hay que esperar a que la traigan.</li>
+                    <li><svg><use href="#i-no"/></svg>No sabes cuánta gente la mira.</li>
+                </ul>
+            </div>
+            <div class="lado ahora rev d1">
+                <h3>MiMenú <span class="tag">Desde hoy</span></h3>
+                <ul>
+                    <li><svg><use href="#i-ok"/></svg>Cambias precios y platos desde el celular, al instante.</li>
+                    <li><svg><use href="#i-ok"/></svg>Cada plato con foto, descripción y ofertas destacadas.</li>
+                    <li><svg><use href="#i-ok"/></svg>El cliente la abre apenas se sienta, en su propio celular.</li>
+                    <li><svg><use href="#i-ok"/></svg>Ves cuántas veces se escanea cada tótem.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oscuro" id="totem">
+    <div class="wrap">
+        <div class="totem-grid">
+            <div class="galeria rev">
+                <figure><img src="{{ img('totem-local.webp') }}" alt="Tótem MiMenú sobre la mesa de una picada, junto a empanadas y un schop" loading="lazy"><figcaption>En una picada de verdad</figcaption></figure>
+                <figure><img src="{{ img('totem-mesa.webp') }}" alt="Tótem negro con chip NFC y código QR" loading="lazy"></figure>
+                <figure><img src="{{ img('totem-real.webp') }}" alt="Tótem MiMenú impreso en 3D, vista frontal" loading="lazy"><figcaption>Impreso en 3D</figcaption></figure>
+            </div>
+            <div class="rev d1">
+                <span class="marca">El tótem</span>
+                <h2 class="titulo d">Un tótem en cada mesa. Tu carta, siempre a mano.</h2>
+                <p class="bajada">Lo imprimimos en 3D, firme y negro mate, con tu código QR y un chip NFC. Se para solo sobre la mesa, la barra o la vitrina.</p>
+                <ul class="specs">
+                    <li><span class="ic"><svg><use href="#i-nfc"/></svg></span><div><b>QR y NFC en el mismo tótem</b><span>Escanean con la cámara o solo acercan el celular.</span></div></li>
+                    <li><span class="ic"><svg><use href="#i-3d"/></svg></span><div><b>Impreso en 3D</b><span>Liviano, firme y fácil de limpiar.</span></div></li>
+                    <li><span class="ic"><svg><use href="#i-graf"/></svg></span><div><b>Cada tótem con su código</b><span>En tu panel ves qué mesa escanea más.</span></div></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="app">
+    <div class="wrap">
+        <div class="cabeza centro rev">
+            <span class="marca">La carta</span>
+            <h2 class="titulo d">Así la ven tus clientes.</h2>
+            <p class="bajada">Rápida, con fotos y fácil de leer. Funciona en cualquier celular, sin instalar nada.</p>
+        </div>
+        <div class="pantallas">
+            <div class="pantalla rev"><div class="marco"><img src="{{ img('app-portada.webp') }}" alt="Portada de una carta digital MiMenú" loading="lazy"></div><h3>Abierto o cerrado, al día</h3><p>Tu logo, tus colores y si estás abierto ahora. Lo más pedido arriba.</p></div>
+            <div class="pantalla rev d1"><div class="marco"><img src="{{ img('app-lista.webp') }}" alt="Lista de platos con fotos y precios" loading="lazy"></div><h3>Platos con foto y precio</h3><p>Ofertas, platos nuevos, vegetarianos y picantes, cada uno marcado.</p></div>
+            <div class="pantalla rev d2"><div class="marco"><img src="{{ img('app-ficha.webp') }}" alt="Ficha de un plato con foto grande" loading="lazy"></div><h3>Pedido por WhatsApp</h3><p>Tocan un plato, lo ven en grande y te escriben con el plato ya puesto.</p></div>
+        </div>
+        {% if demo_slug %}<div class="ver-demo rev"><a class="btn btn-negro" href="{{ url_for('ver_menu_publico', url_slug=demo_slug) }}">Abrir la carta de ejemplo<svg><use href="#i-flecha"/></svg></a></div>{% endif %}
+    </div>
+</section>
+
+<section style="padding-top:0" id="como">
+    <div class="wrap">
+        <div class="cabeza rev">
+            <span class="marca">Cómo funciona</span>
+            <h2 class="titulo d">Así de simple.</h2>
+        </div>
         <div class="pasos">
-            <div class="paso"><h3>Armamos tu carta</h3><p>Nos mandas tu carta actual y tus fotos. La dejamos lista con tus colores, categorías y precios.</p></div>
-            <div class="paso"><h3>Pones el QR</h3><p>Imprimes el código en tu local o lo pones en tótems sobre las mesas, el mostrador o la vitrina.</p></div>
-            <div class="paso"><h3>La cambias cuando quieras</h3><p>Desde tu panel subes un plato nuevo, marcas una oferta o escondes lo que se acabó. Se ve al instante.</p></div>
+            <div class="paso rev"><h3>Armamos tu carta</h3><p>Nos mandas tu carta actual y tus fotos. La dejamos lista con tus colores, categorías y precios.</p></div>
+            <div class="paso rev d1"><h3>Ponemos los tótems</h3><p>Te llegan los tótems con QR y NFC listos para las mesas. O imprimes tu QR, si prefieres el plan Local.</p></div>
+            <div class="paso rev d2"><h3>La cambias cuando quieras</h3><p>Desde tu panel subes un plato nuevo, marcas una oferta o escondes lo que se acabó.</p></div>
         </div>
     </div>
 </section>
 
-<section style="padding-top:0">
-    <div class="wrap ven">
-        <div>
-            <h2 class="titulo d">Lo que ven tus clientes al escanear.</h2>
-            <p class="bajada">No tienen que descargar nada. Funciona con la cámara de cualquier celular.</p>
-        </div>
-        <ul class="lista-ven">
-            <li><svg><use href="#i-foto"/></svg><div><b>Platos con foto</b><span>Cada plato con su foto, descripción y precio. Tocan uno y lo ven en grande.</span></div></li>
-            <li><svg><use href="#i-reloj"/></svg><div><b>Si estás abierto</b><span>La carta muestra si el local está abierto ahora y a qué hora cierra.</span></div></li>
-            <li><svg><use href="#i-wa"/></svg><div><b>Pedido por WhatsApp</b><span>Desde cada plato te escriben con el nombre del plato ya puesto.</span></div></li>
-            <li><svg><use href="#i-etiqueta"/></svg><div><b>Ofertas y novedades</b><span>Marca un precio de oferta o un plato nuevo y se destaca solo.</span></div></li>
-            <li><svg><use href="#i-plato"/></svg><div><b>Vegetariano, sin gluten, picante</b><span>Etiquetas para que cada cliente encuentre lo suyo, y un buscador.</span></div></li>
-        </ul>
-    </div>
-</section>
-
-<section class="totems">
+<section class="oscuro" id="planes">
     <div class="wrap">
-        <div class="fotos-totem">
-            <img class="f1" src="{{ url_for('static', filename='img/totem-local.webp') }}?v=2" alt="Tótem QR y NFC sobre una mesa con empanadas y schop" loading="lazy">
-            <img class="f2" src="{{ url_for('static', filename='img/totem-mesa.webp') }}?v=2" alt="Tótem negro con NFC y código QR" loading="lazy">
+        <div class="cabeza centro rev">
+            <span class="marca">Planes</span>
+            <h2 class="titulo d">Un precio fijo al mes. Sin sorpresas.</h2>
+            <p class="bajada">Precio por local. Cambias platos y precios todas las veces que quieras.</p>
         </div>
-        <div>
-            <h2 class="titulo d">Un tótem QR y NFC en cada mesa.</h2>
-            <p class="bajada">Un tótem impreso en 3D, con tu código QR y un chip NFC: tus clientes escanean con la cámara o solo acercan el celular, y se abre tu carta.</p>
-            <ul>
-                <li>Impreso en 3D, con QR y chip NFC en el mismo tótem.</li>
-                <li>Cada tótem tiene su propio código.</li>
-                <li>En tu panel ves cuántas veces se escaneó cada uno.</li>
-                <li>El plan Tótem trae 5. Si necesitas más, se agregan.</li>
-            </ul>
-        </div>
-    </div>
-</section>
-
-<section id="planes">
-    <div class="wrap">
-        <h2 class="titulo d">Un precio fijo al mes. Sin sorpresas.</h2>
-        <p class="bajada">Precio por local. Cambias platos y precios todas las veces que quieras.</p>
         {% if planes %}
         <div class="planes">
             {% for plan in planes %}
             {% set fuerte = plan.qr_totems and plan.qr_totems > 0 %}
-            <article class="plan{% if fuerte %} fuerte{% endif %}">
-                <h3>{{ plan.nombre }}{% if fuerte %} <span class="sello">Incluye {{ plan.qr_totems }} tótems</span>{% endif %}</h3>
+            <article class="plan{% if fuerte %} fuerte{% endif %} rev{% if loop.index > 1 %} d1{% endif %}">
+                {% if fuerte %}<span class="recomendado">El más elegido</span>{% endif %}
+                <h3>{{ plan.nombre }}</h3>
+                <p class="desc">{% if fuerte %}Carta digital y {{ plan.qr_totems }} tótems impresos en 3D{% else %}Carta digital y código QR para imprimir{% endif %}</p>
                 <div class="precio num">{{ clp(plan.precio_mensual) }} <small>al mes</small></div>
-                {% if plan.descripcion %}<p class="desc">{{ plan.descripcion }}</p>{% endif %}
+                {% if fuerte %}<div class="mini-foto"><img src="{{ img('totem-mesa.webp') }}" alt="Tótem incluido en el plan" loading="lazy"></div>{% endif %}
                 <ul>
                     <li><svg><use href="#i-ok"/></svg>Carta digital con fotos, ofertas y horario</li>
                     <li><svg><use href="#i-ok"/></svg>Botón de pedido por WhatsApp</li>
                     <li><svg><use href="#i-ok"/></svg>Panel para cambiar platos y precios</li>
                     {% if fuerte %}
                     <li><svg><use href="#i-ok"/></svg>{{ plan.qr_totems }} tótems impresos en 3D con QR y NFC</li>
-                    <li><svg><use href="#i-ok"/></svg>Escaneos por tótem en tu panel</li>
+                    <li><svg><use href="#i-ok"/></svg>Escaneos de cada tótem en tu panel</li>
                     {% else %}
                     <li><svg><use href="#i-ok"/></svg>Código QR listo para imprimir</li>
                     {% endif %}
                 </ul>
-                <a class="btn{% if fuerte %} btn-sol{% endif %}" href="{{ wa_link }}" {% if whatsapp %}target="_blank" rel="noopener"{% endif %}>Quiero el plan {{ plan.nombre }}</a>
+                <a class="btn {% if fuerte %}btn-sol{% else %}btn-negro{% endif %}" href="{{ wa_link }}" {{ wa_attr|safe }}>Quiero el plan {{ plan.nombre }}</a>
             </article>
             {% endfor %}
         </div>
-        <div class="extra">
+        <div class="extra rev" style="background:var(--ink-2);border-color:#3a3934;color:#fff">
             <span><b class="num">{{ clp(precio_totem) }}</b> por cada tótem adicional impreso en 3D con QR y NFC</span>
-            <span style="color:var(--soft)">Para locales con más mesas o más de un piso.</span>
+            <span style="color:rgba(255,255,255,.6)">Para locales con más mesas o más de un piso.</span>
         </div>
         {% endif %}
     </div>
 </section>
 
-<section style="padding-top:0">
-    <div class="wrap faq">
-        <h2 class="titulo d" style="margin-bottom:28px">Preguntas frecuentes</h2>
-        <details><summary>¿Mis clientes tienen que descargar una app?</summary><p>No. Apuntan la cámara del celular al código QR y la carta se abre en el navegador.</p></details>
-        <details><summary>¿Puedo cambiar los precios yo mismo?</summary><p>Sí. Desde tu panel editas precios, platos, fotos y categorías, y el cambio se ve de inmediato en la carta.</p></details>
-        <details><summary>¿Qué diferencia hay entre el QR y los tótems?</summary><p>En el plan Local recibes un código QR para imprimir y pegar donde quieras. En el plan Tótem recibes 5 tótems impresos en 3D, con QR y chip NFC, para poner sobre las mesas. Cada uno tiene su propio código y ves cuántas veces se escanea cada uno.</p></details>
-        <details><summary>¿Puedo elegir los colores de mi carta?</summary><p>Sí. Hay 15 estilos y puedes cambiar de estilo cuando quieras desde el panel.</p></details>
+<section>
+    <div class="wrap">
+        <div class="cabeza centro rev"><span class="marca">Preguntas</span><h2 class="titulo d">Lo que nos preguntan.</h2></div>
+        <div class="faq">
+            <details class="rev"><summary>¿Mis clientes tienen que descargar una app?<i>+</i></summary><p>No. Escanean el QR con la cámara o acercan el celular al tótem, y la carta se abre en el navegador.</p></details>
+            <details class="rev"><summary>¿Qué es el NFC?<i>+</i></summary><p>Es el mismo chip de los pagos con el celular. El cliente acerca su teléfono al tótem y se abre la carta, sin tener que apuntar la cámara.</p></details>
+            <details class="rev"><summary>¿Puedo cambiar los precios yo mismo?<i>+</i></summary><p>Sí. Desde tu panel editas precios, platos, fotos y categorías, y el cambio se ve de inmediato en la carta.</p></details>
+            <details class="rev"><summary>¿Qué diferencia hay entre el plan Local y el plan Tótem?<i>+</i></summary><p>En el plan Local recibes un código QR para imprimir y pegar donde quieras. En el plan Tótem recibes 5 tótems impresos en 3D con QR y chip NFC; cada uno tiene su propio código y ves cuántas veces se escanea.</p></details>
+            <details class="rev"><summary>¿Puedo elegir los colores de mi carta?<i>+</i></summary><p>Sí. Hay 15 estilos y puedes cambiar de estilo cuando quieras desde el panel.</p></details>
+        </div>
     </div>
 </section>
 
 <section class="cierre">
-    <div class="wrap">
+    <div class="wrap rev">
         <h2 class="titulo d">Que tu carta se vea tan bien como tu comida.</h2>
-        <p class="bajada">Escríbenos y te mostramos cómo quedaría la carta de tu local.</p>
-        <a class="btn btn-sol" href="{{ wa_link }}" {% if whatsapp %}target="_blank" rel="noopener"{% endif %}><svg><use href="#i-wa"/></svg>Hablar por WhatsApp</a>
+        <p class="bajada">Escríbenos y te mostramos cómo quedaría la carta de tu local, con tus tótems en las mesas.</p>
+        <a class="btn btn-sol" href="{{ wa_link }}" {{ wa_attr|safe }}><svg><use href="#i-wa"/></svg>Hablar por WhatsApp</a>
     </div>
 </section>
 <footer>
@@ -333,5 +427,25 @@
         <a href="{{ url_for('login') }}">Ingresar al panel</a>
     </div>
 </footer>
+<div class="fijo" id="fijo"><a class="btn btn-sol" href="{{ wa_link }}" {{ wa_attr|safe }}><svg><use href="#i-wa"/></svg>Quiero mi carta</a></div>
+
+<script>
+(function () {
+    var top = document.getElementById('top'), fijo = document.getElementById('fijo');
+    function alScroll() {
+        var y = window.scrollY;
+        top.classList.toggle('solido', y > 30);
+        fijo.classList.toggle('ver', y > 600 && (window.innerHeight + y) < document.body.scrollHeight - 300);
+    }
+    window.addEventListener('scroll', alScroll, { passive: true }); alScroll();
+    requestAnimationFrame(function () { document.body.classList.add('cargado'); });
+    var els = document.querySelectorAll('.rev');
+    if (!('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.add('ver'); }); return; }
+    var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('ver'); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: .08 });
+    els.forEach(function (e) { io.observe(e); });
+})();
+</script>
 </body>
 </html>

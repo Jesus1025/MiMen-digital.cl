@@ -305,11 +305,11 @@ def add_security_headers(response):
     # Permite scripts y estilos inline necesarios para la app
     csp = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://sdk.mercadopago.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://sdk.mercadopago.com https://static.cloudflareinsights.com; "
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
         "img-src 'self' data: https: blob: https://res.cloudinary.com; "
-        "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com; "
+        "connect-src 'self' https://cloudflareinsights.com https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com; "
         "frame-src 'self' https://www.mercadopago.com https://www.mercadopago.cl; "
         "object-src 'none'; "
         "base-uri 'self';"
