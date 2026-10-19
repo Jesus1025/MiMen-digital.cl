@@ -68,3 +68,4 @@ Flask-Mail>=0.10.0
 # python -m venv venv
 # source venv/bin/activate  # En Windows: venv\Scripts\activate
 # pip install -r requirements.txt
+gunicorn>=22.0.0  # servidor de producción

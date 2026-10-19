@@ -650,6 +650,13 @@ logger.info("Base URL: %s", BASE_URL)
 # SECURITY & PRODUCTION CHECKS
 # ============================================================
 
+def url_publica():
+    """Dirección pública de la app (BASE_URL). Detrás de Cloudflare y Caddy la petición
+    llega como http, así que para QR y enlaces de pago se usa BASE_URL si está definido."""
+    base = os.environ.get('BASE_URL', '').strip()
+    return (base or request.host_url).rstrip('/')
+
+
 def enforce_required_envs():
     """Enforce presence of critical environment variables in production.
     This raises only when FLASK_ENV == 'production' to avoid breaking local/dev.
@@ -664,12 +671,12 @@ def enforce_required_envs():
             missing.append('SECRET_KEY')
         if not os.environ.get('MYSQL_PASSWORD'):
             missing.append('MYSQL_PASSWORD')
-        # If cloudinary SDK is installed, require CLOUDINARY_URL in production
+        # Cloudinary y Mercado Pago son opcionales: sin ellos la app funciona
+        # (imágenes por URL y cobro manual), solo se avisa en el log.
         if CLOUDINARY_AVAILABLE and not os.environ.get('CLOUDINARY_URL'):
-            missing.append('CLOUDINARY_URL')
-        # If Mercado Pago is installed, require token in production
+            logger.warning('CLOUDINARY_URL no configurado: la subida de imágenes queda desactivada')
         if MERCADOPAGO_AVAILABLE and not os.environ.get('MERCADO_PAGO_ACCESS_TOKEN'):
-            missing.append('MERCADO_PAGO_ACCESS_TOKEN')
+            logger.warning('MERCADO_PAGO_ACCESS_TOKEN no configurado: el pago con Mercado Pago queda desactivado')
     if missing:
         msg = f"Missing required env vars in production: {', '.join(missing)}"
         logger.error(msg)
@@ -2196,7 +2203,7 @@ def gestion_codigo_qr():
         flash('Error al cargar datos del restaurante', 'error')
         return redirect(url_for('menu_gestion'))
     
-    base_url = request.host_url.rstrip('/')
+    base_url = url_publica()
     # URL del menú con parámetro qr=1 para tracking de escaneos
     menu_url = f"{base_url}/menu/{restaurante['url_slug']}?qr=1"
     # URL sin parámetro para mostrar al usuario (más limpia)
@@ -2386,7 +2393,7 @@ def api_menu_pdf():
                     })
             
             # Renderizar HTML
-            base_url = request.host_url.rstrip('/')
+            base_url = url_publica()
             fecha_generacion = datetime.now().strftime('%d/%m/%Y')
             html_content = render_template(
                 'menu_pdf.html',
@@ -2580,11 +2587,11 @@ def api_crear_preferencia_pago():
                 "email": restaurante.get('email', 'no-email@example.com')
             },
             "back_urls": {
-                "success": f"{request.host_url.rstrip('/')}/pago/exito",
-                "failure": f"{request.host_url.rstrip('/')}/pago/fallo",
-                "pending": f"{request.host_url.rstrip('/')}/pago/pendiente"
+                "success": f"{url_publica()}/pago/exito",
+                "failure": f"{url_publica()}/pago/fallo",
+                "pending": f"{url_publica()}/pago/pendiente"
             },
-            "notification_url": f"{request.host_url.rstrip('/')}/webhook/mercado-pago",
+            "notification_url": f"{url_publica()}/webhook/mercado-pago",
             "external_reference": f"rest_{restaurante_id}_{int(datetime.utcnow().timestamp())}",
             "auto_return": "approved"
         }
@@ -2661,11 +2668,11 @@ def admin_mercadopago_test_preference():
         preference_data = {
             "items": [{"title": description, "quantity": 1, "currency_id": "CLP", "unit_price": price}],
             "back_urls": {
-                "success": f"{request.host_url.rstrip('/')}/pago/exito",
-                "failure": f"{request.host_url.rstrip('/')}/pago/fallo",
-                "pending": f"{request.host_url.rstrip('/')}/pago/pendiente"
+                "success": f"{url_publica()}/pago/exito",
+                "failure": f"{url_publica()}/pago/fallo",
+                "pending": f"{url_publica()}/pago/pendiente"
             },
-            "notification_url": f"{request.host_url.rstrip('/')}/webhook/mercado-pago",
+            "notification_url": f"{url_publica()}/webhook/mercado-pago",
             "auto_return": "approved"
         }
         response = MERCADOPAGO_CLIENT.preference().create(preference_data)
@@ -3836,7 +3843,7 @@ def api_dashboard_stats():
             'scans_hoy': 0,
             'ultimos_7_dias': [],
             'url_slug': '',
-            'base_url': request.host_url.rstrip('/')
+            'base_url': url_publica()
         })
     
     try:
@@ -3845,7 +3852,7 @@ def api_dashboard_stats():
         if SECURITY_MIDDLEWARE_AVAILABLE:
             cached = get_cache().get(cache_key)
             if cached:
-                cached['base_url'] = request.host_url.rstrip('/')  # Actualizar base_url
+                cached['base_url'] = url_publica()  # Actualizar base_url
                 return jsonify(cached)
         
         db = get_db()
@@ -3890,7 +3897,7 @@ def api_dashboard_stats():
                 'scans_hoy': hoy_row['scans'] if hoy_row else 0,
                 'ultimos_7_dias': ultimos_7_dias,
                 'url_slug': stats['url_slug'] if stats else '',
-                'base_url': request.host_url.rstrip('/')
+                'base_url': url_publica()
             }
             
             # Guardar en caché por 30 segundos
