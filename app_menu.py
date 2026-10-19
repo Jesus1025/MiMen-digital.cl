@@ -1809,6 +1809,12 @@ def ver_menu_publico(url_slug):
                         'es_sin_gluten': row['es_sin_gluten'],
                         'es_picante': row['es_picante']
                     }
+                    # Lista simple de fotos para la ficha del plato (menú público)
+                    fotos = [im.get('imagen_src') or im.get('imagen_url') for im in plato_imagenes
+                             if im.get('imagen_src') or im.get('imagen_url')]
+                    if not fotos and imagen_src:
+                        fotos = [imagen_src]
+                    plato['fotos'] = fotos
                     menu_estructurado[cat_id]['platos'].append(plato)
 
             # Guardar en cache si no es preview (5 minutos TTL)
