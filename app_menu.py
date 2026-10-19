@@ -1677,7 +1677,25 @@ def index():
         if session.get('rol') == 'superadmin':
             return redirect(url_for('superadmin_restaurantes'))
         return redirect(url_for('menu_gestion'))
-    return render_template('index.html')
+
+    # Planes a la venta (activos y con precio) para la página de venta
+    planes = []
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("""SELECT nombre, precio_mensual, qr_totems, descripcion FROM planes
+                           WHERE activo = 1 AND precio_mensual > 0 ORDER BY precio_mensual""")
+            planes = [dict_from_row(r) for r in cur.fetchall()]
+    except Exception:
+        logger.exception("No se pudieron leer los planes para la portada")
+    config = get_config_global()
+    try:
+        precio_totem = int(config.get('precio_totem_extra') or 3000)
+    except (TypeError, ValueError):
+        precio_totem = 3000
+    whatsapp = ''.join(ch for ch in (config.get('soporte_whatsapp') or '') if ch.isdigit())
+    return render_template('index.html', planes=planes, precio_totem=precio_totem,
+                           whatsapp=whatsapp, demo_slug=config.get('menu_demo_slug') or '')
 
 
 @app.route('/menu/<string:url_slug>')
