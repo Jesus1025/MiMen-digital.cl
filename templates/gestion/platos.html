@@ -756,6 +756,26 @@
             height: 32px !important;
         }
     }
+
+    /* Tarjetas de plato en celular: foto a la izquierda, datos a la derecha */
+    @media (max-width: 768px) {
+        .platos-table tbody tr {
+            display: grid !important; grid-template-columns: 64px 1fr auto; column-gap: .85rem; row-gap: .35rem;
+            grid-template-areas: "img nom nom" "img cat precio" "est est acc";
+            padding: .9rem !important; box-shadow: none !important; border: 1px solid #e4e2da !important; border-radius: 16px !important;
+        }
+        .platos-table td { padding: 0 !important; min-width: 0; }
+        .platos-table td::before { display: none !important; }
+        .platos-table td:nth-child(1) { grid-area: img; position: static !important; align-self: start; }
+        .platos-table td:nth-child(2) { grid-area: nom; display: block !important; }
+        .platos-table td:nth-child(3) { grid-area: cat; }
+        .platos-table td:nth-child(4) { grid-area: precio; justify-content: flex-end; }
+        .platos-table td:nth-child(5) { grid-area: est; padding-top: .5rem !important; }
+        .platos-table td:nth-child(6) { grid-area: acc; border-top: 0 !important; margin-top: 0 !important; padding-top: .5rem !important; }
+        .plato-imagen, .plato-imagen-placeholder { width: 64px !important; height: 64px !important; border-radius: 12px !important; }
+        .plato-desc { display: block; margin-top: 2px; }
+    }
+    .plato-desc { color: #6b6960; font-size: .82rem; }
 </style>
 
 <div class="platos-container">
@@ -1010,6 +1030,11 @@
 
 {% block extra_js %}
 <script>
+    // Escapa texto antes de insertarlo como HTML (nombres y descripciones los escribe el dueño)
+    function esc(texto) {
+        return String(texto == null ? '' : texto).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     let platos = [];
     let categorias = {{ categorias | default([]) | tojson }};
     let imagenesPlato = []; // Array para manejar múltiples imágenes
@@ -1071,17 +1096,17 @@
                     <td data-label="">
                         ${imgSrc 
                             ? `<div style="position: relative; display: inline-block;">
-                                <img src="${imgSrc}" alt="${plato.nombre}" class="plato-imagen">
+                                <img src="${esc(imgSrc)}" alt="${esc(plato.nombre)}" class="plato-imagen">
                                 ${cantImagenes > 1 ? `<span style="position: absolute; bottom: -4px; right: -4px; background: #3498db; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px; font-weight: 600;">+${cantImagenes-1}</span>` : ''}
                                </div>`
                             : `<div class="plato-imagen-placeholder"><i class="fas fa-image"></i></div>`
                         }
                     </td>
                     <td data-label="Nombre">
-                        <span class="plato-nombre">${plato.nombre}</span>
-                        ${plato.descripcion ? `<br><small style="color: #7f8c8d; font-size: 0.8rem;">${plato.descripcion.substring(0, 50)}${plato.descripcion.length > 50 ? '...' : ''}</small>` : ''}
+                        <span class="plato-nombre">${esc(plato.nombre)}</span>
+                        ${plato.descripcion ? `<br><small class="plato-desc">${esc(plato.descripcion.substring(0, 60))}${esc(plato.descripcion.length > 60 ? '…' : '')}</small>` : ''}
                     </td>
-                    <td data-label="Categoria"><span class="plato-categoria">${categoria ? categoria.nombre : '-'}</span></td>
+                    <td data-label="Categoría"><span class="plato-categoria">${categoria ? esc(categoria.nombre) : '-'}</span></td>
                     <td data-label="Precio"><span class="plato-precio">$${Number(plato.precio).toLocaleString('es-CL')}</span></td>
                     <td data-label="Estado">
                         <span class="plato-estado ${plato.activo ? 'activo' : 'inactivo'}" style="cursor: pointer;" onclick="toggleEstado(${plato.id}, ${plato.activo})">
@@ -1552,12 +1577,12 @@
             const isSelected = etiquetasSeleccionadas.includes(etiq.nombre);
             return `
                 <span class="etiqueta-btn ${isSelected ? 'selected' : ''}" 
-                      data-tag="${etiq.nombre}" 
+                      data-tag="${esc(etiq.nombre)}" 
                       data-id="${etiq.id}"
                       data-color="${etiq.color}"
-                      onclick="toggleEtiqueta('${etiq.nombre}')" 
+                      onclick="toggleEtiqueta(this.dataset.tag)" 
                       style="background: ${etiq.color};">
-                    ${etiq.emoji ? etiq.emoji + ' ' : ''}${etiq.nombre}
+                    ${etiq.emoji ? esc(etiq.emoji) + ' ' : ''}${esc(etiq.nombre)}
                     <span class="delete-etiqueta" onclick="event.stopPropagation(); eliminarEtiquetaRestaurante(${etiq.id})" title="Eliminar etiqueta">×</span>
                 </span>
             `;
@@ -1602,9 +1627,9 @@
                 const color = etiq ? etiq.color : '#34495e';
                 const emoji = etiq && etiq.emoji ? etiq.emoji + ' ' : '';
                 
-                return `<span class="etiqueta-selected" data-tag="${tagNombre}" style="background: ${color};">
-                    ${emoji}${tagNombre}
-                    <span class="remove-tag" onclick="quitarEtiqueta('${tagNombre}')">&times;</span>
+                return `<span class="etiqueta-selected" data-tag="${esc(tagNombre)}" style="background: ${color};">
+                    ${esc(emoji)}${esc(tagNombre)}
+                    <span class="remove-tag" onclick="quitarEtiqueta(this.parentElement.dataset.tag)">&times;</span>
                 </span>`;
             }).join(' ');
         }

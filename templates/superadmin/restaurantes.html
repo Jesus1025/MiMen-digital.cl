@@ -413,6 +413,11 @@
 
 {% block extra_js %}
 <script>
+    // Escapa texto antes de insertarlo como HTML (nombres, correos y asuntos los escriben otras personas)
+    function esc(texto) {
+        return String(texto == null ? '' : texto).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     let editandoRestaurante = false;
     let editandoUsuario = false;
     
@@ -627,9 +632,9 @@
         tbody.innerHTML = usuarios.map(user => `
             <tr>
                 <td>#${user.id}</td>
-                <td><strong>${user.username}</strong></td>
-                <td>${user.nombre || '-'}</td>
-                <td>${user.restaurante_nombre || '<span class="tag is-dark"><i class="fas fa-crown" style="margin-right: 0.3rem;"></i>SuperAdmin</span>'}</td>
+                <td><strong>${esc(user.username)}</strong></td>
+                <td>${esc(user.nombre || '-')}</td>
+                <td>${esc(user.restaurante_nombre || '<span class="tag is-dark"><i class="fas fa-crown" style="margin-right: 0.3rem;"></i>SuperAdmin</span>')}</td>
                 <td>
                     <span class="tag ${rolColors[user.rol] || 'is-light'}">
                         <i class="fas ${rolIcons[user.rol] || 'fa-user'}" style="margin-right: 0.3rem;"></i>
@@ -652,10 +657,10 @@
                             <button class="button is-small is-info" onclick="editarUsuario(${user.id})" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="button is-small is-warning" onclick="resetPassword(${user.id}, '${user.username}')" title="Resetear contraseña">
+                            <button class="button is-small is-warning" data-usuario="${esc(user.username)}" onclick="resetPassword(${user.id}, this.dataset.usuario)" title="Resetear contraseña">
                                 <i class="fas fa-key"></i>
                             </button>
-                            <button class="button is-small is-danger" onclick="eliminarUsuario(${user.id}, '${user.username}')" title="Eliminar">
+                            <button class="button is-small is-danger" data-usuario="${esc(user.username)}" onclick="eliminarUsuario(${user.id}, this.dataset.usuario)" title="Eliminar">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>

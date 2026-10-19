@@ -583,7 +583,7 @@
                     </div>
                 </div>
                 <p style="font-size: 0.8rem; color: #95a5a6; margin-top: 1rem;">
-                    <i class="fas fa-info-circle"></i> Basado en <span id="precioMensual">$14.990</span>/mes por suscripción
+                    <i class="fas fa-info-circle"></i> Suma del precio del plan de cada local activo
                 </p>
             </div>
         </div>
@@ -709,6 +709,11 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Escapa texto antes de insertarlo como HTML (nombres, correos y asuntos los escriben otras personas)
+    function esc(texto) {
+        return String(texto == null ? '' : texto).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
 let statsData = {};
 let chartInstance = null;
 let currentChartType = 'visitas';
@@ -767,7 +772,7 @@ function actualizarUI() {
     // Ingresos
     document.getElementById('ingresoMensualCard').textContent = formatCurrency(statsData.ingreso_mensual);
     document.getElementById('ingresoAnual').textContent = formatCurrency(statsData.ingreso_anual_proyectado);
-    document.getElementById('precioMensual').textContent = formatCurrency(statsData.precio_mensual);
+    const precioEl = document.getElementById('precioMensual'); if (precioEl) precioEl.textContent = formatCurrency(statsData.precio_mensual);
     
     // Por vencer
     renderPorVencer(statsData.por_vencer);
@@ -870,7 +875,7 @@ function renderPorVencer(items) {
         const diasTexto = isNaN(dias) ? 'Sin fecha' : (dias <= 0 ? '¡Hoy!' : dias + ' días');
         return `
             <li>
-                <span class="name">${item.nombre}</span>
+                <span class="name">${esc(item.nombre)}</span>
                 <span class="date">${diasTexto}</span>
             </li>
         `;
@@ -1014,7 +1019,7 @@ function renderTopVisitas(restaurantes) {
         return `
             <tr>
                 <td class="rank ${rankClass}">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</td>
-                <td>${r.nombre}</td>
+                <td>${esc(r.nombre)}</td>
                 <td><strong>${formatNumber(r.total_visitas)}</strong></td>
                 <td><span class="tag ${badge}">${r.estado_suscripcion}</span></td>
             </tr>
@@ -1035,7 +1040,7 @@ function renderTopEscaneos(restaurantes) {
         return `
             <tr>
                 <td class="rank ${rankClass}">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</td>
-                <td>${r.nombre}</td>
+                <td>${esc(r.nombre)}</td>
                 <td><strong>${formatNumber(r.total_escaneos)}</strong></td>
                 <td><span class="tag ${badge}">${r.estado_suscripcion}</span></td>
             </tr>
@@ -1064,7 +1069,7 @@ function renderUltimosRestaurantes(items) {
         <li>
             <div class="feed-icon new-restaurant"><i class="fas fa-store"></i></div>
             <div class="content">
-                <div class="title">${item.nombre}</div>
+                <div class="title">${esc(item.nombre)}</div>
                 <div class="time">${formatDateTime(item.created_at)} · ${item.estado_suscripcion}</div>
             </div>
         </li>
@@ -1082,7 +1087,7 @@ function renderUltimosTickets(items) {
         <li>
             <div class="feed-icon ticket"><i class="fas fa-ticket-alt"></i></div>
             <div class="content">
-                <div class="title">#${item.id} - ${item.asunto}</div>
+                <div class="title">#${item.id} - ${esc(item.asunto)}</div>
                 <div class="time">${formatDateTime(item.created_at)} · <span class="tag is-small">${item.estado}</span></div>
             </div>
         </li>
@@ -1202,7 +1207,7 @@ function exportarPDF() {
                 ${(statsData.top_restaurantes || []).slice(0, 5).map((r, i) => `
                     <tr>
                         <td>${i + 1}</td>
-                        <td>${r.nombre}</td>
+                        <td>${esc(r.nombre)}</td>
                         <td>${formatNumber(r.total_visitas)}</td>
                         <td>${r.estado_suscripcion}</td>
                     </tr>

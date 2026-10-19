@@ -4997,7 +4997,14 @@ def api_superadmin_stats_extended():
             subs_prueba = 0
             subs_vencidas = 0
             subs_suspendidas = 0
+            ingreso_planes = 0  # suma del precio del plan de cada local activo
             hoy = date.today()
+            precios_plan = {}
+            try:
+                cur.execute("SELECT id, precio_mensual FROM planes")
+                precios_plan = {p['id']: int(p['precio_mensual'] or 0) for p in cur.fetchall()}
+            except Exception:
+                pass
             
             for r in all_restaurants:
                 plan_id = r['plan_id']
@@ -5019,6 +5026,7 @@ def api_superadmin_stats_extended():
                 # 2. Si es plan premium Y fecha vigente -> activa
                 elif es_plan_premium and fecha_venc and fecha_venc >= hoy:
                     subs_activas += 1
+                    ingreso_planes += precios_plan.get(plan_id, 0)
                 # 3. Si es plan premium PERO fecha vencida -> vencida
                 elif es_plan_premium and (not fecha_venc or fecha_venc < hoy):
                     subs_vencidas += 1
@@ -5070,8 +5078,9 @@ def api_superadmin_stats_extended():
             # ============================================
             
             config = get_config_global()
-            precio_mensual = int(config.get('precio_mensual', 14990))
-            ingreso_mensual = subs_activas * precio_mensual
+            precio_mensual = int(config.get('precio_mensual', 5990))
+            # Ingreso real: precio del plan de cada local activo (Local o Tótem)
+            ingreso_mensual = ingreso_planes or subs_activas * precio_mensual
             ingreso_anual_proyectado = ingreso_mensual * 12
             
             # ============================================

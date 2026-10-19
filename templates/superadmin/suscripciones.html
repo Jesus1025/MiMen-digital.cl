@@ -330,6 +330,11 @@
 </div>
 
 <script>
+    // Escapa texto antes de insertarlo como HTML (nombres, correos y asuntos los escriben otras personas)
+    function esc(texto) {
+        return String(texto == null ? '' : texto).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     let suscripciones = [];
     let planes = {};
 
@@ -447,14 +452,14 @@
             
             return `
                 <tr>
-                    <td><strong>${s.nombre}</strong><br><small style="color: #7f8c8d;">${s.email || '-'}</small></td>
+                    <td><strong>${esc(s.nombre)}</strong><br><small style="color: #7f8c8d;">${esc(s.email || '-')}</small></td>
                     <td><span style="${planStyle}">${planIcon}${planNombre}</span></td>
                     <td><span class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i> ${statusText}</span></td>
                     <td>${venc ? venc.toLocaleDateString('es-CL') : '-'}</td>
                     <td><span class="days-remaining ${diasClass}">${dias !== null ? dias : '-'}</span></td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn-sm btn-extend" onclick="abrirModalExtender(${s.id}, '${s.nombre.replace(/'/g, "\\'")}', '${s.fecha_vencimiento || ''}', ${s.plan_id || 'null'}, '${s.estado_suscripcion || 'activa'}')">
+                            <button class="btn-sm btn-extend" data-nombre="${esc(s.nombre)}" data-venc="${esc(s.fecha_vencimiento || '')}" data-estado="${esc(s.estado_suscripcion || 'activa')}" onclick="abrirModalExtender(${s.id}, this.dataset.nombre, this.dataset.venc, ${Number(s.plan_id) || 'null'}, this.dataset.estado)">
                                 <i class="fas fa-cog"></i> Gestionar
                             </button>
                         </div>

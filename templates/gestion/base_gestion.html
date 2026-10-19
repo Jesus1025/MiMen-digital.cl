@@ -1300,6 +1300,11 @@
         .modal-header, .modal-card-head { background: var(--mm-paper) !important; border-bottom: 1px solid var(--mm-line) !important; }
         table th { color: var(--text-muted) !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: 0 !important; }
         :focus-visible { outline: 3px solid var(--mm-sol); outline-offset: 2px; }
+        @media (max-width: 768px) {
+            .fila-stats { display: grid !important; grid-template-columns: 1fr 1fr; gap: .75rem; margin: 0 0 1rem !important; }
+            .fila-stats > .column { max-width: none !important; width: auto !important; padding: 0 !important; }
+            .fila-stats .stat-card { height: 100%; padding: .9rem !important; flex-direction: column; align-items: flex-start !important; text-align: left !important; gap: .5rem !important; }
+        }
     </style>
     
     {% block extra_css %}{% endblock %}

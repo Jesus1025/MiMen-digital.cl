@@ -4,7 +4,7 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="columns is-multiline">
+<div class="columns is-multiline fila-stats">
     <!-- Stats Cards -->
     <div class="column is-6-tablet is-3-desktop">
         <div class="stat-card">
@@ -272,6 +272,11 @@
 
 {% block extra_js %}
 <script>
+    // Escapa texto antes de insertarlo como HTML
+    function esc(texto) {
+        return String(texto == null ? '' : texto).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     let urlSlug = '';
     let baseUrl = '';
     
@@ -351,9 +356,9 @@
             tbody.innerHTML = ultimos.map(plato => `
                 <tr>
                     <td>
-                        <strong>${plato.nombre}</strong>
+                        <strong>${esc(plato.nombre)}</strong>
                     </td>
-                    <td><span class="tag is-light">${catMap[plato.categoria_id] || 'Sin categoría'}</span></td>
+                    <td><span class="tag is-light">${esc(catMap[plato.categoria_id] || 'Sin categoría')}</span></td>
                     <td><strong>$${Number(plato.precio).toLocaleString('es-CL')}</strong></td>
                     <td>
                         <span class="tag ${plato.activo ? 'is-success' : 'is-warning'}">

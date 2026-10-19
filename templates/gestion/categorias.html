@@ -210,6 +210,11 @@
 
 {% block extra_js %}
 <script>
+    // Escapa texto antes de insertarlo como HTML
+    function esc(texto) {
+        return String(texto == null ? '' : texto).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
 let categorias = [];
 
 // Cargar categorías al iniciar
@@ -252,7 +257,7 @@ function renderizarCategorias() {
                 </span>
             </td>
             <td>
-                <strong>${cat.nombre}</strong>
+                <strong>${esc(cat.nombre)}</strong>
             </td>
             <td>
                 <span class="tag" style="background: #3498db; color: white; padding: 0.25rem 0.5rem; border-radius: 4px;">
@@ -269,7 +274,7 @@ function renderizarCategorias() {
                 <button class="btn-secondary" style="padding: 0.4rem 0.75rem; margin-right: 0.25rem;" onclick="editarCategoria(${cat.id})">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="btn-secondary" style="padding: 0.4rem 0.75rem; background: #fee; color: #e74c3c;" onclick="eliminarCategoria(${cat.id}, '${cat.nombre}')">
+                <button class="btn-secondary" style="padding: 0.4rem 0.75rem; background: #fee; color: #e74c3c;" data-nombre="${esc(cat.nombre)}" onclick="eliminarCategoria(${cat.id}, this.dataset.nombre)">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
