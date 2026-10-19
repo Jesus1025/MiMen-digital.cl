@@ -158,6 +158,14 @@
             .pantalla:nth-child(2) { margin-top: 0; }
         }
 
+        /* Página del local */
+        .pagina-grid { display: grid; grid-template-columns: 1fr .8fr; gap: 64px; align-items: center; }
+        .pagina-cel { position: relative; justify-self: center; width: 100%; max-width: 300px; }
+        .pagina-cel .marco { border-radius: 42px; padding: 10px; background: #050505; box-shadow: 0 0 0 1.5px #3b3a35, 0 50px 90px rgba(0,0,0,.6); transform: rotate(3deg); }
+        .pagina-cel .marco img { border-radius: 33px; width: 100%; aspect-ratio: 390/844; object-fit: cover; object-position: top; }
+        .flota.url { left: -60px; bottom: 70px; animation: flotar 5s ease-in-out infinite; }
+        @media (max-width: 960px) { .pagina-grid { grid-template-columns: 1fr; gap: 50px; } .pagina-cel { max-width: 250px; } .flota.url { left: -30px; } }
+
         /* Pasos */
         .pasos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 54px; counter-reset: paso; }
         .paso { position: relative; background: var(--paper); border-radius: 26px; padding: 30px; border: 1px solid var(--line); transition: transform .25s ease, box-shadow .25s ease; }
@@ -248,6 +256,7 @@
         <nav>
             <a class="op" href="#totem">El tótem</a>
             <a class="op" href="#app">La carta</a>
+            <a class="op" href="#pagina">Tu página</a>
             <a class="op" href="#planes">Planes</a>
             <a class="entrar" href="{{ url_for('login') }}">Ingresar</a>
             <a class="cta-top" href="{{ wa_link }}" {{ wa_attr|safe }}>Quiero mi carta</a>
@@ -260,7 +269,7 @@
         <div>
             <span class="chip rev"><b>Nuevo</b> Tótem impreso en 3D con QR y NFC</span>
             <h1 class="d rev d1">Tu carta, a un toque de <em>cada mesa.<svg viewBox="0 0 200 12" preserveAspectRatio="none"><path d="M2 9c50-6 120-8 196-3" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg></em></h1>
-            <p class="lede rev d2">Tus clientes escanean el QR o acercan el celular al tótem y ven tu carta con fotos, precios al día y un botón para pedir por WhatsApp. Cambias un precio desde tu celular y se ve al instante.</p>
+            <p class="lede rev d2">Tus clientes escanean el QR o acercan el celular al tótem y ven tu carta con fotos, precios al día y un botón para pedir por WhatsApp. Además, tu local tiene su propia página web. Todo lo cambias desde tu celular.</p>
             <div class="ctas rev d3">
                 <a class="btn btn-sol" href="{{ wa_link }}" {{ wa_attr|safe }}><svg><use href="#i-wa"/></svg>Quiero mi carta</a>
                 {% if demo_slug %}<a class="btn btn-vidrio" href="{{ url_for('ver_menu_publico', url_slug=demo_slug) }}">Ver carta de ejemplo<svg><use href="#i-flecha"/></svg></a>{% endif %}
@@ -338,16 +347,38 @@
             <h2 class="titulo d">Así la ven tus clientes.</h2>
             <p class="bajada">Rápida, con fotos y fácil de leer. Funciona en cualquier celular, sin instalar nada.</p>
         </div>
-        <div class="pantallas">
-            <div class="pantalla rev"><div class="marco"><img src="{{ img('app-portada.webp') }}" alt="Portada de una carta digital MiMenú" loading="lazy"></div><h3>Abierto o cerrado, al día</h3><p>Tu logo, tus colores y si estás abierto ahora. Lo más pedido arriba.</p></div>
-            <div class="pantalla rev d1"><div class="marco"><img src="{{ img('app-lista.webp') }}" alt="Lista de platos con fotos y precios" loading="lazy"></div><h3>Platos con foto y precio</h3><p>Ofertas, platos nuevos, vegetarianos y picantes, cada uno marcado.</p></div>
-            <div class="pantalla rev d2"><div class="marco"><img src="{{ img('app-ficha.webp') }}" alt="Ficha de un plato con foto grande" loading="lazy"></div><h3>Pedido por WhatsApp</h3><p>Tocan un plato, lo ven en grande y te escriben con el plato ya puesto.</p></div>
+        <div class="pantallas rev">
+            <div class="pantalla"><div class="marco"><img src="{{ img('app-portada.webp') }}" alt="Portada de una carta digital MiMenú" loading="lazy"></div><h3>Abierto o cerrado, al día</h3><p>Tu logo, tus colores y si estás abierto ahora. Lo más pedido arriba.</p></div>
+            <div class="pantalla"><div class="marco"><img src="{{ img('app-lista.webp') }}" alt="Lista de platos con fotos y precios" loading="lazy"></div><h3>Platos con foto y precio</h3><p>Ofertas, platos nuevos, vegetarianos y picantes, cada uno marcado.</p></div>
+            <div class="pantalla"><div class="marco"><img src="{{ img('app-ficha.webp') }}" alt="Ficha de un plato con foto grande" loading="lazy"></div><h3>Pedido por WhatsApp</h3><p>Tocan un plato, lo ven en grande y te escriben con el plato ya puesto.</p></div>
         </div>
         {% if demo_slug %}<div class="ver-demo rev"><a class="btn btn-negro" href="{{ url_for('ver_menu_publico', url_slug=demo_slug) }}">Abrir la carta de ejemplo<svg><use href="#i-flecha"/></svg></a></div>{% endif %}
     </div>
 </section>
 
-<section style="padding-top:0" id="como">
+<section class="oscuro" id="pagina">
+    <div class="wrap">
+        <div class="pagina-grid">
+            <div class="rev">
+                <span class="marca">Incluido en todos los planes</span>
+                <h2 class="titulo d">Tu local, con su propia página web.</h2>
+                <p class="bajada">Además de la carta, cada local tiene su página de presentación: la que compartes en Instagram, Google y WhatsApp, y que lleva directo a tu carta.</p>
+                <ul class="specs">
+                    <li><span class="ic"><svg><use href="#i-cel"/></svg></span><div><b>Foto de portada y tu historia</b><span>Muestra tu local y cuenta quiénes son.</span></div></li>
+                    <li><span class="ic"><svg><use href="#i-graf"/></svg></span><div><b>Galería, horario y ubicación</b><span>Con "Abierto ahora" y el botón "Cómo llegar".</span></div></li>
+                    <li><span class="ic"><svg><use href="#i-rayo"/></svg></span><div><b>La editas tú</b><span>Cambias fotos y textos desde tu panel, cuando quieras.</span></div></li>
+                </ul>
+                {% if demo_slug %}<a class="btn btn-sol" style="margin-top:30px" href="{{ url_for('ver_pagina_local', url_slug=demo_slug) }}">Ver una página de ejemplo<svg><use href="#i-flecha"/></svg></a>{% endif %}
+            </div>
+            <div class="pagina-cel rev d1">
+                <div class="marco"><img src="{{ img('app-local.webp') }}" alt="Página de presentación de un local hecha con MiMenú" loading="lazy"></div>
+                <div class="flota url"><span class="ic"><svg><use href="#i-qr"/></svg></span><span>tulocal en MiMenú<small>página + carta</small></span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="como">
     <div class="wrap">
         <div class="cabeza rev">
             <span class="marca">Cómo funciona</span>
@@ -381,7 +412,8 @@
                 <ul>
                     <li><svg><use href="#i-ok"/></svg>Carta digital con fotos, ofertas y horario</li>
                     <li><svg><use href="#i-ok"/></svg>Botón de pedido por WhatsApp</li>
-                    <li><svg><use href="#i-ok"/></svg>Panel para cambiar platos y precios</li>
+                    <li><svg><use href="#i-ok"/></svg>Página web de presentación de tu local</li>
+                    <li><svg><use href="#i-ok"/></svg>Panel para cambiar platos, precios y fotos</li>
                     {% if fuerte %}
                     <li><svg><use href="#i-ok"/></svg>{{ plan.qr_totems }} tótems impresos en 3D con QR y NFC</li>
                     <li><svg><use href="#i-ok"/></svg>Escaneos de cada tótem en tu panel</li>
@@ -409,6 +441,7 @@
             <details class="rev"><summary>¿Qué es el NFC?<i>+</i></summary><p>Es el mismo chip de los pagos con el celular. El cliente acerca su teléfono al tótem y se abre la carta, sin tener que apuntar la cámara.</p></details>
             <details class="rev"><summary>¿Puedo cambiar los precios yo mismo?<i>+</i></summary><p>Sí. Desde tu panel editas precios, platos, fotos y categorías, y el cambio se ve de inmediato en la carta.</p></details>
             <details class="rev"><summary>¿Qué diferencia hay entre el plan Local y el plan Tótem?<i>+</i></summary><p>En el plan Local recibes un código QR para imprimir y pegar donde quieras. En el plan Tótem recibes 5 tótems impresos en 3D con QR y chip NFC; cada uno tiene su propio código y ves cuántas veces se escanea.</p></details>
+            <details class="rev"><summary>¿Qué es la página de presentación?<i>+</i></summary><p>Es la página web de tu local, con foto de portada, quiénes son, galería, horario y ubicación, y un botón grande que lleva a tu carta. La compartes en Instagram, Google y WhatsApp, y la editas tú desde el panel.</p></details>
             <details class="rev"><summary>¿Puedo elegir los colores de mi carta?<i>+</i></summary><p>Sí. Hay 15 estilos y puedes cambiar de estilo cuando quieras desde el panel.</p></details>
         </div>
     </div>

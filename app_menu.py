@@ -19,6 +19,7 @@
 
 
 import os
+import json
 import sys
 import atexit  # Para limpiar conexiones al cerrar
 
@@ -937,12 +938,23 @@ def inject_subscription_info():
     
     # Saltar para rutas públicas y estáticas
     path = request.path
-    if path.startswith(('/static/', '/menu/', '/api/health')) or path == '/':
+    if path.startswith(('/static/', '/menu/', '/local/', '/api/health')) or path == '/':
         return
     
     # Usar caché de sesión si existe
     cached_info = session.get('_sub_info_cache')
     if cached_info:
+        # El caché del login no trae el nombre del plan: se completa una sola vez por sesión
+        if 'plan_nombre' not in cached_info and session.get('restaurante_id') and not path.startswith('/local/'):
+            try:
+                with get_db().cursor() as cur:
+                    cur.execute("SELECT p.nombre FROM restaurantes r LEFT JOIN planes p ON p.id = r.plan_id WHERE r.id = %s",
+                                (session['restaurante_id'],))
+                    fila = cur.fetchone()
+                cached_info = dict(cached_info, plan_nombre=(fila or {}).get('nombre') or '')
+                session['_sub_info_cache'] = cached_info
+            except Exception:
+                logger.debug("No se pudo leer el nombre del plan", exc_info=True)
         g.subscription_info = cached_info
 
 
@@ -2263,6 +2275,102 @@ def gestion_codigo_qr():
                         plan=plan or {}, totems=totems, precio_totem=precio_totem)
 
 
+# ============================================================
+# PÁGINA DE PRESENTACIÓN DEL LOCAL (/local/<slug>)
+# ============================================================
+
+def _leer_lista_json(valor, maximo):
+    """Convierte un texto JSON en lista de strings no vacíos (tolera datos viejos o vacíos)."""
+    try:
+        datos = json.loads(valor) if valor else []
+    except (TypeError, ValueError):
+        datos = []
+    return [str(x).strip() for x in datos if str(x).strip()][:maximo] if isinstance(datos, list) else []
+
+
+@app.route('/local/<string:url_slug>')
+def ver_pagina_local(url_slug):
+    """Página de presentación pública del local, con botón a su carta."""
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("SELECT * FROM restaurantes WHERE url_slug = %s AND activo = 1", (url_slug,))
+            row = cur.fetchone()
+            if not row:
+                return render_template('menu_404.html', slug=url_slug), 404
+            restaurante = dict_from_row(row)
+            if not restaurante.get('pagina_activa', 1):
+                return redirect(url_for('ver_menu_publico', url_slug=url_slug))
+            # Algunos platos de la carta para mostrar (destacados primero, con foto)
+            cur.execute("""
+                SELECT p.nombre, p.precio, p.precio_oferta, p.imagen_url, c.nombre AS categoria
+                FROM platos p JOIN categorias c ON c.id = p.categoria_id
+                WHERE p.restaurante_id = %s AND p.activo = 1 AND c.activo = 1
+                  AND p.imagen_url IS NOT NULL AND p.imagen_url <> ''
+                ORDER BY p.es_popular DESC, c.orden, p.orden LIMIT 6
+            """, (restaurante['id'],))
+            platos = [dict_from_row(r) for r in cur.fetchall()]
+            cur.execute("SELECT COUNT(*) AS n FROM platos WHERE restaurante_id = %s AND activo = 1", (restaurante['id'],))
+            total_platos = cur.fetchone()['n']
+        restaurante['destacados_lista'] = _leer_lista_json(restaurante.get('pagina_destacados'), 6)
+        restaurante['galeria_lista'] = _leer_lista_json(restaurante.get('galeria'), 8)
+        return render_template('local_publico.html', restaurante=restaurante, platos=platos,
+                               total_platos=total_platos, url_carta=url_for('ver_menu_publico', url_slug=url_slug))
+    except Exception:
+        logger.exception("Error mostrando la página del local %s", url_slug)
+        return render_template('error_publico.html'), 500
+
+
+@app.route('/gestion/mi-pagina')
+@login_required
+@verificar_suscripcion
+def gestion_mi_pagina():
+    """Editor de la página de presentación del local."""
+    restaurante = get_current_restaurant()
+    if not restaurante:
+        flash('Error al cargar datos del restaurante', 'error')
+        return redirect(url_for('menu_gestion'))
+    restaurante = dict(restaurante)
+    restaurante['destacados_lista'] = _leer_lista_json(restaurante.get('pagina_destacados'), 6)
+    restaurante['galeria_lista'] = _leer_lista_json(restaurante.get('galeria'), 8)
+    return render_template('gestion/mi_pagina.html', restaurante=restaurante,
+                           url_pagina=url_publica() + url_for('ver_pagina_local', url_slug=restaurante['url_slug']))
+
+
+@app.route('/api/mi-restaurante/pagina', methods=['PUT'])
+@login_required
+@restaurante_owner_required
+def api_guardar_pagina():
+    """Guarda los textos y fotos de la página de presentación."""
+    data = request.get_json(silent=True) or {}
+
+    def url_valida(u):
+        u = (u or '').strip()
+        return u if (u.startswith('/static/uploads/') or u.startswith('https://')) and len(u) <= 500 else ''
+
+    destacados = [str(x).strip()[:40] for x in (data.get('destacados') or []) if str(x).strip()][:6]
+    galeria = [u for u in (url_valida(x) for x in (data.get('galeria') or [])) if u][:8]
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("""
+                UPDATE restaurantes SET portada_url = %s, pagina_titulo = %s, pagina_texto = %s,
+                    pagina_destacados = %s, galeria = %s, pagina_activa = %s, fecha_actualizacion = NOW()
+                WHERE id = %s
+            """, (url_valida(data.get('portada_url')) or None,
+                  (data.get('titulo') or '').strip()[:160] or None,
+                  (data.get('texto') or '').strip()[:2000] or None,
+                  json.dumps(destacados, ensure_ascii=False),
+                  json.dumps(galeria, ensure_ascii=False),
+                  1 if data.get('activa', True) else 0,
+                  session['restaurante_id']))
+            db.commit()
+        return jsonify({'success': True})
+    except Exception:
+        logger.exception("Error guardando la página del local")
+        return jsonify({'success': False, 'error': 'No se pudo guardar. Intenta de nuevo.'}), 500
+
+
 @app.route('/gestion/apariencia')
 @login_required
 @verificar_suscripcion
@@ -3090,6 +3198,24 @@ def api_platos():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def guardar_imagen_local(archivo, carpeta, max_lado=1600):
+    """Guarda una imagen en static/uploads/<carpeta>/ como WebP optimizado y devuelve su URL pública.
+    Se usa cuando Cloudinary no está configurado (las fotos quedan en el propio servidor)."""
+    from PIL import Image, ImageOps
+    carpeta = ''.join(c for c in carpeta if c.isalnum() or c in '-_') or 'otros'
+    destino = os.path.join(app.config['UPLOAD_FOLDER'], carpeta)
+    os.makedirs(destino, exist_ok=True)
+    archivo.stream.seek(0)
+    img = Image.open(archivo.stream)
+    img = ImageOps.exif_transpose(img)
+    if img.mode not in ('RGB', 'RGBA'):
+        img = img.convert('RGBA' if 'A' in img.getbands() else 'RGB')
+    img.thumbnail((max_lado, max_lado))
+    nombre = f"{session.get('restaurante_id') or 'x'}_{uuid.uuid4().hex[:12]}.webp"
+    img.save(os.path.join(destino, nombre), 'WEBP', quality=82, method=4)
+    return f"/static/uploads/{carpeta}/{nombre}"
+
+
 @app.route('/api/upload-image', methods=['POST'])
 @login_required
 @restaurante_owner_required
@@ -3097,14 +3223,7 @@ def api_upload_image():
     """API para subir imágenes de platos (sube a Cloudinary). Requiere Cloudinary configurado."""
     try:
         # Requisitos previos: SDK presente y CLOUDINARY_URL configurada
-        if not CLOUDINARY_AVAILABLE:
-            logger.error('Cloudinary SDK no instalado. Instalalo con: pip install cloudinary')
-            return jsonify({'success': False, 'error': 'Cloudinary SDK no está instalado. Ejecuta: pip install cloudinary'}), 500
-        
-        # Usar is_cloudinary_ready() para verificar y re-inicializar si es necesario
-        if not is_cloudinary_ready():
-            logger.error('Cloudinary no configurado. CLOUDINARY_URL=%s', os.environ.get('CLOUDINARY_URL', 'NO DEFINIDA'))
-            return jsonify({'success': False, 'error': 'Cloudinary no está configurado. Añade la variable de entorno CLOUDINARY_URL'}), 500
+        usar_cloudinary = is_cloudinary_ready()
 
         if 'image' not in request.files:
             return jsonify({'success': False, 'error': 'No se envió ninguna imagen'}), 400
@@ -3124,6 +3243,13 @@ def api_upload_image():
         is_valid, err = validate_image_file(file)
         if not is_valid:
             return jsonify({'success': False, 'error': err}), 400
+
+        # Sin Cloudinary: la foto queda en el servidor, optimizada
+        if not usar_cloudinary:
+            destino = request.form.get('destino', 'platos')
+            tamanos = {'portada': 2000, 'galeria': 1600, 'platos': 1200}
+            url = guardar_imagen_local(file, destino if destino in tamanos else 'platos', tamanos.get(destino, 1200))
+            return jsonify({'success': True, 'message': 'Imagen subida correctamente', 'url': url})
 
         # Intentar subir a Cloudinary
         try:
@@ -3793,16 +3919,11 @@ def api_subir_logo():
     
     if file and allowed_file(file.filename):
         try:
-            if not is_cloudinary_ready():
-                return jsonify({'success': False, 'error': 'Cloudinary no está configurado'}), 500
-            
-            # Subir logo a Cloudinary
-            result = cloudinary_upload(
-                file,
-                folder=f"mimenudigital/logos"
-            )
-            
-            logo_url = result['secure_url']
+            if is_cloudinary_ready():
+                result = cloudinary_upload(file, folder="mimenudigital/logos")
+                logo_url = result['secure_url']
+            else:
+                logo_url = guardar_imagen_local(file, 'logos', 600)
             
             # Actualizar en BD
             db = get_db()

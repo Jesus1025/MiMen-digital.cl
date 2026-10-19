@@ -1,0 +1,232 @@
+{% extends "gestion/base_gestion.html" %}
+
+{% block title %}Mi página web - {{ restaurante.nombre }}{% endblock %}
+{% block page_title %}Mi página web{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mp-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); gap: 1.5rem; align-items: start; }
+    @media (max-width: 1024px) { .mp-grid { grid-template-columns: 1fr; } }
+    .mp-card { background: #fff; border: 1px solid #e4e2da; border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .mp-card h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 1.2rem; margin-bottom: .25rem; }
+    .mp-card .ayuda { color: #6b6960; font-size: .92rem; margin-bottom: 1rem; }
+    .mp-enlace { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; background: #151410; color: #fff; border-radius: 16px; padding: 1rem 1.2rem; margin-bottom: 1.5rem; }
+    .mp-enlace code { background: rgba(255,255,255,.1); color: #ffc21a; padding: .35rem .6rem; border-radius: 8px; font-size: .9rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mp-enlace a, .mp-enlace button { background: #ffc21a; color: #151410; font-weight: 700; border: 0; border-radius: 10px; padding: .5rem .9rem; cursor: pointer; text-decoration: none; font-size: .9rem; }
+    .mp-portada { position: relative; aspect-ratio: 16/7; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg, #2a2925, #151410); display: grid; place-items: center; color: rgba(255,255,255,.7); cursor: pointer; border: 2px dashed transparent; }
+    .mp-portada:hover { border-color: #ffc21a; }
+    .mp-portada img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .mp-portada .cambiar { position: absolute; right: 12px; bottom: 12px; background: rgba(0,0,0,.65); color: #fff; padding: .4rem .75rem; border-radius: 10px; font-size: .85rem; font-weight: 600; }
+    .mp-campo { margin-bottom: 1.1rem; }
+    .mp-campo label { display: block; font-weight: 600; margin-bottom: .4rem; }
+    .mp-campo input[type=text], .mp-campo textarea { width: 100%; border: 1px solid #e4e2da; border-radius: 12px; padding: .75rem .9rem; font: inherit; font-size: 16px; }
+    .mp-campo textarea { min-height: 150px; resize: vertical; }
+    .mp-contador { text-align: right; color: #8a877d; font-size: .8rem; margin-top: .25rem; }
+    .mp-chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .6rem; }
+    .mp-chips span { display: inline-flex; align-items: center; gap: .4rem; background: #f3f2ee; border: 1px solid #e4e2da; padding: .35rem .5rem .35rem .8rem; border-radius: 99px; font-weight: 600; font-size: .9rem; }
+    .mp-chips button { border: 0; background: #151410; color: #fff; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; line-height: 1; }
+    .mp-agregar { display: flex; gap: .5rem; }
+    .mp-agregar input { flex: 1; }
+    .mp-sugerencias { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+    .mp-sugerencias button { border: 1px dashed #c9c6bb; background: #fff; border-radius: 99px; padding: .25rem .7rem; font-size: .85rem; cursor: pointer; }
+    .mp-galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .75rem; }
+    .mp-foto { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: #f3f2ee; }
+    .mp-foto img { width: 100%; height: 100%; object-fit: cover; }
+    .mp-foto button { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; }
+    .mp-subir { aspect-ratio: 1; border-radius: 14px; border: 2px dashed #c9c6bb; display: grid; place-items: center; text-align: center; color: #6b6960; cursor: pointer; font-weight: 600; font-size: .9rem; padding: .5rem; }
+    .mp-subir:hover { border-color: #151410; color: #151410; }
+    .mp-interruptor { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .mp-interruptor input { width: 46px; height: 26px; accent-color: #151410; }
+    .mp-guardar { position: sticky; bottom: 1rem; display: flex; justify-content: flex-end; gap: .75rem; background: rgba(243,242,238,.9); backdrop-filter: blur(8px); padding: .75rem; border-radius: 16px; border: 1px solid #e4e2da; }
+    .mp-vista { position: sticky; top: 90px; }
+    .mp-vista .marco { border-radius: 34px; padding: 8px; background: #050505; box-shadow: 0 0 0 1.5px #c9c6bb, 0 24px 50px rgba(0,0,0,.18); max-width: 300px; margin: 0 auto; }
+    .mp-vista iframe { width: 100%; aspect-ratio: 390/760; border: 0; border-radius: 27px; background: #fff; display: block; }
+    .mp-vista p { text-align: center; color: #6b6960; font-size: .88rem; margin-top: .75rem; }
+    .mp-subiendo { opacity: .5; pointer-events: none; }
+    .mp-aviso { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 140%); background: #151410; color: #fff; padding: .8rem 1.2rem; border-radius: 14px; font-weight: 600; z-index: 2000; transition: transform .3s ease; box-shadow: 0 14px 30px rgba(0,0,0,.25); }
+    .mp-aviso.ver { transform: translate(-50%, 0); }
+    .mp-aviso.success { border-left: 5px solid #1fae5b; }
+    .mp-aviso.error { border-left: 5px solid #e2402a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mp-enlace">
+    <i class="fas fa-globe"></i>
+    <code id="urlPagina">{{ url_pagina }}</code>
+    <button type="button" onclick="copiarEnlace()">Copiar enlace</button>
+    <a href="{{ url_pagina }}" target="_blank" rel="noopener">Abrir mi página</a>
+</div>
+
+<div class="mp-grid">
+    <div>
+        <div class="mp-card">
+            <h2>Foto de portada</h2>
+            <p class="ayuda">La primera imagen que ven tus clientes. Usa una foto horizontal de tu local, tu fachada o tu plato estrella.</p>
+            <div class="mp-portada" id="portada" onclick="document.getElementById('archivoPortada').click()">
+                {% if restaurante.portada_url %}<img src="{{ restaurante.portada_url }}" alt="Portada actual">{% else %}<span><i class="fas fa-camera"></i> Subir foto de portada</span>{% endif %}
+                <span class="cambiar"><i class="fas fa-camera"></i> Cambiar</span>
+            </div>
+            <input type="file" id="archivoPortada" accept="image/*" hidden>
+        </div>
+
+        <div class="mp-card">
+            <h2>Textos</h2>
+            <p class="ayuda">Si los dejas vacíos, se usan el lema y la descripción de "Mi Restaurante".</p>
+            <div class="mp-campo">
+                <label for="titulo">Frase de portada</label>
+                <input type="text" id="titulo" maxlength="160" value="{{ restaurante.pagina_titulo or '' }}" placeholder="{{ restaurante.slogan or 'Ej: La mejor parrilla del barrio desde 1998' }}">
+            </div>
+            <div class="mp-campo">
+                <label for="texto">Quiénes somos</label>
+                <textarea id="texto" maxlength="2000" placeholder="Cuenta la historia de tu local, qué los hace especiales y qué van a encontrar tus clientes.">{{ restaurante.pagina_texto or '' }}</textarea>
+                <div class="mp-contador"><span id="cuentaTexto">0</span>/2000</div>
+            </div>
+        </div>
+
+        <div class="mp-card">
+            <h2>Lo que ofreces</h2>
+            <p class="ayuda">Hasta 6 frases cortas que se muestran bajo la portada.</p>
+            <div class="mp-chips" id="chips"></div>
+            <div class="mp-agregar mp-campo" style="margin:0">
+                <input type="text" id="nuevoDestacado" maxlength="40" placeholder="Ej: Terraza con calefacción">
+                <button type="button" class="btn-secondary" onclick="agregarDestacado()">Agregar</button>
+            </div>
+            <div class="mp-sugerencias" id="sugerencias"></div>
+        </div>
+
+        <div class="mp-card">
+            <h2>Galería</h2>
+            <p class="ayuda">Hasta 8 fotos de tu local, tu equipo o tus platos.</p>
+            <div class="mp-galeria" id="galeria"></div>
+            <input type="file" id="archivoGaleria" accept="image/*" multiple hidden>
+        </div>
+
+        <div class="mp-card">
+            <div class="mp-interruptor">
+                <div><h2>Página activa</h2><p class="ayuda" style="margin:0">Si la desactivas, el enlace lleva directo a tu carta.</p></div>
+                <input type="checkbox" id="activa" {% if restaurante.pagina_activa is none or restaurante.pagina_activa %}checked{% endif %}>
+            </div>
+        </div>
+
+        <div class="mp-guardar">
+            <a class="btn-secondary" href="{{ url_pagina }}" target="_blank" rel="noopener">Ver página</a>
+            <button type="button" class="btn-primary" id="botonGuardar" onclick="guardar()"><i class="fas fa-check"></i> Guardar cambios</button>
+        </div>
+    </div>
+
+    <div class="mp-vista">
+        <div class="mp-card">
+            <h2>Vista previa</h2>
+            <p class="ayuda">Así se ve en el celular. Se actualiza al guardar.</p>
+            <div class="marco"><iframe id="vista" src="{{ url_for('ver_pagina_local', url_slug=restaurante.url_slug) }}" title="Vista previa de tu página"></iframe></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const estado = {
+        portada: {{ (restaurante.portada_url or '')|tojson }},
+        destacados: {{ restaurante.destacados_lista|tojson }},
+        galeria: {{ restaurante.galeria_lista|tojson }}
+    };
+    const SUGERENCIAS = ['Delivery', 'Para llevar', 'Terraza', 'Estacionamiento', 'Wifi gratis', 'Pet friendly', 'Opciones veganas', 'Acepta tarjetas'];
+
+    function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function aviso(msg, tipo) {
+        let el = document.getElementById('mpAviso');
+        if (!el) { el = document.createElement('div'); el.id = 'mpAviso'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+        el.textContent = msg; el.className = 'mp-aviso ' + (tipo || '') + ' ver';
+        clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('ver'), 3200);
+    }
+
+    async function subir(archivo, destino) {
+        const fd = new FormData();
+        fd.append('image', archivo);
+        fd.append('destino', destino);
+        const r = await fetch('/api/upload-image', { method: 'POST', headers: { 'X-CSRFToken': window.csrfToken }, body: fd });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.success) throw new Error(d.error || 'No se pudo subir la foto');
+        return d.url;
+    }
+
+    function pintarPortada() {
+        const el = document.getElementById('portada');
+        el.innerHTML = (estado.portada ? `<img src="${esc(estado.portada)}" alt="Portada">` : '<span><i class="fas fa-camera"></i> Subir foto de portada</span>')
+            + '<span class="cambiar"><i class="fas fa-camera"></i> Cambiar</span>';
+    }
+    document.getElementById('archivoPortada').addEventListener('change', async (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const el = document.getElementById('portada'); el.classList.add('mp-subiendo');
+        try { estado.portada = await subir(f, 'portada'); pintarPortada(); aviso('Foto lista. Recuerda guardar.', 'success'); }
+        catch (err) { aviso(err.message, 'error'); }
+        el.classList.remove('mp-subiendo'); e.target.value = '';
+    });
+
+    function pintarDestacados() {
+        document.getElementById('chips').innerHTML = estado.destacados.map((d, i) =>
+            `<span>${esc(d)}<button type="button" aria-label="Quitar" onclick="quitarDestacado(${i})">×</button></span>`).join('');
+        document.getElementById('sugerencias').innerHTML = estado.destacados.length >= 6 ? '' :
+            SUGERENCIAS.filter(s => !estado.destacados.includes(s)).map(s => `<button type="button" onclick="agregarDestacado(this.textContent)">+ ${esc(s)}</button>`).join('');
+        document.querySelectorAll('#sugerencias button').forEach(b => b.onclick = () => agregarDestacado(b.textContent.replace(/^\+\s*/, '')));
+    }
+    function agregarDestacado(valor) {
+        const input = document.getElementById('nuevoDestacado');
+        const t = (valor || input.value).trim();
+        if (!t || estado.destacados.length >= 6 || estado.destacados.includes(t)) return;
+        estado.destacados.push(t.slice(0, 40)); input.value = ''; pintarDestacados();
+    }
+    function quitarDestacado(i) { estado.destacados.splice(i, 1); pintarDestacados(); }
+    document.getElementById('nuevoDestacado').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); agregarDestacado(); } });
+
+    function pintarGaleria() {
+        const g = document.getElementById('galeria');
+        g.innerHTML = estado.galeria.map((u, i) => `<div class="mp-foto"><img src="${esc(u)}" alt=""><button type="button" aria-label="Quitar foto" onclick="quitarFoto(${i})">×</button></div>`).join('')
+            + (estado.galeria.length < 8 ? '<div class="mp-subir" id="subirGaleria"><span><i class="fas fa-plus"></i><br>Agregar fotos</span></div>' : '');
+        const s = document.getElementById('subirGaleria');
+        if (s) s.onclick = () => document.getElementById('archivoGaleria').click();
+    }
+    function quitarFoto(i) { estado.galeria.splice(i, 1); pintarGaleria(); }
+    document.getElementById('archivoGaleria').addEventListener('change', async (e) => {
+        const archivos = Array.from(e.target.files).slice(0, 8 - estado.galeria.length);
+        const g = document.getElementById('galeria'); g.classList.add('mp-subiendo');
+        for (const f of archivos) {
+            try { estado.galeria.push(await subir(f, 'galeria')); pintarGaleria(); }
+            catch (err) { aviso(err.message, 'error'); }
+        }
+        g.classList.remove('mp-subiendo'); e.target.value = '';
+        if (archivos.length) aviso('Fotos listas. Recuerda guardar.', 'success');
+    });
+
+    const texto = document.getElementById('texto');
+    const contar = () => document.getElementById('cuentaTexto').textContent = texto.value.length;
+    texto.addEventListener('input', contar);
+
+    async function guardar() {
+        const b = document.getElementById('botonGuardar'); b.disabled = true;
+        try {
+            const r = await fetchWithCSRF('/api/mi-restaurante/pagina', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    portada_url: estado.portada, titulo: document.getElementById('titulo').value,
+                    texto: texto.value, destacados: estado.destacados, galeria: estado.galeria,
+                    activa: document.getElementById('activa').checked
+                })
+            });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.error || 'No se pudo guardar');
+            aviso('Página guardada', 'success');
+            const v = document.getElementById('vista'); v.src = v.src.split('?')[0] + '?v=' + Date.now();
+        } catch (err) { aviso(err.message, 'error'); }
+        b.disabled = false;
+    }
+
+    function copiarEnlace() {
+        navigator.clipboard.writeText(document.getElementById('urlPagina').textContent).then(() => aviso('Enlace copiado', 'success'));
+    }
+
+    pintarPortada(); pintarDestacados(); pintarGaleria(); contar();
+</script>
+{% endblock %}
