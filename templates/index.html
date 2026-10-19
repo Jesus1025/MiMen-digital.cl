@@ -131,6 +131,11 @@
         .totems ul { list-style: none; margin-top: 24px; display: grid; gap: 10px; }
         .totems li { display: flex; gap: 12px; font-weight: 600; }
         .totems li::before { content: ""; flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 12 4 4 8-8' fill='none' stroke='%23ffc21a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat; margin-top: 2px; }
+        .fotos-totem { position: relative; min-height: 460px; }
+        .fotos-totem img { position: absolute; border-radius: 22px; object-fit: cover; box-shadow: 0 24px 50px rgba(60,40,0,.3); }
+        .fotos-totem .f1 { width: 74%; height: 420px; left: 0; top: 0; }
+        .fotos-totem .f2 { width: 46%; height: 300px; right: 0; bottom: 0; border: 6px solid var(--sol); }
+        @media (max-width: 820px) { .fotos-totem { min-height: 380px; } .fotos-totem .f1 { height: 330px; } .fotos-totem .f2 { height: 220px; } }
         @media (max-width: 820px) { .totems .wrap { grid-template-columns: 1fr; } .mesa { height: 320px; } .totem { width: 120px; height: 190px; } .totem .qr { width: 76px; height: 76px; } }
 
         /* Planes */
@@ -262,16 +267,15 @@
 
 <section class="totems">
     <div class="wrap">
-        <div class="mesa" aria-hidden="true">
-            <div class="totem t1"><span class="mesa-n">Mesa 1</span><div><svg class="qr"><use href="#i-qr"/></svg><small>Escanea y mira la carta</small></div></div>
-            <div class="totem t2"><span class="mesa-n">Mesa 2</span><div><svg class="qr"><use href="#i-qr"/></svg><small>Escanea y mira la carta</small></div></div>
-            <div class="totem t3"><span class="mesa-n">Barra</span><div><svg class="qr"><use href="#i-qr"/></svg><small>Escanea y mira la carta</small></div></div>
-            <div class="base-mesa"></div>
+        <div class="fotos-totem">
+            <img class="f1" src="{{ url_for('static', filename='img/totem-local.webp') }}" alt="Tótem QR y NFC sobre una mesa con empanadas y schop" loading="lazy">
+            <img class="f2" src="{{ url_for('static', filename='img/totem-mesa.webp') }}" alt="Tótem negro con NFC y código QR" loading="lazy">
         </div>
         <div>
-            <h2 class="titulo d">Un tótem QR en cada mesa.</h2>
-            <p class="bajada">Un soporte con tu código QR que se para sobre la mesa, la barra o la vitrina. Tus clientes lo ven apenas se sientan.</p>
+            <h2 class="titulo d">Un tótem QR y NFC en cada mesa.</h2>
+            <p class="bajada">Un soporte negro firme, con tu código QR y un chip NFC: tus clientes escanean con la cámara o solo acercan el celular, y se abre tu carta.</p>
             <ul>
+                <li>QR y NFC en el mismo tótem.</li>
                 <li>Cada tótem tiene su propio código.</li>
                 <li>En tu panel ves cuántas veces se escaneó cada uno.</li>
                 <li>El plan Tótem trae 5. Si necesitas más, se agregan.</li>
