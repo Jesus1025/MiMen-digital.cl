@@ -58,8 +58,8 @@ CLOUDINARY_URL = cloudinary://tu_clave:tu_secreto@tu_cloudname
 
 ### 3.3 Variables de Mercado Pago
 ```
-MERCADO_PAGO_ACCESS_TOKEN = ***REMOVED***
-MERCADO_PAGO_PUBLIC_KEY = ***REMOVED***
+MERCADO_PAGO_ACCESS_TOKEN = <desde variable de entorno>
+MERCADO_PAGO_PUBLIC_KEY = <desde variable de entorno>
 ```
 
 ### 3.4 Variables de Base de Datos

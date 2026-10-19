@@ -27,7 +27,7 @@ os.environ['MERCADO_PAGO_ACCESS_TOKEN'] = 'tu_access_token_aqui'
 ```python
 os.environ['MYSQL_HOST'] = 'MiMenudigital.mysql.pythonanywhere-services.com'
 os.environ['MYSQL_USER'] = 'MiMenudigital'
-os.environ['MYSQL_PASSWORD'] = '***REMOVED***'
+os.environ['MYSQL_PASSWORD'] = '<desde variable de entorno>'
 os.environ['MYSQL_DB'] = 'MiMenudigital$menu_digital'
 os.environ['MYSQL_PORT'] = '3306'
 os.environ['FLASK_ENV'] = 'production'
@@ -144,7 +144,7 @@ pip install mercado-pago>=2.0.0
 ```bash
 mysql -h MiMenudigital.mysql.pythonanywhere-services.com \
   -u MiMenudigital \
-  -p'***REMOVED***' \
+  -p'<desde variable de entorno>' \
   MiMenudigital\$menu_digital < migrations/001_add_mercado_pago_columns.sql
 ```
 

@@ -54,7 +54,7 @@ if _api_proxy:
 
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for, 
-    flash, session, g, send_from_directory, make_response
+    flash, session, g, send_from_directory, make_response, abort
 )
 import pymysql
 from pymysql.cursors import DictCursor
@@ -208,17 +208,18 @@ try:
     import cloudinary
     import cloudinary.utils
     
-    # Configurar cloudinary para funciones de URL
-    cloudinary.config(
-        cloud_name=_cloudinary_config['cloud_name'],
-        api_key=_cloudinary_config['api_key'],
-        api_secret=_cloudinary_config['api_secret']
-    )
-    if _api_proxy:
-        cloudinary.config(api_proxy=_api_proxy)
-    
+    # Configurar cloudinary para funciones de URL (solo si hay credenciales)
+    if _cloudinary_config:
+        cloudinary.config(
+            cloud_name=_cloudinary_config['cloud_name'],
+            api_key=_cloudinary_config['api_key'],
+            api_secret=_cloudinary_config['api_secret']
+        )
+        if _api_proxy:
+            cloudinary.config(api_proxy=_api_proxy)
+        logging.getLogger(__name__).info("Cloudinary configurado: cloud_name=%s (upload directo con requests)", _cloudinary_config['cloud_name'])
+
     CLOUDINARY_AVAILABLE = True
-    logging.getLogger(__name__).info("Cloudinary configurado: cloud_name=%s (upload directo con requests)", _cloudinary_config['cloud_name'])
 except ImportError:
     cloudinary = None
     CLOUDINARY_AVAILABLE = True  # Aún podemos usar cloudinary_upload directo
@@ -477,6 +478,11 @@ def init_cloudinary():
     
     api_proxy = os.environ.get('API_PROXY')
     
+    if not _cloudinary_config:
+        logger.warning("CLOUDINARY_URL no configurado: las imágenes se guardan solo con URL externa")
+        CLOUDINARY_CONFIGURED = False
+        return False
+
     logger.info("init_cloudinary() - cloud_name: %s", _cloudinary_config.get('cloud_name'))
     logger.info("init_cloudinary() - API_PROXY presente: %s", bool(api_proxy))
     
@@ -497,7 +503,7 @@ def init_cloudinary():
         logger.info("Cloudinary session proxy actualizado: %s", api_proxy)
     
     # Configurar también el SDK si está disponible (para URLs)
-    if cloudinary:
+    if cloudinary and _cloudinary_config:
         try:
             cloudinary.config(
                 cloud_name=_cloudinary_config['cloud_name'],
@@ -5456,7 +5462,16 @@ def api_usuario(user_id):
 
 @app.route('/api/init-db')
 def init_db_route():
-    """Inicializa la base de datos creando las tablas si no existen."""
+    """Inicializa la base de datos creando las tablas si no existen.
+
+    Solo funciona si INIT_DB_TOKEN está definido en el entorno y se envía como
+    ?token=... (o cabecera X-Init-Token). Sin token configurado, la ruta no existe.
+    """
+    import hmac
+    token_env = os.environ.get('INIT_DB_TOKEN', '')
+    token_req = request.args.get('token') or request.headers.get('X-Init-Token', '')
+    if not token_env or not hmac.compare_digest(token_env, token_req):
+        abort(404)
     try:
         db = get_db()
         messages = []
@@ -5498,25 +5513,28 @@ def init_db_route():
                 db.commit()
                 messages.append("✓ Planes por defecto insertados")
             
-            # Crear superadmin si no existe
+            # Crear superadmin si no existe. La clave sale de SUPERADMIN_PASSWORD
+            # (nunca del código) y debe tener al menos 12 caracteres.
             cur.execute("SELECT id FROM usuarios_admin WHERE username = 'superadmin'")
             if not cur.fetchone():
-                pwd = generate_password_hash('***REMOVED***', method='pbkdf2:sha256')
-                cur.execute('''
-                    INSERT INTO usuarios_admin (restaurante_id, username, password_hash, nombre, rol, activo)
-                    VALUES (NULL, 'superadmin', %s, 'Super Admin Divergent Studio', 'superadmin', 1)
-                ''', (pwd,))
-                db.commit()
-                messages.append("✓ Usuario superadmin creado")
+                clave_inicial = os.environ.get('SUPERADMIN_PASSWORD', '')
+                if len(clave_inicial) < 12:
+                    messages.append("✗ Superadmin NO creado: define SUPERADMIN_PASSWORD (mínimo 12 caracteres) y vuelve a ejecutar")
+                else:
+                    pwd = generate_password_hash(clave_inicial, method='pbkdf2:sha256')
+                    cur.execute('''
+                        INSERT INTO usuarios_admin (restaurante_id, username, password_hash, nombre, rol, activo)
+                        VALUES (NULL, 'superadmin', %s, 'Super Admin Divergent Studio', 'superadmin', 1)
+                    ''', (pwd,))
+                    db.commit()
+                    messages.append("✓ Usuario superadmin creado con la clave de SUPERADMIN_PASSWORD")
             else:
                 messages.append("✓ Usuario superadmin ya existe")
         
         return jsonify({
             'success': True,
             'message': '✓ Base de datos MySQL inicializada correctamente',
-            'details': messages,
-            'superadmin_user': 'superadmin',
-            'superadmin_pass': '***REMOVED*** (¡cambiar en producción!)'
+            'details': messages
         })
         
     except Exception as e:
@@ -5530,36 +5548,17 @@ def init_db_route():
 
 @app.route('/api/health')
 def health_check():
-    """Endpoint para verificar que la app está funcionando."""
-    import sys
-    
-    status = {
-        'app': 'ok',
-        'python_version': sys.version,
-        'flask_env': os.environ.get('FLASK_ENV', 'not set'),
-        'mysql_host': os.environ.get('MYSQL_HOST', 'not set'),
-        'mysql_db': os.environ.get('MYSQL_DB', 'not set'),
-        'mysql_user': os.environ.get('MYSQL_USER', 'not set'),
-        'working_dir': os.getcwd(),
-        'script_dir': os.path.dirname(os.path.abspath(__file__)),
-    }
-    
-    # Intentar conexión a MySQL
+    """Verifica que la app y la base de datos respondan. No expone datos internos."""
+    status = {'app': 'ok'}
     try:
         db = get_db()
         with db.cursor() as cur:
             cur.execute("SELECT 1")
-            status['mysql_connection'] = 'ok'
-            
-            # Verificar tablas
-            cur.execute("SHOW TABLES")
-            tables = [row[list(row.keys())[0]] for row in cur.fetchall()]
-            status['tables'] = tables
-            
-    except Exception as e:
-        status['mysql_connection'] = f'error: {str(e)}'
-        status['mysql_traceback'] = traceback.format_exc()
-    
+        status['db'] = 'ok'
+    except Exception:
+        logger.exception("Health check: la base de datos no responde")
+        status['db'] = 'error'
+        return jsonify(status), 503
     return jsonify(status)
 
 

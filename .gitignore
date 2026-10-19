@@ -1,0 +1,18 @@
+# Credenciales: nunca se suben
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Datos y archivos generados
+*.db
+*.sqlite
+*.log
+logs/
+tmp/
+static/uploads/

@@ -72,12 +72,12 @@ MYSQL_PORT=3306
 ```bash
 python app_menu_mysql.py
 ```
-Luego visitar: `http://127.0.0.1:5000/api/init-db`
+Luego visitar: `http://127.0.0.1:5000/api/init-db?token=TU_INIT_DB_TOKEN` (definido en `.env`)
 
 ### 7. Acceder al sistema
 - URL: `http://127.0.0.1:5000`
 - Usuario: `superadmin`
-- Password: `***REMOVED***`
+- Password: la que pusiste en `SUPERADMIN_PASSWORD` del `.env`
 
 ---
 
@@ -274,7 +274,7 @@ Tu menú digital estará disponible en:
 
 1. **Login como SuperAdmin**
    - Usuario: `superadmin`
-   - Password: `***REMOVED***`
+   - Password: la que pusiste en `SUPERADMIN_PASSWORD` del `.env`
    - ⚠️ ¡Cambiar inmediatamente en producción!
 
 2. **Crear primer restaurante**

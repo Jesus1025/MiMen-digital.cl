@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 -- ============================================================
 -- USUARIO SUPERADMIN INICIAL
--- El usuario superadmin se crea automáticamente al visitar /api/init-db
--- Password por defecto: ***REMOVED*** (cambiar en producción!)
+-- El usuario superadmin se crea al visitar /api/init-db?token=INIT_DB_TOKEN
+-- con la clave definida en la variable de entorno SUPERADMIN_PASSWORD
 -- ============================================================
 -- NOTA: No insertar aquí - el hash se genera dinámicamente en /api/init-db

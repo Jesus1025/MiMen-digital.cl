@@ -73,7 +73,7 @@ def validar_password(password, min_length=8, require_complexity=True):
     # Verificar contraseñas comunes
     common_passwords = [
         'password', '123456', '12345678', 'qwerty', 'abc123',
-        'password123', '***REMOVED***', '123456789', 'letmein', 'welcome'
+        'password123', 'admin123', '123456789', 'letmein', 'welcome'
     ]
     
     if password.lower() in common_passwords:

@@ -13,7 +13,7 @@ Edita directamente el archivo `config.py` y descomenta estas líneas:
 # En config.py, busca la clase MailConfig y descomenta:
 
 _EMAIL_USERNAME = 'tu_email@gmail.com'
-_EMAIL_PASSWORD = '***REMOVED***'  # Contraseña de aplicación
+_EMAIL_PASSWORD = '<desde variable de entorno>'  # Contraseña de aplicación
 _SUPERADMIN_EMAIL = 'tu_email@gmail.com'
 ```
 

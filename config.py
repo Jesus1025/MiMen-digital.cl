@@ -115,7 +115,7 @@ class MailConfig:
     # Descomenta y completa con tus datos:
     
     # _EMAIL_USERNAME = 'tu_email@gmail.com'
-    # _EMAIL_PASSWORD = '***REMOVED***'  # Contraseña de aplicación de Gmail
+    # La contraseña de correo va en MAIL_PASSWORD (variable de entorno), nunca aquí
     # _SUPERADMIN_EMAIL = 'tu_email@gmail.com'
     
     # ============================================================

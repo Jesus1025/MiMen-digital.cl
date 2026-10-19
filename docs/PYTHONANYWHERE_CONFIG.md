@@ -26,8 +26,8 @@ CLOUDINARY_URL = (tu_url_de_cloudinary_aqui)
 **Importante:** Los nombres deben coincidir exactamente con los del código.
 
 ```
-MERCADO_PAGO_ACCESS_TOKEN = ***REMOVED***
-MERCADO_PAGO_PUBLIC_KEY = ***REMOVED***
+MERCADO_PAGO_ACCESS_TOKEN = <desde variable de entorno>
+MERCADO_PAGO_PUBLIC_KEY = <desde variable de entorno>
 ```
 
 ### Variables de Base de Datos
