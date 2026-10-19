@@ -59,6 +59,10 @@
         .hero .ctas .btn-linea { color: #fff; }
         .hero .nota { margin-top: 18px; font-size: 15px; color: rgba(255,255,255,.6); }
         .hero .texto { padding-bottom: 64px; }
+        .escena { position: relative; justify-self: center; width: 100%; max-width: 520px; height: 600px; }
+        .foto-hero { position: absolute; right: 0; top: 10px; width: 78%; height: 560px; object-fit: cover; border-radius: 30px; box-shadow: 0 40px 80px rgba(0,0,0,.5); }
+        .escena .telefono { position: absolute; left: 0; bottom: -30px; width: 250px; height: 500px; transform: rotate(-4deg); }
+        @media (max-width: 880px) { .escena { height: 520px; max-width: 420px; } .foto-hero { height: 470px; } .escena .telefono { width: 200px; height: 400px; bottom: -20px; } }
         .telefono {
             justify-self: center; width: 300px; height: 600px; border-radius: 46px; background: #000; padding: 12px;
             box-shadow: 0 0 0 2px #3a3934, 0 40px 80px rgba(0,0,0,.55); transform: translateY(40px) rotate(-3deg);
@@ -218,6 +222,8 @@
             </div>
             {% if planes %}<p class="nota">Desde {{ clp(planes[0].precio_mensual) }} al mes por local.</p>{% endif %}
         </div>
+        <div class="escena">
+        <img class="foto-hero" src="{{ url_for('static', filename='img/totem-real.webp') }}?v=2" alt="Tótem MiMenú con QR y NFC sobre una mesa" fetchpriority="high">
         <div class="telefono" aria-hidden="true">
             <div class="pantalla">
                 {% if demo_slug %}
@@ -234,6 +240,7 @@
                 </div>
                 {% endif %}
             </div>
+        </div>
         </div>
     </div>
 </div>
