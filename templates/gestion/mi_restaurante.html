@@ -468,6 +468,12 @@
                 <label class="form-label"><i class="fab fa-facebook" style="color: #1877f2;"></i> Facebook</label>
                 <input type="text" class="form-input" id="facebook" value="{{ restaurante.facebook or '' }}" placeholder="facebook.com/turestaurante">
             </div>
+
+            <div class="form-group">
+                <label class="form-label"><i class="fab fa-tiktok"></i> TikTok</label>
+                <input type="text" class="form-input" id="tiktok" value="{{ restaurante.tiktok or '' }}" placeholder="@turestaurante">
+                <small style="color: var(--text-muted);">Las redes son opcionales: las que dejes vacías no se muestran.</small>
+            </div>
             
             <div class="form-group">
                 <label class="form-label"><i class="fab fa-whatsapp" style="color: #25d366;"></i> WhatsApp</label>
@@ -709,6 +715,7 @@ document.getElementById('formRestaurante').addEventListener('submit', async func
         logo_url: document.getElementById('logo_url') ? document.getElementById('logo_url').value : '',
         instagram: document.getElementById('instagram') ? document.getElementById('instagram').value : '',
         facebook: document.getElementById('facebook') ? document.getElementById('facebook').value : '',
+        tiktok: document.getElementById('tiktok') ? document.getElementById('tiktok').value : '',
         whatsapp: document.getElementById('whatsapp') ? document.getElementById('whatsapp').value : ''
     };
     

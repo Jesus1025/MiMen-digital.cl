@@ -651,6 +651,21 @@ logger.info("Base URL: %s", BASE_URL)
 # SECURITY & PRODUCTION CHECKS
 # ============================================================
 
+@app.template_filter('red_social')
+def filtro_red_social(valor, red):
+    """Convierte lo que escribió el dueño ("@local", "local" o la URL completa) en un enlace válido."""
+    v = (valor or '').strip()
+    if not v:
+        return ''
+    if v.startswith(('http://', 'https://')):
+        return v
+    base = {'instagram': 'https://instagram.com/', 'facebook': 'https://facebook.com/', 'tiktok': 'https://www.tiktok.com/@'}[red]
+    for prefijo in ('www.', 'instagram.com/', 'facebook.com/', 'fb.com/', 'tiktok.com/'):
+        if v.lower().startswith(prefijo):
+            v = v[len(prefijo):]
+    return base + v.lstrip('@').strip('/')
+
+
 def url_publica():
     """Dirección pública de la app (BASE_URL). Detrás de Cloudflare y Caddy la petición
     llega como http, así que para QR y enlaces de pago se usa BASE_URL si está definido."""
@@ -3828,7 +3843,7 @@ def api_mi_restaurante():
                     UPDATE restaurantes SET 
                         nombre = %s, descripcion = %s, slogan = %s, telefono = %s, 
                         email = %s, direccion = %s, horario = %s, instagram = %s, 
-                        facebook = %s, whatsapp = %s, logo_url = %s, mostrar_precios = %s, 
+                        facebook = %s, tiktok = %s, whatsapp = %s, logo_url = %s, mostrar_precios = %s, 
                         mostrar_descripciones = %s, mostrar_imagenes = %s, moneda = %s
                     WHERE id = %s
                 ''', (
@@ -3841,6 +3856,7 @@ def api_mi_restaurante():
                     data.get('horario', ''),
                     data.get('instagram', ''),
                     data.get('facebook', ''),
+                    (data.get('tiktok') or '').strip()[:150],
                     data.get('whatsapp', ''),
                     data.get('logo_url', ''),
                     data.get('mostrar_precios', 1),

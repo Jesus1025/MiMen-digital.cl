@@ -310,7 +310,7 @@ def add_security_headers(response):
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
         "img-src 'self' data: https: blob: https://res.cloudinary.com; "
         "connect-src 'self' https://cloudflareinsights.com https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com; "
-        "frame-src 'self' https://www.mercadopago.com https://www.mercadopago.cl; "
+        "frame-src 'self' https://www.google.com https://maps.google.com https://www.mercadopago.com https://www.mercadopago.cl; "
         "object-src 'none'; "
         "base-uri 'self';"
     )

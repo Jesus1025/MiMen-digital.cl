@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{%- import 'partials/redes_y_mapa.html' as rm -%}
 {%- set r = restaurante -%}
 {%- set tema = r.tema or 'calido' -%}
 {%- set wa = (r.whatsapp or '')|replace('+', '')|replace(' ', '')|replace('-', '')|trim -%}
@@ -113,6 +114,13 @@
         .tarjeta .btn { margin-top: 16px; width: 100%; }
         @media (max-width: 760px) { .visita { grid-template-columns: 1fr; } }
 
+{{ rm.estilos() }}
+        .visita.con-mapa { grid-template-columns: .85fr 1.15fr; align-items: stretch; }
+        .visita .col { display: grid; gap: 18px; align-content: start; }
+        .visita .mapa { height: 100% !important; min-height: 460px; }
+        .tarjeta .redes { margin-top: 18px; }
+        @media (max-width: 760px) { .visita .mapa { min-height: 320px; } }
+
         /* Llamado final */
         .final { text-align: center; background: radial-gradient(120% 90% at 85% 0%, var(--hero-a), var(--hero-b)); color: #fff; border-radius: 32px; padding: 64px 26px; }
         .final h2 { max-width: 14em; margin: 0 auto; }
@@ -142,6 +150,7 @@
     <symbol id="i-mapa" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
     <symbol id="i-tel" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></symbol>
     <symbol id="i-ig" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/></symbol>
+{{ rm.iconos() }}
     <symbol id="i-flecha" viewBox="0 0 24 24"><path d="M5 12h13m-5-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
@@ -215,22 +224,23 @@
 </section>
 {% endif %}
 
-<section style="padding-top:0">
+<section style="padding-top:0" id="visitanos">
     <div class="wrap">
-        <div class="visita">
-            <div class="tarjeta rev" id="bloqueHorario">
-                <h3>Horario</h3>
-                <table class="horario num" id="tablaHorario"><tr><td>Consulta nuestro horario por WhatsApp</td><td></td></tr></table>
+        <div class="cabeza rev"><div><span class="rotulo">Visítanos</span><h2 class="d">Te esperamos.</h2></div></div>
+        <div class="visita{% if r.direccion %} con-mapa{% endif %}">
+            <div class="col">
+                <div class="tarjeta rev" id="bloqueHorario">
+                    <h3>Horario</h3>
+                    <table class="horario num" id="tablaHorario"><tr><td>Consulta nuestro horario por WhatsApp</td><td></td></tr></table>
+                </div>
+                <div class="tarjeta rev">
+                    <h3>Contacto</h3>
+                    {% if r.direccion %}<a class="dato" href="https://www.google.com/maps/search/?api=1&query={{ r.direccion|urlencode }}" target="_blank" rel="noopener"><svg><use href="#i-mapa"/></svg><span>{{ r.direccion }}</span></a>{% endif %}
+                    {% if r.telefono %}<a class="dato" href="tel:{{ r.telefono|replace(' ', '') }}"><svg><use href="#i-tel"/></svg><span>{{ r.telefono }}</span></a>{% endif %}
+                    {{ rm.redes(r, wa) }}
+                </div>
             </div>
-            {% if r.direccion or r.telefono or r.instagram or wa %}
-            <div class="tarjeta rev">
-                <h3>Visítanos</h3>
-                {% if r.direccion %}<a class="dato" href="https://www.google.com/maps/search/?api=1&query={{ r.direccion|urlencode }}" target="_blank" rel="noopener"><svg><use href="#i-mapa"/></svg><span>{{ r.direccion }}</span></a>{% endif %}
-                {% if r.telefono %}<a class="dato" href="tel:{{ r.telefono|replace(' ', '') }}"><svg><use href="#i-tel"/></svg><span>{{ r.telefono }}</span></a>{% endif %}
-                {% if r.instagram %}<a class="dato" href="https://instagram.com/{{ r.instagram|replace('@', '') }}" target="_blank" rel="noopener"><svg><use href="#i-ig"/></svg><span>@{{ r.instagram|replace('@', '') }}</span></a>{% endif %}
-                {% if wa %}<a class="btn btn-principal" href="https://wa.me/{{ wa }}" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>Escríbenos por WhatsApp</a>{% endif %}
-            </div>
-            {% endif %}
+            {% if r.direccion %}<div class="rev">{{ rm.mapa(r.direccion, '100%') }}</div>{% endif %}
         </div>
     </div>
 </section>

@@ -1,0 +1,49 @@
+{# Piezas compartidas por la carta (menu_publico) y la página del local (local_publico) #}
+
+{% macro estilos() %}
+        .redes { display: flex; flex-wrap: wrap; gap: 10px; }
+        .red { display: inline-flex; align-items: center; gap: 9px; height: 46px; padding: 0 16px 0 12px; border-radius: 14px; text-decoration: none; font-weight: 700; font-size: 15px; color: #fff; transition: transform .18s ease, filter .2s ease; }
+        .red:hover { transform: translateY(-2px); filter: brightness(1.08); }
+        .red svg { width: 22px; height: 22px; flex: none; }
+        .red.ig { background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fd5949 45%, #d6249f 60%, #285aeb 90%); }
+        .red.fb { background: #1877f2; }
+        .red.tt { background: #111; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+        .red.wa { background: #1fae5b; }
+        .mapa { position: relative; border-radius: 22px; overflow: hidden; background: var(--chip); border: 1px solid var(--line); min-height: 280px; }
+        .mapa iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; filter: saturate(1.05); }
+        .mapa .ir { position: absolute; left: 14px; bottom: 14px; display: inline-flex; align-items: center; gap: 8px; background: #fff; color: #111; font-weight: 700; font-size: 15px; text-decoration: none; padding: 11px 15px; border-radius: 12px; box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+        .mapa .ir svg { width: 18px; height: 18px; color: #e2402a; }
+{% endmacro %}
+
+{% macro iconos() %}
+    <symbol id="r-ig" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="r-fb" viewBox="0 0 24 24"><path fill="currentColor" d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.6V4.4a21 21 0 0 0-2.4-.1c-2.3 0-3.9 1.4-3.9 4v2.2H7.8v3h2.6V21h3.1Z"/></symbol>
+    <symbol id="r-tt" viewBox="0 0 24 24"><path fill="currentColor" d="M16.6 3c.4 2 1.8 3.5 3.9 3.7v3a7.3 7.3 0 0 1-3.9-1.2v6.3A5.8 5.8 0 1 1 10.8 9v3.1a2.8 2.8 0 1 0 2.8 2.8V3h3Z"/></symbol>
+    <symbol id="r-wa" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4a.5.5 0 0 0 0-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.6 11.6 0 0 0 4.4 3.9c1.6.7 2.3.8 3.1.6a2.6 2.6 0 0 0 1.7-1.2 2.1 2.1 0 0 0 .2-1.2c-.1-.1-.3-.2-.5-.3Z"/></symbol>
+    <symbol id="r-pin" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+{% endmacro %}
+
+{# Botones de redes: solo aparecen las que el dueño completó #}
+{% macro redes(r, wa='') %}
+{%- set ig = r.instagram|red_social('instagram') -%}
+{%- set fb = r.facebook|red_social('facebook') -%}
+{%- set tt = r.tiktok|red_social('tiktok') -%}
+{%- if ig or fb or tt or wa -%}
+<div class="redes">
+    {% if ig %}<a class="red ig" href="{{ ig }}" target="_blank" rel="noopener"><svg><use href="#r-ig"/></svg>Instagram</a>{% endif %}
+    {% if fb %}<a class="red fb" href="{{ fb }}" target="_blank" rel="noopener"><svg><use href="#r-fb"/></svg>Facebook</a>{% endif %}
+    {% if tt %}<a class="red tt" href="{{ tt }}" target="_blank" rel="noopener"><svg><use href="#r-tt"/></svg>TikTok</a>{% endif %}
+    {% if wa %}<a class="red wa" href="https://wa.me/{{ wa }}" target="_blank" rel="noopener"><svg><use href="#r-wa"/></svg>WhatsApp</a>{% endif %}
+</div>
+{%- endif -%}
+{% endmacro %}
+
+{# Mapa de Google con la dirección del local (no necesita clave de API) #}
+{% macro mapa(direccion, alto='320px') %}
+{% if direccion %}
+<div class="mapa" style="height: {{ alto }}">
+    <iframe src="https://www.google.com/maps?q={{ direccion|urlencode }}&output=embed&hl=es" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Mapa: {{ direccion }}"></iframe>
+    <a class="ir" href="https://www.google.com/maps/search/?api=1&query={{ direccion|urlencode }}" target="_blank" rel="noopener"><svg><use href="#r-pin"/></svg>Cómo llegar</a>
+</div>
+{% endif %}
+{% endmacro %}
