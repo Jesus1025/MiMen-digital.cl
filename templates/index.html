@@ -215,7 +215,7 @@
     <div class="wrap">
         <div class="texto">
             <h1 class="d">Tu carta en el celular de <em>cada cliente.</em></h1>
-            <p class="lede">Escanean el QR de la mesa y ven tus platos con fotos, precios al día, horario y un botón para pedir por WhatsApp. Si cambia un precio, lo cambias desde tu celular y listo: no se reimprime nada.</p>
+            <p class="lede">Escanean el QR o acercan el celular al tótem NFC de la mesa y ven tus platos con fotos, precios al día, horario y un botón para pedir por WhatsApp. Si cambia un precio, lo cambias desde tu celular y listo: no se reimprime nada.</p>
             <div class="ctas">
                 <a class="btn btn-sol" href="{{ wa_link }}" {% if whatsapp %}target="_blank" rel="noopener"{% endif %}><svg><use href="#i-wa"/></svg>Quiero mi carta</a>
                 {% if demo_slug %}<a class="btn btn-linea" href="{{ url_for('ver_menu_publico', url_slug=demo_slug) }}">Ver una carta de ejemplo</a>{% endif %}
@@ -280,9 +280,9 @@
         </div>
         <div>
             <h2 class="titulo d">Un tótem QR y NFC en cada mesa.</h2>
-            <p class="bajada">Un soporte negro firme, con tu código QR y un chip NFC: tus clientes escanean con la cámara o solo acercan el celular, y se abre tu carta.</p>
+            <p class="bajada">Un tótem impreso en 3D, con tu código QR y un chip NFC: tus clientes escanean con la cámara o solo acercan el celular, y se abre tu carta.</p>
             <ul>
-                <li>QR y NFC en el mismo tótem.</li>
+                <li>Impreso en 3D, con QR y chip NFC en el mismo tótem.</li>
                 <li>Cada tótem tiene su propio código.</li>
                 <li>En tu panel ves cuántas veces se escaneó cada uno.</li>
                 <li>El plan Tótem trae 5. Si necesitas más, se agregan.</li>
@@ -308,7 +308,7 @@
                     <li><svg><use href="#i-ok"/></svg>Botón de pedido por WhatsApp</li>
                     <li><svg><use href="#i-ok"/></svg>Panel para cambiar platos y precios</li>
                     {% if fuerte %}
-                    <li><svg><use href="#i-ok"/></svg>{{ plan.qr_totems }} tótems QR, cada uno con su código</li>
+                    <li><svg><use href="#i-ok"/></svg>{{ plan.qr_totems }} tótems impresos en 3D con QR y NFC</li>
                     <li><svg><use href="#i-ok"/></svg>Escaneos por tótem en tu panel</li>
                     {% else %}
                     <li><svg><use href="#i-ok"/></svg>Código QR listo para imprimir</li>
@@ -319,7 +319,7 @@
             {% endfor %}
         </div>
         <div class="extra">
-            <span><b class="num">{{ clp(precio_totem) }}</b> por cada tótem QR adicional</span>
+            <span><b class="num">{{ clp(precio_totem) }}</b> por cada tótem adicional impreso en 3D con QR y NFC</span>
             <span style="color:var(--soft)">Para locales con más mesas o más de un piso.</span>
         </div>
         {% endif %}
@@ -331,7 +331,7 @@
         <h2 class="titulo d" style="margin-bottom:28px">Preguntas frecuentes</h2>
         <details><summary>¿Mis clientes tienen que descargar una app?</summary><p>No. Apuntan la cámara del celular al código QR y la carta se abre en el navegador.</p></details>
         <details><summary>¿Puedo cambiar los precios yo mismo?</summary><p>Sí. Desde tu panel editas precios, platos, fotos y categorías, y el cambio se ve de inmediato en la carta.</p></details>
-        <details><summary>¿Qué diferencia hay entre el QR y los tótems?</summary><p>En el plan Local recibes un código QR para imprimir y pegar donde quieras. En el plan Tótem recibes 5 tótems para poner sobre las mesas, cada uno con su propio código, y ves cuántas veces se escanea cada uno.</p></details>
+        <details><summary>¿Qué diferencia hay entre el QR y los tótems?</summary><p>En el plan Local recibes un código QR para imprimir y pegar donde quieras. En el plan Tótem recibes 5 tótems impresos en 3D, con QR y chip NFC, para poner sobre las mesas. Cada uno tiene su propio código y ves cuántas veces se escanea cada uno.</p></details>
         <details><summary>¿Puedo elegir los colores de mi carta?</summary><p>Sí. Hay 15 estilos y puedes cambiar de estilo cuando quieras desde el panel.</p></details>
     </div>
 </section>
