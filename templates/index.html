@@ -60,9 +60,9 @@
         .hero .nota { margin-top: 18px; font-size: 15px; color: rgba(255,255,255,.6); }
         .hero .texto { padding-bottom: 64px; }
         .escena { position: relative; justify-self: center; width: 100%; max-width: 520px; height: 600px; }
-        .foto-hero { position: absolute; right: 0; top: 10px; width: 78%; height: 560px; object-fit: cover; border-radius: 30px; box-shadow: 0 40px 80px rgba(0,0,0,.5); }
+        .foto-hero { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 30px; box-shadow: 0 40px 80px rgba(0,0,0,.5); }
         .escena .telefono { position: absolute; left: 0; bottom: -30px; width: 250px; height: 500px; transform: rotate(-4deg); }
-        @media (max-width: 880px) { .escena { height: 520px; max-width: 420px; } .foto-hero { height: 470px; } .escena .telefono { width: 200px; height: 400px; bottom: -20px; } }
+        @media (max-width: 880px) { .escena { height: 440px; max-width: 520px; margin-bottom: 40px; } .foto-hero { height: 100%; } .escena .telefono { width: 200px; height: 400px; bottom: -20px; } }
         .telefono {
             justify-self: center; width: 300px; height: 600px; border-radius: 46px; background: #000; padding: 12px;
             box-shadow: 0 0 0 2px #3a3934, 0 40px 80px rgba(0,0,0,.55); transform: translateY(40px) rotate(-3deg);
@@ -224,23 +224,7 @@
         </div>
         <div class="escena">
         <img class="foto-hero" src="{{ url_for('static', filename='img/totem-lado.webp') }}?v=3" alt="Tótem MiMenú con QR y NFC sobre una mesa" fetchpriority="high">
-        <div class="telefono" aria-hidden="true">
-            <div class="pantalla">
-                {% if demo_slug %}
-                <iframe src="{{ url_for('ver_menu_publico', url_slug=demo_slug) }}" title="Carta de ejemplo" loading="lazy" tabindex="-1"></iframe>
-                {% else %}
-                <div class="mock">
-                    <div class="cab"><span class="chip">Abierto · cierra 23:00</span><b>La Fuente de Barrio</b>Sándwiches y schop</div>
-                    <div class="cats"><span>Sándwiches</span><span>Platos</span><span>Bebidas</span></div>
-                    <h4>Sándwiches</h4>
-                    <div class="row"><div><b>Churrasco italiano</b><small>Tomate, palta y mayo casera</small><br><b>$7.990</b></div><i></i></div>
-                    <div class="row"><div><b>Barros Luco</b><small>Carne y queso fundido</small><br><b>$7.490</b></div><i></i></div>
-                    <div class="row"><div><b>Chacarero</b><small>Porotos verdes, ají y tomate</small><br><b>$7.990</b></div><i></i></div>
-                    <div class="row"><div><b>Ave palta</b><small>Pollo desmenuzado y palta</small><br><b>$6.990</b></div><i></i></div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
+
         </div>
     </div>
 </div>
