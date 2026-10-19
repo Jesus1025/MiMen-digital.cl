@@ -184,6 +184,22 @@
             font-size: 0.9rem;
         }
     }
+
+    .totems-card { margin-top: 1.5rem; }
+    .totems-card .card-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .totems-ayuda { color: var(--text-muted, #6b7280); margin: .25rem 0 1rem; }
+    .totems-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 1rem; }
+    .totem-item { border: 1px solid #e7e5e0; border-radius: 16px; overflow: hidden; background: #fff; }
+    .totem-tarjeta { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 1rem .75rem; gap: .25rem; }
+    .totem-tarjeta img { width: 120px; height: 120px; }
+    .totem-tarjeta strong { font-size: .95rem; }
+    .totem-tarjeta small { color: #6b7280; }
+    .totem-num { align-self: flex-start; background: #151410; color: #ffc21a; font-weight: 700; font-size: .75rem; padding: .15rem .5rem; border-radius: 6px; }
+    .totem-pie { display: flex; justify-content: space-between; align-items: center; padding: .6rem .9rem; border-top: 1px solid #efede8; font-size: .9rem; }
+    .totem-pie a { font-weight: 600; }
+    .totems-vacio { display: flex; gap: 1.5rem; align-items: center; justify-content: space-between; flex-wrap: wrap; background: #fff8e1; border-radius: 16px; padding: 1.25rem 1.5rem; }
+    .totems-vacio h3 { font-weight: 700; font-size: 1.15rem; margin-bottom: .25rem; }
+    .totems-vacio p { color: #5b5953; max-width: 46em; }
 </style>
 {% endblock %}
 
@@ -308,6 +324,42 @@
         </div>
     </div>
 </div>
+
+<!-- Tótems QR: uno por mesa, mostrador o vitrina -->
+<div class="dashboard-card totems-card">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fas fa-th"></i> Tus tótems QR</h2>
+        {% if totems %}<button class="btn-secondary no-print" onclick="imprimirTotems()"><i class="fas fa-print"></i> Imprimir todos</button>{% endif %}
+    </div>
+    {% if totems %}
+    <p class="totems-ayuda">Cada tótem tiene su propio código. Ponle uno a cada mesa y aquí verás cuántas veces se escaneó cada uno.</p>
+    <div class="totems-grid" id="totemsGrid">
+        {% for t in totems %}
+        <div class="totem-item">
+            <div class="totem-tarjeta">
+                <span class="totem-num">Tótem {{ t.numero }}</span>
+                {% if t.archivo %}<img src="{{ url_for('static', filename='uploads/qrs/' + t.archivo) }}" alt="Código QR del tótem {{ t.numero }}">{% endif %}
+                <strong>{{ restaurante.nombre }}</strong>
+                <small>Escanea y mira la carta</small>
+            </div>
+            <div class="totem-pie no-print">
+                <span><b>{{ t.escaneos }}</b> {{ 'escaneo' if t.escaneos == 1 else 'escaneos' }}</span>
+                {% if t.archivo %}<a href="{{ url_for('static', filename='uploads/qrs/' + t.archivo) }}" download="QR_{{ restaurante.url_slug }}_totem_{{ t.numero }}.png">Descargar</a>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="totems-ayuda">¿Necesitas más tótems? Cada tótem adicional cuesta ${{ "{:,.0f}".format(precio_totem)|replace(",", ".") }}. Pídelo desde <a href="{{ url_for('contactar_soporte') }}">Soporte</a>.</p>
+    {% else %}
+    <div class="totems-vacio">
+        <div>
+            <h3>Pon un tótem QR en cada mesa</h3>
+            <p>Con el plan Tótem recibes 5 tótems, cada uno con su propio código, y ves cuántas veces se escanea cada uno. Tu plan actual{% if plan.nombre %} ({{ plan.nombre }}){% endif %} incluye el código QR para imprimir de arriba.</p>
+        </div>
+        <a class="btn-primary" href="{{ url_for('contactar_soporte') }}">Quiero el plan Tótem</a>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -397,5 +449,23 @@ function imprimirTarjeta() {
 
 // Cargar estadísticas al iniciar
 cargarEstadisticas();
+
+function imprimirTotems() {
+    const grid = document.getElementById('totemsGrid');
+    if (!grid) return;
+    const tarjetas = Array.from(grid.querySelectorAll('.totem-tarjeta')).map(el => el.outerHTML).join('');
+    const w = window.open('', '_blank');
+    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Tótems QR</title><style>
+        @page { size: A4; margin: 12mm; }
+        body { font-family: system-ui, sans-serif; margin: 0; }
+        .hoja { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10mm; }
+        .totem-tarjeta { border: 1px dashed #999; border-radius: 6mm; padding: 8mm; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2mm; break-inside: avoid; }
+        .totem-tarjeta img { width: 55mm; height: 55mm; }
+        .totem-num { align-self: flex-start; background: #151410; color: #ffc21a; font-weight: 700; font-size: 10pt; padding: 1mm 3mm; border-radius: 2mm; }
+        strong { font-size: 14pt; } small { font-size: 11pt; color: #444; }
+    </style></head><body><div class="hoja">${tarjetas}</div></body></html>`);
+    w.document.close();
+    w.onload = () => { w.focus(); w.print(); };
+}
 </script>
 {% endblock %}

@@ -25,7 +25,7 @@
     <!-- CSS externo con carga no bloqueante -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -1244,6 +1244,62 @@
                 padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
             }
         }
+
+        /* ============================================================
+           MiMenú · capa visual nueva del panel (misma marca que la carta y la página de venta)
+           ============================================================ */
+        :root {
+            --primary-color: #151410; --primary-dark: #000; --secondary-color: #151410;
+            --sidebar-bg: #151410; --sidebar-hover: #24231e; --text-light: #f4f2ec; --text-muted: #6b6960;
+            --mm-sol: #ffc21a; --mm-bg: #f3f2ee; --mm-line: #e4e2da; --mm-paper: #fff; --mm-ink: #151410; --mm-ok: #1fae5b;
+        }
+        body { font-family: "Hanken Grotesk", system-ui, sans-serif !important; background: var(--mm-bg) !important; color: var(--mm-ink); }
+        h1, h2, h3, .page-title, .card-title, .stat-info h3, .modal-title, .sidebar-logo { font-family: "Bricolage Grotesque", sans-serif !important; letter-spacing: -.01em; }
+        .sidebar { background: var(--sidebar-bg) !important; border-right: 0; }
+        .sidebar-header { border-bottom: 1px solid rgba(255,255,255,.08) !important; }
+        .sidebar-logo { color: #fff !important; font-weight: 800 !important; font-size: 1.35rem !important; display: flex; align-items: center; gap: .6rem; }
+        .sidebar-logo .logo-tile { width: 30px; height: 30px; border-radius: 9px; background: var(--mm-sol); color: var(--mm-ink); display: inline-grid; place-items: center; font-size: .9rem; }
+        .sidebar-subtitle { color: rgba(255,255,255,.5) !important; }
+        .menu-label { color: rgba(255,255,255,.38) !important; letter-spacing: .02em !important; text-transform: none !important; font-weight: 600 !important; }
+        .menu-item { border-radius: 10px !important; margin: 2px 12px !important; color: rgba(255,255,255,.78) !important; border-left: 0 !important; }
+        .menu-item:hover { background: var(--sidebar-hover) !important; color: #fff !important; }
+        .menu-item.active { background: var(--mm-sol) !important; color: var(--mm-ink) !important; font-weight: 700; }
+        .menu-item.active i { color: var(--mm-ink) !important; }
+        .subscription-widget { background: rgba(255,255,255,.05) !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 14px !important; }
+        .subscription-detail-item, .subscription-detail-item span, .subscription-actions span { color: rgba(255,255,255,.72) !important; }
+        .subscription-status.active { color: #6fe3a1 !important; }
+        .plan-badge { font-size: .72rem; font-weight: 700; background: var(--mm-sol); color: var(--mm-ink); padding: 2px 8px; border-radius: 99px; }
+        .plan-badge.prueba { background: #8ab4ff; }
+        .btn-renew { background: var(--mm-sol) !important; color: var(--mm-ink) !important; border-radius: 10px !important; font-weight: 700 !important; }
+        .top-navbar { background: rgba(243,242,238,.88) !important; backdrop-filter: blur(10px); box-shadow: none !important; border-bottom: 1px solid var(--mm-line) !important; }
+        .page-title { font-weight: 800 !important; color: var(--mm-ink) !important; }
+        .user-avatar { background: var(--mm-ink) !important; color: var(--mm-sol) !important; }
+        .dashboard-card, .card, .stat-card, .stat-box, .table-container {
+            background: var(--mm-paper) !important; border: 1px solid var(--mm-line) !important;
+            border-radius: 20px !important; box-shadow: none !important;
+        }
+        .card-header { border-bottom: 1px solid var(--mm-line) !important; background: transparent !important; box-shadow: none !important; }
+        .card-title { font-weight: 800 !important; color: var(--mm-ink) !important; }
+        .card-title i { color: var(--mm-ink) !important; opacity: .55; }
+        .stat-icon { border-radius: 14px !important; background: var(--mm-bg) !important; color: var(--mm-ink) !important; }
+        .stat-info h3 { font-weight: 800 !important; color: var(--mm-ink) !important; }
+        .btn-primary, .button.is-primary, .btn-principal {
+            background: var(--mm-ink) !important; color: #fff !important; border: 0 !important; border-radius: 12px !important;
+            font-weight: 700 !important; box-shadow: none !important; background-image: none !important;
+        }
+        .btn-primary:hover, .btn-principal:hover { background: #000 !important; transform: translateY(-1px); }
+        .btn-secondary { background: var(--mm-paper) !important; color: var(--mm-ink) !important; border: 1px solid var(--mm-line) !important; border-radius: 12px !important; font-weight: 600 !important; }
+        .btn-secondary:hover { border-color: var(--mm-ink) !important; }
+        .quick-action-btn { border-radius: 16px !important; background: var(--mm-paper) !important; color: var(--mm-ink) !important; border: 1px solid var(--mm-line) !important; background-image: none !important; box-shadow: none !important; }
+        .quick-action-btn:hover { border-color: var(--mm-ink) !important; transform: translateY(-2px); }
+        .quick-action-btn i { color: var(--mm-ink) !important; }
+        .form-input, .input, .textarea, .select select { border-radius: 12px !important; border: 1px solid var(--mm-line) !important; box-shadow: none !important; font-family: inherit !important; }
+        .form-input:focus, .input:focus, .textarea:focus, .select select:focus { border-color: var(--mm-ink) !important; box-shadow: 0 0 0 3px rgba(255,194,26,.45) !important; }
+        .form-label, .label { font-weight: 600 !important; color: var(--mm-ink) !important; }
+        .modal-content, .modal-card { border-radius: 22px !important; overflow: hidden; }
+        .modal-header, .modal-card-head { background: var(--mm-paper) !important; border-bottom: 1px solid var(--mm-line) !important; }
+        table th { color: var(--text-muted) !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: 0 !important; }
+        :focus-visible { outline: 3px solid var(--mm-sol); outline-offset: 2px; }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -1277,9 +1333,9 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">
-                <i class="fas fa-utensils"></i> Menú Digital
+                <span class="logo-tile"><i class="fas fa-qrcode"></i></span> MiMenú
             </div>
-            <div class="sidebar-subtitle">Panel de Gestión</div>
+            <div class="sidebar-subtitle">Panel de tu carta</div>
         </div>
 
         <!-- Widget de Suscripción -->
@@ -1299,12 +1355,8 @@
                     {% endif %}
                 </div>
                 {% if subscription_info.plan_type %}
-                <span style="font-size: 0.7rem; background: {% if subscription_info.plan_type == 'prueba' %}#3498db{% else %}#9b59b6{% endif %}; color: white; padding: 2px 6px; border-radius: 3px;">
-                    {% if subscription_info.plan_type == 'prueba' %}
-                        <i class="fas fa-gift" style="margin-right: 3px;"></i>Gratuito
-                    {% else %}
-                        <i class="fas fa-crown" style="margin-right: 3px;"></i>Premium
-                    {% endif %}
+                <span class="plan-badge{% if subscription_info.plan_type == 'prueba' %} prueba{% endif %}">
+                    {% if subscription_info.plan_type == 'prueba' %}Prueba{% else %}{{ subscription_info.plan_nombre or 'Plan' }}{% endif %}
                 </span>
                 {% endif %}
             </div>

@@ -865,7 +865,8 @@ def get_subscription_info(restaurante_id):
         db = get_db()
         with db.cursor() as cur:
             cur.execute(
-                "SELECT fecha_vencimiento, estado_suscripcion FROM restaurantes WHERE id = %s",
+                """SELECT r.fecha_vencimiento, r.estado_suscripcion, p.nombre AS plan_nombre
+                   FROM restaurantes r LEFT JOIN planes p ON p.id = r.plan_id WHERE r.id = %s""",
                 (restaurante_id,)
             )
             result = cur.fetchone()
@@ -904,7 +905,8 @@ def get_subscription_info(restaurante_id):
                 'days_remaining': max(0, dias_restantes),
                 'expiration_date': fecha_formateada,
                 'fecha_vencimiento': fecha_vencimiento,
-                'plan_type': estado_suscripcion
+                'plan_type': estado_suscripcion,
+                'plan_nombre': result.get('plan_nombre') or ''
             }
     except Exception as e:
         logger.exception("Error getting subscription info")
@@ -1065,6 +1067,10 @@ def not_found_error(error):
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Maneja excepciones globales no controladas."""
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        # 404, 403, etc. se responden con su propio código, no como error 500
+        return e
     logger.exception("Unhandled exception: %s", type(e).__name__)
 
     # During TESTING return the exception details as JSON to aid debugging
@@ -1092,9 +1098,10 @@ def handle_exception(e):
             'error': 'Error interno',
             'type': type(e).__name__
         }), 500
+    # El detalle queda en el log; al visitante no se le muestran datos internos
     return render_template('error_publico.html', 
                         error_code=500, 
-                        error_message=f'Error: {str(e)}'), 500
+                        error_message='Tuvimos un problema. Vuelve a intentarlo en unos minutos.'), 500
 
 
 # Helper: register the same Sentry-aware error handler onto another Flask app instance
@@ -1543,7 +1550,8 @@ def _procesar_batch_visitas(batch):
                     v['user_agent'],
                     v['referer'],
                     1 if v['es_movil'] else 0,
-                    1 if v['es_qr'] else 0
+                    1 if v['es_qr'] else 0,
+                    v.get('totem')
                 ))
                 
                 # Agregar a estadísticas
@@ -1562,8 +1570,8 @@ def _procesar_batch_visitas(batch):
             if visitas_values:
                 cur.executemany('''
                     INSERT INTO visitas 
-                    (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, fecha)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                    (restaurante_id, ip_address, user_agent, referer, es_movil, es_qr, totem, fecha)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
                 ''', visitas_values)
             
             # UPDATE batch de estadísticas
@@ -1645,8 +1653,19 @@ def registrar_visita(restaurante_id, req):
         elif referer and 'qr' in referer.lower():
             es_qr = True
         
+        # Tótem QR escaneado (?t=N en el código de cada tótem)
+        totem = None
+        try:
+            t_arg = int(req.args.get('t', ''))
+            if 1 <= t_arg <= 250:
+                totem = t_arg
+                es_qr = True
+        except (TypeError, ValueError):
+            pass
+
         # Encolar la visita (no bloquea)
         visita_data = {
+            'totem': totem,
             'restaurante_id': restaurante_id,
             'ip_address': ip_address,
             'user_agent': user_agent,
@@ -2194,12 +2213,47 @@ def gestion_codigo_qr():
     except Exception as e:
         logger.error("Error generando QR: %s", e)
         qr_filename = None
-    
+
+    # Tótems QR: los del plan + los adicionales comprados. Cada uno tiene su propio código (?t=N)
+    plan, totems, precio_totem = None, [], 3000
+    try:
+        db = get_db()
+        with db.cursor() as cur:
+            cur.execute("""SELECT p.nombre, p.precio_mensual, COALESCE(p.qr_totems, 0) AS qr_totems,
+                                  COALESCE(r.totems_extra, 0) AS totems_extra
+                           FROM restaurantes r LEFT JOIN planes p ON p.id = r.plan_id
+                           WHERE r.id = %s""", (restaurante['id'],))
+            plan = dict_from_row(cur.fetchone()) or {}
+            total = int(plan.get('qr_totems') or 0) + int(plan.get('totems_extra') or 0)
+            escaneos = {}
+            if total:
+                cur.execute("""SELECT totem, COUNT(*) AS total FROM visitas
+                               WHERE restaurante_id = %s AND totem IS NOT NULL GROUP BY totem""",
+                            (restaurante['id'],))
+                escaneos = {int(r['totem']): int(r['total']) for r in cur.fetchall()}
+            for n in range(1, total + 1):
+                url_totem = f"{base_url}/menu/{restaurante['url_slug']}?t={n}"
+                archivo = f"{restaurante['id']}_totem_{n}.png"
+                try:
+                    # Se regenera siempre, igual que el QR principal, por si cambió el dominio
+                    ruta = os.path.join(base_dir, 'static', 'uploads', 'qrs', archivo)
+                    if os.path.exists(ruta):
+                        os.remove(ruta)
+                    generar_qr_restaurante(url_totem, archivo)
+                except Exception as e:
+                    logger.error("Error generando QR del tótem %s: %s", n, e)
+                    archivo = None
+                totems.append({'numero': n, 'url': url_totem, 'archivo': archivo, 'escaneos': escaneos.get(n, 0)})
+        precio_totem = int(get_config_value('precio_totem_extra', '3000') or 3000)
+    except Exception:
+        logger.exception("Error cargando tótems QR")
+
     return render_template('gestion/codigo_qr.html', 
                         restaurante=restaurante, 
                         menu_url=menu_url,
                         menu_url_display=menu_url_display,
-                        qr_filename=qr_filename)
+                        qr_filename=qr_filename,
+                        plan=plan or {}, totems=totems, precio_totem=precio_totem)
 
 
 @app.route('/gestion/apariencia')
@@ -2429,7 +2483,18 @@ def gestion_pago_pendiente():
     dias_vencido = (date.today() - restaurante['fecha_vencimiento']).days if restaurante['fecha_vencimiento'] else 0
     
     # Obtener configuración de pagos
-    config_pagos = get_config_global()
+    config_pagos = dict(get_config_global())
+    # El monto a pagar es el del plan del local (Local o Tótem), no un precio global
+    with db.cursor() as cur:
+        cur.execute("""SELECT p.nombre, p.precio_mensual FROM restaurantes r JOIN planes p ON p.id = r.plan_id
+                       WHERE r.id = %s AND p.precio_mensual > 0""", (restaurante_id,))
+        plan = cur.fetchone()
+        if not plan:
+            cur.execute("SELECT nombre, precio_mensual FROM planes WHERE activo = 1 AND precio_mensual > 0 ORDER BY precio_mensual LIMIT 1")
+            plan = cur.fetchone()
+    if plan:
+        config_pagos['precio_mensual'] = int(plan['precio_mensual'])
+        config_pagos['plan_nombre'] = plan['nombre']
 
     return render_template('gestion/pago_pendiente.html', 
                         restaurante=restaurante, 
@@ -2474,21 +2539,32 @@ def api_crear_preferencia_pago():
         # Definir parámetros del pago
         plan_type = data.get('plan_type', 'mensual')
         
-        # Obtener precio desde configuración global
-        precio_config = get_config_value('precio_mensual', '14990')
-        try:
-            precio = int(precio_config)
-        except (ValueError, TypeError):
-            precio = 14990
+        # Precio del plan del local (Local o Tótem). Si no tiene plan pagado, se usa el más barato.
+        precio, nombre_plan = None, 'MiMenú'
+        with db.cursor() as cur:
+            cur.execute("""SELECT p.nombre, p.precio_mensual FROM restaurantes r
+                           JOIN planes p ON p.id = r.plan_id
+                           WHERE r.id = %s AND p.precio_mensual > 0""", (restaurante_id,))
+            fila = cur.fetchone()
+            if not fila:
+                cur.execute("SELECT nombre, precio_mensual FROM planes WHERE activo = 1 AND precio_mensual > 0 ORDER BY precio_mensual LIMIT 1")
+                fila = cur.fetchone()
+            if fila:
+                precio, nombre_plan = int(fila['precio_mensual']), fila['nombre']
+        if not precio:
+            try:
+                precio = int(get_config_value('precio_mensual', '5990'))
+            except (ValueError, TypeError):
+                precio = 5990
         
         # Configurar descripción según plan
         if plan_type == 'mensual':
-            descripcion = 'Suscripción Mensual - Menú Digital'
+            descripcion = f'MiMenú plan {nombre_plan} - 1 mes'
         elif plan_type == 'anual':
-            precio = precio * 10  # 10 meses por el precio de 12 (descuento)
-            descripcion = 'Suscripción Anual - Menú Digital'
+            precio = precio * 10  # 12 meses por el precio de 10
+            descripcion = f'MiMenú plan {nombre_plan} - 12 meses'
         else:
-            descripcion = 'Suscripción - Menú Digital'
+            descripcion = f'MiMenú plan {nombre_plan}'
         
         # Crear preferencia de pago
         preference_data = {
@@ -4078,6 +4154,14 @@ def api_superadmin_actualizar_suscripcion(restaurante_id):
                     WHERE id = %s
                 ''', (fecha_mysql, nuevo_estado, restaurante_id))
             
+            # Tótems QR adicionales comprados (además de los que trae el plan)
+            if data.get('totems_extra') not in (None, ''):
+                try:
+                    extra = max(0, min(200, int(data.get('totems_extra'))))
+                    cur.execute("UPDATE restaurantes SET totems_extra = %s WHERE id = %s", (extra, restaurante_id))
+                except (TypeError, ValueError):
+                    return jsonify({'success': False, 'error': 'Tótems adicionales debe ser un número'}), 400
+
             db.commit()
             
             logger.info("Suscripción actualizada: restaurante=%s (%s), nueva_fecha=%s, estado=%s (anterior: %s)", 

@@ -310,6 +310,10 @@
                     </select>
                 </div>
             </div>
+            <div class="form-group">
+                <label class="form-label" for="totemsExtra">Tótems QR adicionales (además de los del plan):</label>
+                <input type="number" id="totemsExtra" class="form-input" min="0" max="200" placeholder="Dejar vacío para no cambiar">
+            </div>
             
             <div class="form-group">
                 <label class="form-label">Notas (opcional):</label>
@@ -422,7 +426,7 @@
                 // Plan Premium - muestra estados de suscripción pagada
                 planIcon = '<i class="fas fa-crown" style="margin-right: 4px;"></i>';
                 planStyle = 'background: #9b59b6; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;';
-                planNombre = 'Premium';
+                planNombre = planes[s.plan_id] || 'Pagado';
                 
                 if (!venc || dias < 0) { 
                     statusClass = 'expired'; 
@@ -504,27 +508,14 @@
         document.getElementById('diasExtension').value = '30';
         document.getElementById('fechaEspecifica').value = '';
         document.getElementById('notasExtension').value = '';
+        document.getElementById('totemsExtra').value = '';
         
-        // Cargar solo 2 planes (Gratuito y Premium)
+        // Todos los planes (Local, Tótem y el gratuito de prueba)
         const selectPlan = document.getElementById('nuevoPlan');
-        
-        // Encontrar IDs de los planes Gratuito y Premium
-        let gratuiID = null;
-        let premiumID = null;
-        
-        Object.entries(planes).forEach(([planeId, planNombre]) => {
-            if (planNombre.toLowerCase().includes('gratuito') || planNombre.toLowerCase().includes('gratis')) {
-                if (!gratuiID) gratuiID = planeId;
-            } else if (planNombre.toLowerCase().includes('premium')) {
-                if (!premiumID) premiumID = planeId;
-            }
-        });
-        
-        // Crear opciones solo para los 2 planes principales
         let optionsHTML = '';
-        if (gratuiID) optionsHTML += `<option value="${gratuiID}" ${gratuiID == planActual ? 'selected' : ''}>🎁 Plan Gratuito</option>`;
-        if (premiumID) optionsHTML += `<option value="${premiumID}" ${premiumID == planActual ? 'selected' : ''}>👑 Plan Premium</option>`;
-        
+        Object.entries(planes).forEach(([planId, planNombre]) => {
+            optionsHTML += `<option value="${planId}" ${planId == planActual ? 'selected' : ''}>${planNombre}</option>`;
+        });
         selectPlan.innerHTML = optionsHTML;
         
         // Establecer estado actual
@@ -551,7 +542,8 @@
                     dias_extension: fechaEspecifica ? null : parseInt(dias),
                     fecha_especifica: fechaEspecifica || null,
                     estado_suscripcion: estado,
-                    plan_id: planId ? parseInt(planId) : null
+                    plan_id: planId ? parseInt(planId) : null,
+                    totems_extra: document.getElementById('totemsExtra').value
                 })
             });
             const result = await res.json();
