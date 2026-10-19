@@ -1138,15 +1138,31 @@ def list_from_rows(rows):
     return [dict(row) for row in rows] if rows else []
 
 
-# --- Configuración Global ---
-def get_config_global():
-    """Obtiene todas las configuraciones globales como diccionario."""
+# --- Configuración Global (con caché) ---
+_config_cache = {'data': None, 'timestamp': 0}
+_CONFIG_CACHE_TTL = 300  # 5 minutos de caché
+
+def get_config_global(use_cache=True):
+    """Obtiene todas las configuraciones globales como diccionario. Con caché de 5 min."""
+    global _config_cache
+    
+    # Usar caché si está disponible y no expiró
+    if use_cache and _config_cache['data'] is not None:
+        if time.time() - _config_cache['timestamp'] < _CONFIG_CACHE_TTL:
+            return _config_cache['data'].copy()
+    
     try:
         db = get_db()
         with db.cursor() as cur:
             cur.execute("SELECT clave, valor FROM configuracion_global")
             rows = cur.fetchall()
-            return {row['clave']: row['valor'] for row in rows}
+            result = {row['clave']: row['valor'] for row in rows}
+            
+            # Actualizar caché
+            _config_cache['data'] = result
+            _config_cache['timestamp'] = time.time()
+            
+            return result
     except Exception:
         # Si la tabla no existe todavía, retornar valores por defecto
         return {
@@ -1154,6 +1170,11 @@ def get_config_global():
             'deposito_activo': 'true',
             'precio_mensual': '14990'
         }
+
+def invalidar_config_cache():
+    """Invalida el caché de configuración global."""
+    global _config_cache
+    _config_cache = {'data': None, 'timestamp': 0}
 
 
 def get_config_value(clave, default=None):
@@ -1178,6 +1199,8 @@ def set_config_value(clave, valor):
             ON DUPLICATE KEY UPDATE valor = VALUES(valor)
         """, (clave, valor))
         db.commit()
+    # Invalidar caché para que se lea el nuevo valor
+    invalidar_config_cache()
 
 
 def allowed_file(filename):
@@ -1898,6 +1921,13 @@ def recuperar_contraseña():
             flash('Por favor ingresa tu email', 'error')
             return render_template('recuperar_contraseña.html', soporte_email=soporte_email)
         
+        # Validar formato de email
+        from validators import validar_email
+        email_valido, error_email = validar_email(email)
+        if not email_valido:
+            flash(error_email, 'error')
+            return render_template('recuperar_contraseña.html', soporte_email=soporte_email)
+        
         db = get_db()
         try:
             with db.cursor() as cur:
@@ -2020,8 +2050,11 @@ def resetear_contraseña(token):
                 password = request.form.get('password', '').strip()
                 password_confirm = request.form.get('password_confirm', '').strip()
                 
-                if not password or len(password) < 6:
-                    flash('La contraseña debe tener al menos 6 caracteres', 'error')
+                # Validación robusta de contraseña
+                from validators import validar_password
+                is_valid, error_msg = validar_password(password, min_length=8, require_complexity=True)
+                if not is_valid:
+                    flash(error_msg, 'error')
                     return render_template('resetear_contraseña.html', token=token, email=reset['email'])
                 
                 if password != password_confirm:
@@ -3538,6 +3571,14 @@ def api_mi_restaurante():
             if request.method == 'PUT':
                 data = request.get_json()
                 
+                # Validar email del restaurante si se proporciona
+                email_restaurante = data.get('email', '').strip()
+                if email_restaurante:
+                    from validators import validar_email
+                    email_valido, error_email = validar_email(email_restaurante)
+                    if not email_valido:
+                        return jsonify({'success': False, 'error': error_email}), 400
+                
                 # Log para debug
                 logger.info("Actualizando restaurante %s - horario: %s, whatsapp: %s", 
                         restaurante_id, 
@@ -3781,8 +3822,11 @@ def superadmin_cambiar_password():
         if password_nuevo != password_confirmar:
             return jsonify({'success': False, 'error': 'Las contraseñas no coinciden'}), 400
         
-        if len(password_nuevo) < 8:
-            return jsonify({'success': False, 'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+        # Validación robusta de contraseña
+        from validators import validar_password
+        is_valid, error_msg = validar_password(password_nuevo, min_length=8, require_complexity=True)
+        if not is_valid:
+            return jsonify({'success': False, 'error': error_msg}), 400
         
         usuario_id = session.get('user_id')
         if not usuario_id:
@@ -4202,6 +4246,17 @@ def contactar_soporte():
         if not nombre or not email or not asunto or not mensaje:
             flash('Por favor completa todos los campos obligatorios', 'error')
             return render_template('soporte.html', 
+                                nombre_default=nombre_default,
+                                email_default=email_default,
+                                restaurante_nombre=restaurante_nombre,
+                                soporte=soporte_config)
+        
+        # Validar formato de email
+        from validators import validar_email
+        email_valido, error_email = validar_email(email)
+        if not email_valido:
+            flash(error_email, 'error')
+            return render_template('soporte.html',
                                 nombre_default=nombre_default,
                                 email_default=email_default,
                                 restaurante_nombre=restaurante_nombre,
@@ -5253,6 +5308,19 @@ def api_usuarios():
                 if not data.get('username') or not data.get('password') or not data.get('nombre'):
                     return jsonify({'success': False, 'error': 'Username, password y nombre son obligatorios'}), 400
                 
+                # Validar email si se proporciona
+                if data.get('email'):
+                    from validators import validar_email
+                    email_valido, error_email = validar_email(data['email'])
+                    if not email_valido:
+                        return jsonify({'success': False, 'error': error_email}), 400
+                
+                # Validar contraseña
+                from validators import validar_password
+                pwd_valido, error_pwd = validar_password(data['password'], min_length=8, require_complexity=True)
+                if not pwd_valido:
+                    return jsonify({'success': False, 'error': error_pwd}), 400
+                
                 # Verificar si username existe
                 cur.execute("SELECT id FROM usuarios_admin WHERE username = %s", (data['username'],))
                 if cur.fetchone():
@@ -5314,7 +5382,20 @@ def api_usuario(user_id):
             if request.method == 'PUT':
                 data = request.get_json()
                 
+                # Validar email si se proporciona
+                if data.get('email'):
+                    from validators import validar_email
+                    email_valido, error_email = validar_email(data['email'])
+                    if not email_valido:
+                        return jsonify({'success': False, 'error': error_email}), 400
+                
                 if data.get('password'):
+                    # Validar contraseña nueva
+                    from validators import validar_password
+                    pwd_valido, error_pwd = validar_password(data['password'], min_length=8, require_complexity=True)
+                    if not pwd_valido:
+                        return jsonify({'success': False, 'error': error_pwd}), 400
+                    
                     pwd_hash = generate_password_hash(data['password'], method='pbkdf2:sha256')
                     cur.execute('''
                         UPDATE usuarios_admin SET 
