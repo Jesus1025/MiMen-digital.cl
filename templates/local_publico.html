@@ -128,7 +128,7 @@
             section { padding: 56px 0; }
             .portada { min-height: min(82svh, 640px); }
             .portada .wrap { padding-top: 96px; padding-bottom: 36px; }
-            .barra-top .wrap { height: 68px; }
+            .barra-top .wrap { height: 68px; padding-top: 0; padding-bottom: 0; }
             .marca { font-size: 18px; gap: 10px; min-width: 0; }
             .marca span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .logo { width: 40px; height: 40px; border-radius: 12px; flex: none; }
@@ -176,6 +176,15 @@
             .visita .mapa { height: 260px !important; }
             .final h2 { font-size: 28px; }
             .pie { padding-top: 24px; }
+        }
+
+        /* Celulares angostos */
+        @media (max-width: 360px) {
+            .wrap { padding: 0 14px; }
+            .portada .ctas .btn { font-size: 14.5px; gap: 6px; padding: 0 8px; }
+            .portada .ctas .btn svg { width: 18px; height: 18px; }
+            .barra-top .carta-mini { padding: 7px 10px; font-size: 13px; }
+            .estado { font-size: 12px; padding: 6px 11px; }
         }
 
         /* Llamado final */
