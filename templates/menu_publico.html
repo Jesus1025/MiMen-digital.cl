@@ -288,6 +288,12 @@
         .total-fila { display: flex; justify-content: space-between; align-items: baseline; margin-top: 18px; }
         .total-fila b { font: 800 28px "Bricolage Grotesque", sans-serif; }
         .nota-pedido { color: var(--soft); font-size: 13.5px; margin-top: 6px; }
+        .items .nota { grid-column: 1 / -1; width: 100%; height: 42px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; font: inherit; font-size: 16px; background: var(--bg); color: var(--ink); }
+        .items .nota.falta { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--paper)); }
+        .items .nota.falta::placeholder { color: var(--accent); }
+        .nota-ficha { display: grid; gap: 6px; margin-top: 18px; font-weight: 600; font-size: 15px; }
+        .nota-ficha input { height: 46px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; font: inherit; font-size: 16px; font-weight: 400; background: var(--bg); color: var(--ink); }
+        .mostrar li .nt { display: block; font-style: normal; font-size: 19px; font-weight: 700; color: #c0392b; margin-top: 4px; }
         .vaciar { margin-top: 14px; color: var(--soft); font-weight: 600; text-decoration: underline; font-size: 14px; }
 
         /* ---------- Entrada ---------- */
@@ -507,6 +513,7 @@
             <p class="desc" id="fichaDesc"></p>
             <div class="marcas" id="fichaMarcas"></div>
             <div class="precio num" id="fichaPrecio"></div>
+            <label class="nota-ficha" id="fichaNotaFila"><span>¿Algún detalle?</span><input type="text" id="fichaNota" maxlength="80"></label>
             <div class="agregar-fila" id="fichaAgregarFila">
                 <div class="contador"><button type="button" id="fichaMenos" aria-label="Quitar uno">−</button><span id="fichaCant" class="num">1</span><button type="button" id="fichaMas" aria-label="Agregar uno">+</button></div>
                 <button type="button" class="agregar" id="fichaAgregar">Agregar</button>
@@ -693,7 +700,8 @@
         var pedir = $("#fichaPedir");
         if (pedir) pedir.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent("Hola, quiero pedir: " + p.nombre);
         fichaId = id; fichaCant = 1; pintarFicha();
-        $("#fichaAgregarFila").style.display = p.precio != null ? "" : "none";
+        $("#fichaNota").value = ""; $("#fichaNota").placeholder = ejemploNota(id);
+        $("#fichaAgregarFila").style.display = $("#fichaNotaFila").style.display = p.precio != null ? "" : "none";
         ficha.classList.add("abierta"); ficha.setAttribute("aria-hidden", "false");
         document.body.style.overflow = "hidden";
         $(".cerrar", ficha).focus();
@@ -717,12 +725,27 @@
     Object.keys(pedido).forEach(function (id) { if (!platos[id] || platos[id].precio == null || !(pedido[id] > 0)) delete pedido[id]; });
     var precioDe = function (id) { var p = platos[id]; return Number(p.oferta || p.precio) || 0; };
     var fichaId = null, fichaCant = 1;
+    /* Notas por producto: "Coca-Cola", "sin mayo"... */
+    var claveNotas = clave + "-notas", notas = {};
+    try { notas = JSON.parse(localStorage.getItem(claveNotas)) || {}; } catch (e) { notas = {}; }
+    var esBebida = function (id) { return /bebida|lata|jugo|gaseosa|refresco/i.test(platos[id].nombre); };
+    var ejemploNota = function (id) { return esBebida(id) ? "¿Cuál? Ej: Coca-Cola, Fanta, Sprite" : "Ej: sin mayo, sin tomate, bien cocido"; };
+    var notaDe = function (id) { return (notas[id] || "").trim(); };
+    function guardarNotas() { try { localStorage.setItem(claveNotas, JSON.stringify(notas)); } catch (e) {} }
+    function textoWhatsApp() {
+        var lineas = Object.keys(pedido).map(function (id) {
+            var n = notaDe(id);
+            return "• " + pedido[id] + " × " + platos[id].nombre + (n ? " — " + n : "") + " (" + fmt(pedido[id] * precioDe(id)) + ")";
+        });
+        return "Hola, quiero hacer este pedido:\n" + lineas.join("\n") + "\n\nTotal: " + fmt(resumen().total);
+    }
+    function actualizarEnvio() { var e = $("#pedidoEnviar"); if (e) e.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent(textoWhatsApp()); }
     var barraPedido = $("#barraPedido"), hojaPedido = $("#pedido");
 
     function guardar() { try { localStorage.setItem(clave, JSON.stringify(pedido)); } catch (e) {} }
     function cambiar(id, d) {
         var n = (pedido[id] || 0) + d;
-        if (n > 0) pedido[id] = Math.min(n, 99); else delete pedido[id];
+        if (n > 0) pedido[id] = Math.min(n, 99); else { delete pedido[id]; delete notas[id]; guardarNotas(); }
         guardar(); pintar();
     }
     function resumen() {
@@ -743,7 +766,6 @@
         barraPedido.classList.toggle("ver", r.n > 0);
         document.body.classList.toggle("con-pedido", r.n > 0);
         var lista = $("#pedidoItems"); lista.innerHTML = "";
-        var lineas = [];
         Object.keys(pedido).forEach(function (id) {
             var p = platos[id], c = pedido[id], li = document.createElement("li");
             var nom = document.createElement("span"); nom.className = "nom"; nom.textContent = p.nombre;
@@ -753,12 +775,19 @@
             $("span", cont).textContent = c;
             cont.children[0].addEventListener("click", function () { cambiar(id, -1); });
             cont.children[2].addEventListener("click", function () { cambiar(id, 1); });
-            li.append(nom, cont, sub); lista.appendChild(li);
-            lineas.push("• " + c + " × " + p.nombre + " (" + fmt(c * precioDe(id)) + ")");
+            var nota = document.createElement("input");
+            nota.type = "text"; nota.className = "nota"; nota.maxLength = 80; nota.value = notas[id] || "";
+            nota.placeholder = ejemploNota(id);
+            nota.setAttribute("aria-label", "Nota para " + p.nombre);
+            nota.classList.toggle("falta", esBebida(id) && !notaDe(id));
+            nota.addEventListener("input", function () {
+                notas[id] = nota.value; guardarNotas(); actualizarEnvio();
+                nota.classList.toggle("falta", esBebida(id) && !notaDe(id));
+            });
+            li.append(nom, cont, sub, nota); lista.appendChild(li);
         });
         $("#pedidoTotal").textContent = fmt(r.total);
-        var enviar = $("#pedidoEnviar");
-        if (enviar) enviar.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent("Hola, quiero hacer este pedido:\n" + lineas.join("\n") + "\n\nTotal: " + fmt(r.total));
+        actualizarEnvio();
         if (!r.n && hojaPedido.classList.contains("abierta")) cerrarPedido();
     }
     function abrirPedido() { hojaPedido.classList.add("abierta"); hojaPedido.setAttribute("aria-hidden", "false"); document.body.style.overflow = "hidden"; $(".cerrar", hojaPedido).focus(); }
@@ -800,6 +829,7 @@
             var li = document.createElement("li"), q = document.createElement("span"), nom = document.createElement("span"), s = document.createElement("span");
             q.className = "q num"; q.textContent = pedido[id] + "×";
             nom.textContent = platos[id].nombre;
+            if (notaDe(id)) { var nt = document.createElement("em"); nt.className = "nt"; nt.textContent = notaDe(id); nom.appendChild(nt); }
             s.className = "s num"; s.textContent = fmt(pedido[id] * precioDe(id));
             li.append(q, nom, s); ul.appendChild(li);
         });
@@ -813,7 +843,11 @@
 
     $("#fichaMenos").addEventListener("click", function () { if (fichaCant > 1) { fichaCant--; pintarFicha(); } });
     $("#fichaMas").addEventListener("click", function () { if (fichaCant < 99) { fichaCant++; pintarFicha(); } });
-    $("#fichaAgregar").addEventListener("click", function () { cambiar(fichaId, fichaCant); cerrar(); avisar("Agregado: " + fichaCant + " × " + platos[fichaId].nombre); });
+    $("#fichaAgregar").addEventListener("click", function () {
+        var t = $("#fichaNota").value.trim();
+        if (t) { notas[fichaId] = notaDe(fichaId) ? notaDe(fichaId) + ", " + t : t; guardarNotas(); }
+        cambiar(fichaId, fichaCant); cerrar(); avisar("Agregado: " + fichaCant + " × " + platos[fichaId].nombre);
+    });
     barraPedido.addEventListener("click", abrirPedido);
     $$("[data-cerrar-pedido]", hojaPedido).forEach(function (b) { b.addEventListener("click", cerrarPedido); });
     $("#pedidoVaciar").addEventListener("click", function () { pedido = {}; guardar(); pintar(); });

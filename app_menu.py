@@ -2434,7 +2434,8 @@ def gestion_descargas():
             cur.execute("""
                 SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.orden as categoria_orden,
                     p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
-                    p.precio_oferta, p.imagen_url, p.etiquetas
+                    p.precio_oferta, p.imagen_url, p.etiquetas,
+                    p.es_vegetariano, p.es_vegano, p.es_sin_gluten, p.es_picante, p.es_nuevo
                 FROM categorias c 
                 LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1 AND p.restaurante_id = %s
                 WHERE c.restaurante_id = %s AND c.activo = 1 
@@ -2467,7 +2468,10 @@ def gestion_descargas():
                         'precio': row['precio'],
                         'precio_oferta': row['precio_oferta'],
                         'imagen_url': row['imagen_url'],
-                        'etiquetas': etiquetas
+                        'etiquetas': etiquetas,
+                        'es_vegetariano': row.get('es_vegetariano'), 'es_vegano': row.get('es_vegano'),
+                        'es_sin_gluten': row.get('es_sin_gluten'), 'es_picante': row.get('es_picante'),
+                        'es_nuevo': row.get('es_nuevo')
                     })
         
         return render_template('gestion/descargas.html', restaurante=restaurante, menu=menu)
@@ -2496,7 +2500,8 @@ def api_menu_pdf():
             cur.execute("""
                 SELECT c.id as categoria_id, c.nombre as categoria_nombre, c.orden as categoria_orden,
                     p.id as plato_id, p.nombre as plato_nombre, p.descripcion, p.precio, 
-                    p.precio_oferta, p.imagen_url, p.etiquetas
+                    p.precio_oferta, p.imagen_url, p.etiquetas,
+                    p.es_vegetariano, p.es_vegano, p.es_sin_gluten, p.es_picante, p.es_nuevo
                 FROM categorias c 
                 LEFT JOIN platos p ON c.id = p.categoria_id AND p.activo = 1 AND p.restaurante_id = %s
                 WHERE c.restaurante_id = %s AND c.activo = 1 
@@ -2529,7 +2534,10 @@ def api_menu_pdf():
                         'precio': row['precio'],
                         'precio_oferta': row['precio_oferta'],
                         'imagen_url': row['imagen_url'],
-                        'etiquetas': etiquetas
+                        'etiquetas': etiquetas,
+                        'es_vegetariano': row.get('es_vegetariano'), 'es_vegano': row.get('es_vegano'),
+                        'es_sin_gluten': row.get('es_sin_gluten'), 'es_picante': row.get('es_picante'),
+                        'es_nuevo': row.get('es_nuevo')
                     })
             
             # Renderizar HTML
@@ -2543,6 +2551,24 @@ def api_menu_pdf():
                 fecha_generacion=fecha_generacion
             )
             
+            import re
+            safe_name = re.sub(r'[^A-Za-z0-9_-]+', '_', restaurante.get('nombre', 'menu')).strip('_') or 'menu'
+
+            # 1º ReportLab (Python puro, no necesita programas instalados en el servidor)
+            try:
+                from pdf_carta import generar_pdf_carta
+                url_carta = base_url.rstrip('/') + url_for('ver_menu_publico', url_slug=restaurante.get('url_slug', '')) if restaurante.get('url_slug') else ''
+                logo = restaurante.get('logo_url') or ''
+                logo_path = os.path.join(base_dir, logo.lstrip('/')) if logo.startswith('/static/') else None
+                response = make_response(generar_pdf_carta(restaurante, menu, url_carta, logo_path))
+                response.headers['Content-Type'] = 'application/pdf'
+                response.headers['Content-Disposition'] = f'attachment; filename="carta_{safe_name}.pdf"'
+                return response
+            except ImportError:
+                logger.warning("reportlab no instalado; se intenta con pdfkit")
+            except Exception:
+                logger.exception("Error generando PDF con ReportLab; se intenta con pdfkit")
+
             # Generar PDF usando pdfkit
             if PDFKIT_AVAILABLE:
                 try:
@@ -3106,8 +3132,8 @@ def api_platos():
                     return jsonify({'success': False, 'error': 'Precio inválido'}), 400
                 
                 # Procesar imagen - puede venir como archivo o ya subida previamente
-                imagen_url = data.get('imagen_url', '')
-                imagen_public_id = data.get('imagen_public_id')  # Puede venir del frontend si ya se subió
+                imagen_url = valor('imagen_url', '')
+                imagen_public_id = valor('imagen_public_id')  # Puede venir del frontend si ya se subió
 
                 if 'imagen' in request.files and request.files['imagen']:
                     file = request.files['imagen']
@@ -3353,7 +3379,20 @@ def api_plato(plato_id):
                 return jsonify(dict_from_row(plato))
                 
             if request.method == 'PUT':
-                data = request.get_json()
+                data = request.get_json() or {}
+                cur.execute("SELECT * FROM platos WHERE id = %s AND restaurante_id = %s", (plato_id, restaurante_id))
+                actual = cur.fetchone()
+                if not actual:
+                    return jsonify({'success': False, 'error': 'Plato no encontrado'}), 404
+                actual = dict_from_row(actual)
+
+                def valor(campo, defecto=None):
+                    # Lo que el formulario no manda se conserva (antes se reseteaba a 0: se perdían marcas y orden)
+                    return data[campo] if campo in data else actual.get(campo, defecto)
+
+                etiquetas = valor('etiquetas', '')
+                if isinstance(etiquetas, (list, tuple)):
+                    etiquetas = ','.join(str(e).strip() for e in etiquetas if str(e).strip())
                 
                 # Procesar imagen - puede venir como archivo o ya subida previamente
                 imagen_url = data.get('imagen_url', '')
@@ -3392,22 +3431,22 @@ def api_plato(plato_id):
                         orden = %s, activo = %s
                     WHERE id = %s AND restaurante_id = %s
                 ''', (
-                    data.get('categoria_id'),
-                    data.get('nombre'),
-                    data.get('descripcion', ''),
-                    data.get('precio', 0),
-                    data.get('precio_oferta'),
+                    valor('categoria_id'),
+                    valor('nombre'),
+                    valor('descripcion', ''),
+                    valor('precio', 0),
+                    valor('precio_oferta'),
                     imagen_url,
                     imagen_public_id,
-                    data.get('etiquetas', ''),
-                    data.get('es_vegetariano', 0),
-                    data.get('es_vegano', 0),
-                    data.get('es_sin_gluten', 0),
-                    data.get('es_picante', 0),
-                    data.get('es_nuevo', 0),
-                    data.get('es_popular', 0),
-                    data.get('orden', 0),
-                    data.get('activo', 1),
+                    etiquetas,
+                    valor('es_vegetariano', 0),
+                    valor('es_vegano', 0),
+                    valor('es_sin_gluten', 0),
+                    valor('es_picante', 0),
+                    valor('es_nuevo', 0),
+                    valor('es_popular', 0),
+                    valor('orden', 0),
+                    valor('activo', 1),
                     plato_id, restaurante_id
                 ))
                 
@@ -3840,10 +3879,20 @@ def api_mi_restaurante():
                 return jsonify(dict_from_row(cur.fetchone()))
                 
             if request.method == 'PUT':
-                data = request.get_json()
-                
+                data = request.get_json() or {}
+                cur.execute("SELECT * FROM restaurantes WHERE id = %s", (restaurante_id,))
+                actual = dict_from_row(cur.fetchone()) or {}
+
+                def valor(campo, defecto=''):
+                    # Lo que el formulario no manda se conserva: antes cambiar el logo borraba
+                    # horario, redes y contacto, y guardar el formulario borraba el lema.
+                    if campo in data:
+                        return data[campo]
+                    v = actual.get(campo)
+                    return defecto if v is None else v
+
                 # Validar email del restaurante si se proporciona
-                email_restaurante = data.get('email', '').strip()
+                email_restaurante = (valor('email') or '').strip()
                 if email_restaurante:
                     from validators import validar_email
                     email_valido, error_email = validar_email(email_restaurante)
@@ -3864,22 +3913,22 @@ def api_mi_restaurante():
                         mostrar_descripciones = %s, mostrar_imagenes = %s, moneda = %s
                     WHERE id = %s
                 ''', (
-                    data.get('nombre'),
-                    data.get('descripcion', ''),
-                    data.get('slogan', ''),
-                    data.get('telefono', ''),
-                    data.get('email', ''),
-                    data.get('direccion', ''),
-                    data.get('horario', ''),
-                    data.get('instagram', ''),
-                    data.get('facebook', ''),
-                    (data.get('tiktok') or '').strip()[:150],
-                    data.get('whatsapp', ''),
-                    data.get('logo_url', ''),
-                    data.get('mostrar_precios', 1),
-                    data.get('mostrar_descripciones', 1),
-                    data.get('mostrar_imagenes', 1),
-                    data.get('moneda', '$'),
+                    valor('nombre'),
+                    valor('descripcion'),
+                    valor('slogan'),
+                    valor('telefono'),
+                    valor('email'),
+                    valor('direccion'),
+                    valor('horario'),
+                    valor('instagram'),
+                    valor('facebook'),
+                    (valor('tiktok') or '').strip()[:150],
+                    valor('whatsapp'),
+                    valor('logo_url'),
+                    valor('mostrar_precios', 1),
+                    valor('mostrar_descripciones', 1),
+                    valor('mostrar_imagenes', 1),
+                    valor('moneda', '$'),
                     restaurante_id
                 ))
                 db.commit()
@@ -3887,7 +3936,7 @@ def api_mi_restaurante():
                 logger.info("Restaurante %s actualizado correctamente", restaurante_id)
                 
                 # Actualizar nombre en sesión
-                session['restaurante_nombre'] = data.get('nombre')
+                session['restaurante_nombre'] = valor('nombre')
                 
                 # Invalidar cache del menú público
                 invalidar_cache_restaurante(restaurante_id)

@@ -1305,6 +1305,10 @@
             .fila-stats > .column { max-width: none !important; width: auto !important; padding: 0 !important; }
             .fila-stats .stat-card { height: 100%; padding: .9rem !important; flex-direction: column; align-items: flex-start !important; text-align: left !important; gap: .5rem !important; }
         }
+        /* Íconos visibles sobre botones oscuros y sin franja gris del menú lateral escondido */
+        .button.is-primary i, .btn-primary i, .quick-action-btn.is-primary i, .quick-action-btn.is-dark i { color: #fff !important; }
+        @media (max-width: 768px) { .sidebar:not(.active) { box-shadow: none !important; } }
+
         /* Ventanas (modales) del panel: centradas y con su X adentro.
            Bulma trae su propio .modal-close fijo en la esquina de la pantalla; esto lo anula. */
         .modal-overlay { position: fixed !important; inset: 0 !important; width: 100vw; height: 100vh; padding: 16px; }

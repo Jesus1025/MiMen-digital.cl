@@ -248,7 +248,7 @@
                     <img src="{{ url_for('static', filename='uploads/qrs/' + qr_filename) }}" 
                          alt="QR" style="width: 150px; height: 150px;">
                 </div>
-                <p style="font-size: 0.8rem; margin-top: 1rem;">{{ menu_url }}</p>
+                <p style="font-size: 0.8rem; margin-top: 1rem; overflow-wrap: anywhere;">{{ menu_url_display or menu_url }}</p>
             </div>
             
             <div style="text-align: center; margin-top: 1rem;">

@@ -1,6 +1,7 @@
 {% extends "gestion/base_gestion.html" %}
 
 {% block title %}Descargas - Mi Restaurante{% endblock %}
+{% block page_title %}Descargas{% endblock %}
 
 {% block content %}
 <div class="content-area">
@@ -30,7 +31,7 @@
                                 <h3 class="title is-5" style="text-align: center; margin-bottom: 0.5rem;">
                                     Menú PDF
                                 </h3>
-                                <p class="subtitle is-6" style="text-align: center; color: #7f8c8d; margin-bottom: 1.5rem;">
+                                <p class="subtitle is-6" style="text-align: center; color: #7f8c8d; margin-top: 0; margin-bottom: 1.5rem;">
                                     Descarga completa de tu menú
                                 </p>
                                 <p style="font-size: 0.9rem; color: #666; margin-bottom: 1.5rem; line-height: 1.6;">
@@ -137,7 +138,7 @@
                                             <strong>{{ plato.nombre }}</strong>
                                             {% if plato.precio %}
                                                 <span style="float: right; color: #2c3e50; font-weight: bold;">
-                                                    ${{ "{:,.0f}".format(plato.precio) }}
+                                                    ${{ "{:,.0f}".format(plato.precio|float)|replace(",", ".") }}
                                                 </span>
                                             {% endif %}
                                         </li>
@@ -286,7 +287,7 @@ document.getElementById('btn-download-pdf').addEventListener('click', function()
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'menu.pdf';
+            a.download = 'carta-{{ session.get('url_slug') or 'menu' }}.pdf';
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
