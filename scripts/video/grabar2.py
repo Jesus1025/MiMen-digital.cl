@@ -213,15 +213,14 @@ def main():
             img.save(png)
             b64 = base64.b64encode(png.read_bytes()).decode()
             p.set_content(f"""<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>
-                html,body{{margin:0;height:100%;background:#e9e6df;overflow:hidden}}
-                img{{display:block;width:100%;margin:0;box-shadow:0 18px 44px rgba(0,0,0,.25);border-radius:6px;
-                     animation:a .8s cubic-bezier(.2,.8,.2,1) both,b 4s 1s ease-in-out both}}
-                @keyframes a{{from{{opacity:0;transform:translateY(40px)}}}}
-                @keyframes b{{to{{transform:translateY(-52%)}}}}</style></head>
+                html,body{{margin:0;height:100%;background:#e9e6df;overflow:hidden;display:grid;place-items:center}}
+                img{{display:block;width:94%;max-height:92vh;object-fit:contain;box-shadow:0 18px 44px rgba(0,0,0,.25);border-radius:6px;
+                     animation:a .8s cubic-bezier(.2,.8,.2,1) both}}
+                @keyframes a{{from{{opacity:0;transform:translateY(40px) scale(.96)}}}}</style></head>
                 <body><img src="data:image/png;base64,{b64}"></body></html>""")
             guion["cortes"].append([i, ahora()])
             titulo("Lista para imprimir", "con tus precios siempre al día")
-            esperar(5.4)
+            esperar(4.2)
 
         guion["fin"] = ahora()
         esperar(0.3)
