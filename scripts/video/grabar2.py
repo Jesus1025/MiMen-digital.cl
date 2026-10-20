@@ -5,7 +5,8 @@ Graba una copia local de la app (127.0.0.1:8099, arrancada con FLASK_ENV=develop
 La sesión del dueño llega como cookie firmada (sesion.py): no se usa ninguna contraseña.
 Todo lo que el guion del dueño cambia se revierte por base de datos al terminar (lo hace hacer_videos.sh).
 
-Uso: video-venv/bin/python grabar2.py <cliente|dueno> <carpeta_salida> [cookie_session]
+Uso: video-venv/bin/python grabar2.py <cliente|dueno> <carpeta_salida> <slug> [cookie_session]
+Los platos y textos de cada local están en locales.json.
 Deja en la carpeta: pantalla.webm y guion.json (títulos con su segundo y tramos a cortar).
 """
 import base64
@@ -20,7 +21,9 @@ from playwright.sync_api import sync_playwright
 BASE = "http://127.0.0.1:8099"
 MODO = sys.argv[1]
 SALIDA = Path(sys.argv[2])
-COOKIE = sys.argv[3] if len(sys.argv) > 3 else ""
+SLUG = sys.argv[3]
+COOKIE = sys.argv[4] if len(sys.argv) > 4 else ""
+L = json.loads((Path(__file__).parent / "locales.json").read_text(encoding="utf8"))[SLUG]
 SALIDA.mkdir(parents=True, exist_ok=True)
 
 DEDO = """
@@ -123,7 +126,7 @@ def main():
             return p.locator(f'[data-control][data-nombre="{nombre}"] [data-mas]')
 
         if MODO == "cliente":
-            abrir(BASE + "/menu/lacomarca?refresh=1", limpiar=True)
+            abrir(BASE + f"/menu/{SLUG}?refresh=1", limpiar=True)
             titulo("Escanean el QR de la mesa", "y ven tu carta al instante")
             esperar(2.4)
             deslizar(260)
@@ -131,23 +134,23 @@ def main():
             p.evaluate("document.querySelector('.carrusel').scrollBy({left: 520, behavior: 'smooth'})")
             esperar(2.4)
             titulo("Buscan por categoría", "sin perderse en la carta")
-            tocar(p.locator('.cat[data-id="cat-2"]'), 1.6)
+            tocar(p.locator(f'.cat[data-id="{L["categoria_2"]}"]'), 1.6)
             titulo("Tocan un plato", "y lo ven en grande")
-            tocar(p.locator(".plato", has=p.locator(".nombre", has_text="Churrasco italiano")).first, 2.2)
+            tocar(p.locator(".plato", has=p.locator(".nombre", has_text=L["plato_foto"])).first, 2.2)
             tocar(p.locator("#fichaMas"), 0.7)
             titulo("Arman su pedido", "y ven el total al tiro")
             tocar(p.locator("#fichaAgregar"), 1.2)
-            ir_a("Completos")
+            ir_a(L["nota_seccion"])
             titulo("¿Sin mayo? Lo anotan", "cada producto lleva su nota")
-            tocar(p.locator(".plato", has=p.locator(".nombre", has_text="Completo")).first, 1.3)
-            escribir(p.locator("#fichaNota"), "sin mayo")
+            tocar(p.locator(".plato", has=p.locator(".nombre", has_text=L["nota_plato"])).first, 1.3)
+            escribir(p.locator("#fichaNota"), L["nota_texto"])
             tocar(p.locator("#fichaAgregar"), 1.0)
-            ir_a("Bebidas")
-            tocar(agregar("Bebida en lata"), 1.0)
+            ir_a(L["bebida_seccion"])
+            tocar(agregar(L["bebida"]), 1.0)
             titulo("Revisan su pedido", "con el total exacto")
             tocar(p.locator("#barraPedido"), 1.8)
             titulo("Eligen su bebida", "nada de “una bebida cualquiera”")
-            escribir(p.locator('#pedidoItems .nota[aria-label="Nota para Bebida en lata"]'), "Coca-Cola")
+            escribir(p.locator(f'#pedidoItems .nota[aria-label="Nota para {L["bebida"]}"]'), L["bebida_nota"])
             esperar(0.8)
             titulo("Y se lo muestran a quien atiende", "o lo envían por WhatsApp")
             tocar(p.locator("#pedidoMostrar"), 4.2)
@@ -158,33 +161,36 @@ def main():
             esperar(2.6)
             abrir(BASE + "/gestion/platos")
             titulo("¿Se acabó un producto?", "lo pausas con un toque")
-            escribir(p.locator("#buscarPlato"), "Chorrillana veg")
+            escribir(p.locator("#buscarPlato"), L["pausa_buscar"])
             esperar(0.4)
             tocar(p.locator(".plato-estado").first, 1.8)
-            abrir(BASE + "/menu/lacomarca?refresh=1", limpiar=True)
+            abrir(BASE + f"/menu/{SLUG}?refresh=1", limpiar=True)
             titulo("Y sale de la carta al instante", "sin llamar a nadie")
-            ir_a("Chorrillanas")
+            ir_a(L["pausa_seccion"])
             esperar(2.2)
             abrir(BASE + "/gestion/platos")
             titulo("¿Subiste un precio?", "lo cambias en segundos")
-            escribir(p.locator("#buscarPlato"), "Churrasco ital")
+            escribir(p.locator("#buscarPlato"), L["precio_buscar"])
             esperar(0.4)
             tocar(p.locator(".btn-accion-editar").first, 1.3)
-            escribir(p.locator("#platoPrecio"), "3500", borrar=True)
+            escribir(p.locator("#platoPrecio"), L["precio_nuevo"], borrar=True)
             tocar(p.locator('.modal-overlay.active .btn-primary[onclick="guardarPlato()"]'), 1.5)
-            abrir(BASE + "/menu/lacomarca?refresh=1", limpiar=True)
+            abrir(BASE + f"/menu/{SLUG}?refresh=1", limpiar=True)
             titulo("Tu carta ya muestra el nuevo precio", "en todos los celulares")
-            ir_a("Churrascos")
+            ir_a(L["precio_seccion"])
             esperar(2.4)
             abrir(BASE + "/gestion/mi-restaurante")
-            titulo("¿Abres el sábado?", "cambias tu horario")
+            h = L.get("horario", {"dia": "sabado", "titulo": "¿Abres el sábado?", "abrir": True,
+                                  "apertura": "10:00", "cierre": "14:00"})
+            titulo(h["titulo"], "cambias tu horario")
             p.evaluate("window.__ocultar && window.__ocultar()")
-            sab = p.locator('.horario-dia[data-dia="sabado"]')
+            sab = p.locator(f'.horario-dia[data-dia="{h["dia"]}"]')
             sab.scroll_into_view_if_needed()
             p.evaluate("window.scrollBy(0, 120)")
             esperar(0.8)
-            tocar(sab.locator(".horario-toggle-slider"), 0.9)
-            for clase, hora in ((".hora-apertura", "10:00"), (".hora-cierre", "14:00")):
+            if h.get("abrir"):
+                tocar(sab.locator(".horario-toggle-slider"), 0.9)
+            for clase, hora in ((".hora-apertura", h["apertura"]), (".hora-cierre", h["cierre"])):
                 campo = sab.locator(clase)
                 tocar(campo, 0.3)
                 campo.fill(hora)

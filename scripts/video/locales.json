@@ -1,0 +1,41 @@
+{
+  "lacomarca": {
+    "nombre": "La Comarca",
+    "categoria_2": "cat-2",
+    "plato_foto": "Churrasco italiano",
+    "nota_seccion": "Completos",
+    "nota_plato": "Completo",
+    "nota_texto": "sin mayo",
+    "bebida_seccion": "Bebidas",
+    "bebida": "Bebida en lata",
+    "bebida_nota": "Coca-Cola",
+    "pausa_buscar": "Chorrillana veg",
+    "pausa_seccion": "Chorrillanas",
+    "precio_buscar": "Churrasco ital",
+    "precio_nuevo": "3500",
+    "precio_seccion": "Churrascos"
+  },
+  "fullappetit": {
+    "nombre": "Full Appetit",
+    "categoria_2": "cat-2",
+    "plato_foto": "Promo 2x1 Churrasco A Lo Pobre",
+    "nota_seccion": "Vienesas",
+    "nota_plato": "Vienesa Italiana Grande",
+    "nota_texto": "sin mayo",
+    "bebida_seccion": "Bebidas",
+    "bebida": "Bebida en lata 350 ml",
+    "bebida_nota": "Coca-Cola sin azúcar",
+    "pausa_buscar": "Chorrillana Fam",
+    "pausa_seccion": "Chorrillanas",
+    "precio_buscar": "Terrible",
+    "precio_nuevo": "9990",
+    "precio_seccion": "Hamburguesas",
+    "horario": {
+      "dia": "domingo",
+      "titulo": "¿Atiendes más tarde el domingo?",
+      "abrir": false,
+      "apertura": "12:00",
+      "cierre": "01:00"
+    }
+  }
+}

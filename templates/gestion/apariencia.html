@@ -128,6 +128,9 @@
     .theme-oceano .theme-header { background: radial-gradient(120% 90% at 85% 0%, #0f8b8d, #0a4a5c); }
     .theme-oceano .theme-body { background: #eaf4f6; }
     .theme-oceano .theme-item { background: #0f8b8d; }
+    .theme-fuego .theme-header { background: radial-gradient(120% 90% at 85% 0%, #6a161b, #120b0c); }
+    .theme-fuego .theme-body { background: #141011; }
+    .theme-fuego .theme-item { background: #e3262f; }
     .theme-neon .theme-header { background: radial-gradient(120% 90% at 85% 0%, #1d1d2b, #0d0d12); }
     .theme-neon .theme-body { background: #0d0d12; }
     .theme-neon .theme-item { background: #3dffa2; }
@@ -501,6 +504,21 @@
                     </div>
                     <div class="theme-info">
                         <div class="theme-name">Océano</div>
+                    </div>
+                </div>
+                
+                <div class="theme-card theme-fuego {% if restaurante.tema == 'fuego' %}active{% endif %}" 
+                     onclick="seleccionarTema('fuego')" style="position: relative;">
+                    <div class="theme-preview">
+                        <div class="theme-header">🔥 Mi Restaurante</div>
+                        <div class="theme-body">
+                            <div class="theme-item" style="width: 80%;"></div>
+                            <div class="theme-item" style="width: 60%;"></div>
+                            <div class="theme-item" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-name">Fuego</div>
                     </div>
                 </div>
                 

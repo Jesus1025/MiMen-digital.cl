@@ -1,6 +1,6 @@
 """Arma el video final 1080x1920: fondo de marca + título grande arriba + pantalla del celular enmarcada.
 
-Uso: video-venv/bin/python montar2.py <carpeta_grabacion> <pista.mp3> <salida.mp4> <portada|título> <cierre|título>
+Uso: video-venv/bin/python montar2.py <carpeta_grabacion> <pista.mp3> <salida.mp4> <portada|título> <cierre|título> [nombre del local]
 Lee pantalla.mp4 y guion.json que deja grabar2.py.
 """
 import json
@@ -12,6 +12,7 @@ from playwright.sync_api import sync_playwright
 
 CARPETA, PISTA, SALIDA = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
 PORTADA, CIERRE = sys.argv[4], sys.argv[5]
+NOMBRE_LOCAL = sys.argv[6] if len(sys.argv) > 6 else "La Comarca"
 TMP = CARPETA / "montaje"
 TMP.mkdir(exist_ok=True)
 
@@ -38,7 +39,7 @@ h1{{font-size:{76 if len(titulo) < 26 else 64}px;line-height:1.02}}
 p{{font-size:38px;font-weight:600;opacity:.82;margin-top:14px}}
 .sombra{{position:absolute;left:{SX - RIM}px;top:{SY - RIM}px;width:{SW + 2 * RIM}px;height:{SH + 2 * RIM}px;border-radius:{R_OUT}px;
  box-shadow:0 40px 120px rgba(0,0,0,.55),0 0 0 2px rgba(255,255,255,.08)}}</style></head>
-<body><div class="chip"><i>M</i>La Comarca · MiMenú</div><div class="t"><h1>{titulo}</h1><p>{bajada}</p></div><div class="sombra"></div></body></html>"""
+<body><div class="chip"><i>M</i>{NOMBRE_LOCAL} · MiMenú</div><div class="t"><h1>{titulo}</h1><p>{bajada}</p></div><div class="sombra"></div></body></html>"""
 
 
 def html_marco():

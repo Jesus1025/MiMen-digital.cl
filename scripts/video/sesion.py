@@ -13,6 +13,9 @@ with app.app_context():
                    FROM usuarios_admin u JOIN restaurantes r ON r.id = u.restaurante_id
                    WHERE r.url_slug = %s AND u.activo = 1 AND u.rol <> 'superadmin' ORDER BY u.id LIMIT 1""", (slug,))
     u = cur.fetchone()
+    if not u:  # local sin usuario todavía: sesión de solo demo para la copia local
+        cur.execute("SELECT id AS restaurante_id, nombre AS rn, url_slug FROM restaurantes WHERE url_slug = %s", (slug,))
+        u = dict(cur.fetchone(), id=0, username="demo", nombre="Demo", rol="admin")
 datos = {"user_id": u["id"], "username": u["username"], "nombre": u["nombre"], "rol": u["rol"],
          "restaurante_id": u["restaurante_id"], "restaurante_nombre": u["rn"], "url_slug": u["url_slug"]}
 print(app.session_interface.get_signing_serializer(app).dumps(datos))
