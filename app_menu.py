@@ -2726,9 +2726,9 @@ def api_crear_preferencia_pago():
                 precio, nombre_plan = int(fila['precio_mensual']), fila['nombre']
         if not precio:
             try:
-                precio = int(get_config_value('precio_mensual', '5990'))
+                precio = int(get_config_value('precio_mensual', '7990'))
             except (ValueError, TypeError):
-                precio = 5990
+                precio = 7990
         
         # Configurar descripción según plan
         if plan_type == 'mensual':
@@ -5288,7 +5288,7 @@ def api_superadmin_stats_extended():
             # ============================================
             
             config = get_config_global()
-            precio_mensual = int(config.get('precio_mensual', 5990))
+            precio_mensual = int(config.get('precio_mensual', 7990))
             # Ingreso real: precio del plan de cada local activo (Local o Tótem)
             ingreso_mensual = ingreso_planes or subs_activas * precio_mensual
             ingreso_anual_proyectado = ingreso_mensual * 12
