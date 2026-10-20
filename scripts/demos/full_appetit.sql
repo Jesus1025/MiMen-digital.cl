@@ -12,7 +12,7 @@ INSERT INTO restaurantes
 SELECT 'Full Appetit', 'fullappetit', 'fuego', '#e3262f', '#141011', 'Juntos desde 2016 · Carrascal 4805',
   'Churrascos, hamburguesas, chorrillanas y completos en Quinta Normal. Terraza, delivery y retiro.',
   '+56 9 6285 7534', 'Av. Carrascal 4805, Quinta Normal', '{"lunes": {"abierto": true, "apertura": "11:00", "cierre": "01:00"}, "martes": {"abierto": true, "apertura": "11:00", "cierre": "01:00"}, "miercoles": {"abierto": true, "apertura": "11:00", "cierre": "01:00"}, "jueves": {"abierto": true, "apertura": "11:00", "cierre": "01:00"}, "viernes": {"abierto": true, "apertura": "11:00", "cierre": "01:00"}, "sabado": {"abierto": true, "apertura": "11:00", "cierre": "01:00"}, "domingo": {"abierto": true, "apertura": "12:00", "cierre": "00:00"}}',
-  'full_appetit', '56962857534', '/static/uploads/fullappetit/logo.jpg', '/static/uploads/fullappetit/chacarero_2x.jpg', 1, 1, 1, '$',
+  'full_appetit', '56962857534', '/static/uploads/fullappetit/logo3.jpg', '/static/uploads/fullappetit/chacarero_2x.jpg', 1, 1, 1, '$',
   (SELECT id FROM planes WHERE nombre = 'Local vecino' LIMIT 1), 1, 'prueba', DATE_ADD(CURDATE(), INTERVAL 30 DAY),
   'Churrascos, hamburguesas y chorrillanas en Quinta Normal',
   'Desde 2016 en Av. Carrascal 4805 preparamos churrascos en pan frica, hamburguesas de 185 g, chorrillanas para compartir y completos. Te esperamos de lunes a domingo con terraza, o pide por WhatsApp para retiro y delivery.',
