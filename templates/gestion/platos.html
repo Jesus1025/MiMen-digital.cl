@@ -1174,7 +1174,7 @@
         document.getElementById('platoId').value = plato.id;
         document.getElementById('platoNombre').value = plato.nombre;
         document.getElementById('platoCategoria').value = plato.categoria_id;
-        document.getElementById('platoPrecio').value = plato.precio;
+        document.getElementById('platoPrecio').value = Math.round(Number(plato.precio) || 0);
         document.getElementById('platoDescripcion').value = plato.descripcion || '';
         document.getElementById('platoEtiquetas').value = plato.etiquetas || '';
         
@@ -1286,7 +1286,7 @@
         const data = {
             nombre: document.getElementById('platoNombre').value,
             categoria_id: parseInt(document.getElementById('platoCategoria').value),
-            precio: parseFloat(document.getElementById('platoPrecio').value),
+            precio: Math.round(parseFloat(document.getElementById('platoPrecio').value)),
             descripcion: document.getElementById('platoDescripcion').value,
             imagen_url: imgPrincipal ? imgPrincipal.url : '',
             imagen_public_id: imgPrincipal ? imgPrincipal.public_id : null,
