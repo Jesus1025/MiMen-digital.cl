@@ -57,7 +57,7 @@ UPDATE platos SET imagen_url = CONCAT('https://images.unsplash.com/photo-1762284
   WHERE restaurante_id = @r AND nombre LIKE 'Salchipapas%';
 UPDATE platos SET imagen_url = CONCAT('https://images.unsplash.com/photo-1759302307623-0ed463b8a9b9', @q)
   WHERE restaurante_id = @r AND nombre = 'Sopaipilla';
-UPDATE platos SET imagen_url = CONCAT('https://images.unsplash.com/photo-1527960471264-932f39eb5846', @q)
+UPDATE platos SET imagen_url = CONCAT('https://images.unsplash.com/photo-1605548230624-8d2d0419c517', @q)
   WHERE restaurante_id = @r AND nombre = 'Bebida en lata';
 
 SELECT COUNT(*) total, SUM(imagen_url IS NOT NULL AND imagen_url <> '') con_foto
