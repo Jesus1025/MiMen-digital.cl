@@ -235,6 +235,45 @@
         }
         .cerrar svg { width: 18px; height: 18px; }
 
+        /* ---------- Mi pedido (suma referencial, sin pago) ---------- */
+        .lista li { position: relative; }
+        .sumar {
+            position: absolute; right: 0; bottom: 14px; z-index: 2; width: 38px; height: 38px; border-radius: 50%;
+            background: var(--accent); color: var(--on-accent); display: grid; place-items: center;
+            box-shadow: 0 6px 16px rgba(0,0,0,.22); transition: transform .15s ease;
+        }
+        .sumar:active { transform: scale(.9); }
+        .sumar svg { width: 20px; height: 20px; }
+        .sumar .cant { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px; background: var(--ink); color: var(--paper); font: 700 12px/20px "Hanken Grotesk", sans-serif; text-align: center; }
+        .sumar .cant:empty { display: none; }
+        .lista li:not(:has(.mini)) .cuerpo { padding-right: 48px; }
+        .contador { display: inline-flex; align-items: center; gap: 4px; background: var(--chip); border-radius: 14px; padding: 4px; }
+        .contador button { width: 40px; height: 40px; border-radius: 11px; background: var(--paper); color: var(--ink); font: 700 20px/1 "Hanken Grotesk", sans-serif; display: grid; place-items: center; }
+        .contador span { min-width: 30px; text-align: center; font-weight: 700; font-size: 17px; }
+        .agregar-fila { display: flex; gap: 10px; align-items: center; margin-top: 20px; }
+        .agregar-fila .agregar { flex: 1; height: 52px; border-radius: 16px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .hoja .pedir.secundario { background: var(--chip); color: var(--ink); margin-top: 10px; }
+        .barra-pedido {
+            position: fixed; left: 16px; right: 16px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 31; max-width: 560px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 58px; padding: 0 18px 0 14px;
+            border-radius: 18px; background: var(--ink); color: var(--paper); font-weight: 700; box-shadow: 0 14px 34px rgba(0,0,0,.3);
+            transform: translateY(160%); transition: transform .3s cubic-bezier(.2,.9,.25,1);
+        }
+        .barra-pedido.ver { transform: none; }
+        .barra-pedido .n { display: inline-grid; place-items: center; min-width: 30px; height: 30px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-size: 15px; margin-right: 10px; }
+        .barra-pedido .t { font: 800 18px "Bricolage Grotesque", sans-serif; }
+        body.con-pedido .flotante, body.con-pedido .subir { bottom: calc(86px + env(safe-area-inset-bottom)); }
+        .items { list-style: none; margin-top: 16px; display: grid; gap: 4px; }
+        .items li { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+        .items .nom { font-weight: 700; }
+        .items .sub { color: var(--soft); font-size: 14px; }
+        .items .contador { grid-row: span 2; }
+        .items .contador button { width: 34px; height: 34px; }
+        .total-fila { display: flex; justify-content: space-between; align-items: baseline; margin-top: 18px; }
+        .total-fila b { font: 800 28px "Bricolage Grotesque", sans-serif; }
+        .nota-pedido { color: var(--soft); font-size: 13.5px; margin-top: 6px; }
+        .vaciar { margin-top: 14px; color: var(--soft); font-weight: 600; text-decoration: underline; font-size: 14px; }
+
         /* ---------- Entrada ---------- */
         @media (prefers-reduced-motion: no-preference) {
             .portada .marca, .portada h1, .portada .lema, .portada .acciones { animation: sube .7s cubic-bezier(.2,.8,.2,1) both; }
@@ -265,6 +304,7 @@
     <symbol id="i-lista" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
     <symbol id="i-arriba" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-local" viewBox="0 0 24 24"><path d="M4 10 12 4l8 6v10H4V10Zm6 10v-6h4v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
     <symbol id="i-ig" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/></symbol>
 </svg>
@@ -378,6 +418,9 @@
                     <div class="mini"><img src="{{ plato.fotos[0] }}" alt="{{ plato.nombre }}" loading="lazy"></div>
                     {% endif %}
                 </button>
+                {% if restaurante.mostrar_precios != 0 %}
+                <button class="sumar" type="button" data-sumar="{{ plato.id }}" aria-label="Agregar {{ plato.nombre }} a mi pedido"><svg><use href="#i-mas"/></svg><span class="cant"></span></button>
+                {% endif %}
             </li>
             {% endfor %}
         </ul>
@@ -445,7 +488,31 @@
             <p class="desc" id="fichaDesc"></p>
             <div class="marcas" id="fichaMarcas"></div>
             <div class="precio num" id="fichaPrecio"></div>
-            {% if wa %}<a class="pedir" id="fichaPedir" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>Pedir por WhatsApp</a>{% endif %}
+            <div class="agregar-fila" id="fichaAgregarFila">
+                <div class="contador"><button type="button" id="fichaMenos" aria-label="Quitar uno">−</button><span id="fichaCant" class="num">1</span><button type="button" id="fichaMas" aria-label="Agregar uno">+</button></div>
+                <button type="button" class="agregar" id="fichaAgregar">Agregar</button>
+            </div>
+            {% if wa %}<a class="pedir secundario" id="fichaPedir" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>Pedir solo este por WhatsApp</a>{% endif %}
+        </div>
+    </div>
+</div>
+
+<button type="button" class="barra-pedido" id="barraPedido" aria-label="Ver mi pedido">
+    <span><span class="n num" id="barraN">0</span>Ver mi pedido</span>
+    <span class="t num" id="barraTotal">$0</span>
+</button>
+
+<div class="ficha" id="pedido" aria-hidden="true">
+    <div class="velo" data-cerrar-pedido></div>
+    <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="tituloPedido">
+        <button class="cerrar" data-cerrar-pedido aria-label="Cerrar" style="background:var(--chip);color:var(--ink)"><svg><use href="#i-x"/></svg></button>
+        <div class="contenido">
+            <h2 id="tituloPedido">Mi pedido</h2>
+            <ul class="items" id="pedidoItems"></ul>
+            <div class="total-fila"><span>Total</span><b class="num" id="pedidoTotal">$0</b></div>
+            <p class="nota-pedido">Total referencial según los precios de la carta. El pago se coordina con el local.</p>
+            {% if wa %}<a class="pedir" id="pedidoEnviar" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg>Enviar pedido por WhatsApp</a>{% endif %}
+            <button type="button" class="vaciar" id="pedidoVaciar">Vaciar pedido</button>
         </div>
     </div>
 </div>
@@ -596,6 +663,8 @@
         $("#fichaMarcas").innerHTML = origen ? origen.innerHTML : "";
         var pedir = $("#fichaPedir");
         if (pedir) pedir.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent("Hola, quiero pedir: " + p.nombre);
+        fichaId = id; fichaCant = 1; pintarFicha();
+        $("#fichaAgregarFila").style.display = p.precio != null ? "" : "none";
         ficha.classList.add("abierta"); ficha.setAttribute("aria-hidden", "false");
         document.body.style.overflow = "hidden";
         $(".cerrar", ficha).focus();
@@ -612,6 +681,74 @@
         var i = Math.round(this.scrollLeft / this.clientWidth);
         $$("#fichaPuntos span").forEach(function (s, k) { s.classList.toggle("on", k === i); });
     }, { passive: true });
+
+    /* ---------- Mi pedido: suma referencial, sin pago (queda en este celular) ---------- */
+    var clave = "mimenu-pedido-{{ restaurante.url_slug }}", pedido = {};
+    try { pedido = JSON.parse(localStorage.getItem(clave)) || {}; } catch (e) { pedido = {}; }
+    Object.keys(pedido).forEach(function (id) { if (!platos[id] || platos[id].precio == null || !(pedido[id] > 0)) delete pedido[id]; });
+    var precioDe = function (id) { var p = platos[id]; return Number(p.oferta || p.precio) || 0; };
+    var fichaId = null, fichaCant = 1;
+    var barraPedido = $("#barraPedido"), hojaPedido = $("#pedido");
+
+    function guardar() { try { localStorage.setItem(clave, JSON.stringify(pedido)); } catch (e) {} }
+    function cambiar(id, d) {
+        var n = (pedido[id] || 0) + d;
+        if (n > 0) pedido[id] = Math.min(n, 99); else delete pedido[id];
+        guardar(); pintar();
+    }
+    function resumen() {
+        var n = 0, total = 0;
+        Object.keys(pedido).forEach(function (id) { n += pedido[id]; total += pedido[id] * precioDe(id); });
+        return { n: n, total: total };
+    }
+    function pintarFicha() {
+        if (!fichaId || !platos[fichaId] || platos[fichaId].precio == null) return;
+        $("#fichaCant").textContent = fichaCant;
+        $("#fichaAgregar").textContent = "Agregar · " + fmt(fichaCant * precioDe(fichaId));
+    }
+    function pintar() {
+        var r = resumen();
+        $$("[data-sumar]").forEach(function (b) { $(".cant", b).textContent = pedido[b.dataset.sumar] || ""; });
+        $("#barraN").textContent = r.n;
+        $("#barraTotal").textContent = fmt(r.total);
+        barraPedido.classList.toggle("ver", r.n > 0);
+        document.body.classList.toggle("con-pedido", r.n > 0);
+        var lista = $("#pedidoItems"); lista.innerHTML = "";
+        var lineas = [];
+        Object.keys(pedido).forEach(function (id) {
+            var p = platos[id], c = pedido[id], li = document.createElement("li");
+            var nom = document.createElement("span"); nom.className = "nom"; nom.textContent = p.nombre;
+            var sub = document.createElement("span"); sub.className = "sub num"; sub.textContent = c + " × " + fmt(precioDe(id)) + " = " + fmt(c * precioDe(id));
+            var cont = document.createElement("div"); cont.className = "contador";
+            cont.innerHTML = '<button type="button" aria-label="Quitar uno">−</button><span class="num"></span><button type="button" aria-label="Agregar uno">+</button>';
+            $("span", cont).textContent = c;
+            cont.children[0].addEventListener("click", function () { cambiar(id, -1); });
+            cont.children[2].addEventListener("click", function () { cambiar(id, 1); });
+            li.append(nom, cont, sub); lista.appendChild(li);
+            lineas.push("• " + c + " × " + p.nombre + " (" + fmt(c * precioDe(id)) + ")");
+        });
+        $("#pedidoTotal").textContent = fmt(r.total);
+        var enviar = $("#pedidoEnviar");
+        if (enviar) enviar.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent("Hola, quiero hacer este pedido:\n" + lineas.join("\n") + "\n\nTotal: " + fmt(r.total));
+        if (!r.n && hojaPedido.classList.contains("abierta")) cerrarPedido();
+    }
+    function abrirPedido() { hojaPedido.classList.add("abierta"); hojaPedido.setAttribute("aria-hidden", "false"); document.body.style.overflow = "hidden"; $(".cerrar", hojaPedido).focus(); }
+    function cerrarPedido() { hojaPedido.classList.remove("abierta"); hojaPedido.setAttribute("aria-hidden", "true"); document.body.style.overflow = ""; }
+
+    $$("[data-sumar]").forEach(function (b) {
+        b.addEventListener("click", function () {
+            cambiar(b.dataset.sumar, 1);
+            b.animate && b.animate([{ transform: "scale(1.25)" }, { transform: "scale(1)" }], { duration: 220 });
+        });
+    });
+    $("#fichaMenos").addEventListener("click", function () { if (fichaCant > 1) { fichaCant--; pintarFicha(); } });
+    $("#fichaMas").addEventListener("click", function () { if (fichaCant < 99) { fichaCant++; pintarFicha(); } });
+    $("#fichaAgregar").addEventListener("click", function () { cambiar(fichaId, fichaCant); cerrar(); });
+    barraPedido.addEventListener("click", abrirPedido);
+    $$("[data-cerrar-pedido]", hojaPedido).forEach(function (b) { b.addEventListener("click", cerrarPedido); });
+    $("#pedidoVaciar").addEventListener("click", function () { pedido = {}; guardar(); pintar(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && hojaPedido.classList.contains("abierta")) cerrarPedido(); });
+    pintar();
 })();
 </script>
 </body>
