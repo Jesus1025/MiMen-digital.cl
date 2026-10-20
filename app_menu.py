@@ -1905,6 +1905,21 @@ def ver_menu_publico(url_slug):
 # RUTAS DE AUTENTICACIÓN
 # ============================================================
 
+try:
+    from flask_wtf.csrf import CSRFError
+
+    @app.errorhandler(CSRFError)
+    def csrf_vencido(e):
+        """Formulario abierto desde antes (sesión cerrada o vencida): recargar con aviso en vez de 'Bad Request'."""
+        logger.info("CSRF rechazado en %s: %s", request.path, e.description)
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'error': 'Tu sesión expiró. Recarga la página e intenta de nuevo.'}), 400
+        flash('La página estaba abierta desde hace rato. Inténtalo de nuevo.', 'info')
+        return redirect(request.path if request.path in ('/login',) else url_for('login'))
+except ImportError:
+    pass
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Página de inicio de sesión con protección contra brute force."""
