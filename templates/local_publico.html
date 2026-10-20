@@ -156,6 +156,26 @@
             .tarjeta h3 { font-size: 21px; margin-bottom: 10px; }
             .horario { font-size: 15.5px; }
             .final { padding: 44px 20px; border-radius: 24px; }
+
+            /* Más compacto y cómodo con el pulgar */
+            section { padding: 44px 0; }
+            .portada { min-height: min(74svh, 600px); }
+            .portada h1 { text-shadow: 0 2px 18px rgba(0,0,0,.35); }
+            .portada::after { background: linear-gradient(180deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.05) 30%, rgba(0,0,0,.82) 100%); }
+            .nosotros h2 { margin-bottom: 4px; }
+            .plato { flex-basis: 70%; border-radius: 18px; }
+            .plato .info { padding: 12px 14px 14px; }
+            .plato b { font-size: 17px; }
+            /* Galería: se desliza de lado en vez de una columna larga */
+            .galeria { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 10px; margin: 0 -18px; padding: 0 18px 6px; scroll-padding: 0 18px; scrollbar-width: none; grid-auto-rows: auto; }
+            .galeria::-webkit-scrollbar { display: none; }
+            .galeria a, .galeria a:nth-child(5n+1) { flex: 0 0 82%; aspect-ratio: 4/3; scroll-snap-align: start; border-radius: 16px; }
+            .horario td { padding: 7px 0; }
+            .dato { padding: 8px 0; font-size: 15.5px; }
+            .red { height: 44px; font-size: 14.5px; }
+            .visita .mapa { height: 260px !important; }
+            .final h2 { font-size: 28px; }
+            .pie { padding-top: 24px; }
         }
 
         /* Llamado final */

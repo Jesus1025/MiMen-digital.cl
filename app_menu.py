@@ -2380,6 +2380,8 @@ def api_guardar_pagina():
                   1 if data.get('activa', True) else 0,
                   session['restaurante_id']))
             db.commit()
+        # La carta muestra u oculta el botón "El local" según pagina_activa
+        invalidar_cache_restaurante(session['restaurante_id'])
         return jsonify({'success': True})
     except Exception:
         logger.exception("Error guardando la página del local")
